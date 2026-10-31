@@ -124,6 +124,8 @@ class SqliteSessionStore:
                 if delivery.session_id != session_id or delivery.status != 'pending_delivery' or delivery.lease_until is not None:
                     raise DomainError('invalid_delivery',409)
                 action = delivery.payload
+                if delivery.kind == 'action' and action.order_id != before.order_id:
+                    raise DomainError('invalid_delivery_order', 409)
                 coin = _dump((before.run_id,before.order_id)) if delivery.kind == 'action' and action.kind == 'coins' else None
                 self.connection.execute('INSERT INTO deliveries VALUES(?,?,?,?,?,?,?,?)', (delivery.id,session_id,delivery.key,coin,session_id if delivery.kind == 'handoff' else None,_dump(delivery),delivery.status,None))
             return mutation.response

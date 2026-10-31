@@ -110,10 +110,33 @@ def test_cancel_durable_and_late_failure_rolls_back_every_table(tmp_path):
     a = SqliteSessionStore(path)
     assert a.get_cancellation('p','s','cancel') == cancel
     before = a.history('p','s')
+
+    # The last delivery conflicts only after fresh messages/evidence, a changed
+    # cancellation and the first outbox row/handoff reservation were written.
+    from care_truc.models import HandoffSummary
+    summary = HandoffSummary('handoff', 's', 'reason', 'need', (), (), (), None, ())
+    handoff = PendingDelivery('fresh-handoff', 's', 'handoff', 'fresh-handoff',
+                              summary, 'pending_delivery', None)
+    def late_conflict(s):
+        mutation = with_delivery(s)
+        return replace(
+            mutation,
+            messages=(StoredMessage('fresh-message', 'customer', 'new text', NOW),),
+            evidence=(StoredEvidence('fresh-evidence', 'new public', 'new trace'),),
+            pending_cancel=replace(cancel, status='confirmed'),
+            deliveries=(handoff, mutation.deliveries[0]),
+        )
     with pytest.raises(DomainError):
-        a.mutate('p','s','r2','hash',change)
+        a.mutate('p','s','r2','hash',late_conflict)
     assert a.history('p','s') == before
-    assert a.connection.execute('SELECT count(*) FROM requests').fetchone()[0] == 1
+    assert a.get_cancellation('p', 's', 'cancel') == cancel
+    assert a.staff_trace('s') == (StoredEvidence('e-s', 'public', 'private'),)
+    for table in ('requests', 'messages', 'evidence', 'cancellations', 'deliveries'):
+        assert a.connection.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 1
+    # Reusing the rolled-back id/key and handoff reservation now succeeds.
+    a.mutate('p', 's', 'r2', 'hash',
+             lambda s: replace(transition(s), deliveries=(handoff,)))
+    assert len(a.history('p', 's').deliveries) == 2
 
 
 def test_one_handoff_and_busy_are_conflicts(tmp_path):
@@ -132,3 +155,37 @@ def test_one_handoff_and_busy_are_conflicts(tmp_path):
         assert error.value.code == 'store_busy'
     finally:
         a.connection.rollback()
+
+@pytest.mark.parametrize('kind', ['coins', 'cancel_request', 'eta_notice'])
+def test_action_order_must_match_session(tmp_path, kind):
+    a = SqliteSessionStore(tmp_path / 'care.sqlite')
+    a.create_session(session(), None)
+    def wrong_order(s):
+        mutation = with_delivery(s)
+        delivery = mutation.deliveries[0]
+        action = replace(delivery.payload, order_id='different-order', kind=kind)
+        return replace(mutation, deliveries=(replace(delivery, payload=action),))
+    with pytest.raises(DomainError) as error:
+        a.mutate('p', 's', 'r', 'hash', wrong_order)
+    assert error.value.code == 'invalid_delivery_order'
+    assert a.history('p', 's').session.version == 0
+    assert a.connection.execute('SELECT count(*) FROM deliveries').fetchone()[0] == 0
+
+
+def test_distinct_coin_keys_race_across_sessions(tmp_path):
+    path = tmp_path / 'care.sqlite'
+    a, b = SqliteSessionStore(path), SqliteSessionStore(path)
+    a.create_session(session(), None)
+    a.create_session(session('s2'), None)
+    def attempt(args):
+        store, session_id, key = args
+        try:
+            store.mutate('p', session_id, 'r', 'hash', lambda s: with_delivery(s, key))
+            return 'persisted'
+        except DomainError as error:
+            return error.code
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(attempt, ((a, 's', 'coin-1'), (b, 's2', 'coin-2'))))
+    assert sorted(results) == ['persisted', 'store_conflict']
+    for table in ('requests', 'deliveries', 'messages', 'evidence'):
+        assert a.connection.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 1
