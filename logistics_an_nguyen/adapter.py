@@ -7,7 +7,7 @@ from statistics import median
 from contracts.types import Evidence
 
 from .forecast import Observation, SurvivalCurve
-from .models import OrderFacts, VIETNAM, utc_iso
+from .models import OrderFacts, VIETNAM, aware, parse_instant, utc_iso
 from .replay import ReplaySnapshot, TERMINAL, deduplicate_scans, grouped
 
 
@@ -25,10 +25,27 @@ class ReleaseAdapter:
     """All timestamps used for fitting and inference are at or before snapshot.tick_at."""
 
     def __init__(self, snapshot: ReplaySnapshot) -> None:
+        tick_at = aware(snapshot.tick_at, "snapshot tick_at")
+        # Custom platform projections must satisfy the same cutoff as ReleaseReader.
+        # Validate before fitting: future labels can otherwise become tick-time forecasts.
+        for rows, fields in (
+            (snapshot.orders, ("created_at", "cancelled_at")),
+            (snapshot.scans, ("event_at", "ingested_at")),
+            (snapshot.attempts, ("attempt_at",)),
+            (snapshot.reports, ("reported_at",)),
+        ):
+            for row in rows:
+                for field in fields:
+                    if field == "cancelled_at" and row[field] is None:
+                        continue
+                    if parse_instant(row[field], field) > tick_at:
+                        raise ValueError(f"snapshot {field} exceeds tick_at")
         self.snapshot = snapshot
         scans = grouped(snapshot.scans, "order_id")
         self.scans = {key: deduplicate_scans(rows) for key, rows in scans.items()}
-        self.attempts = grouped(snapshot.attempts, "order_id")
+        self.attempts = grouped(tuple(sorted(snapshot.attempts, key=lambda row: (
+            parse_instant(row["attempt_at"], "attempt_at"), row["attempt_id"],
+        ))), "order_id")
         self.reports = grouped(snapshot.reports, "trip_id")
         self.histories = {}
         cohorts = defaultdict(list)
@@ -41,18 +58,23 @@ class ReleaseAdapter:
             delivery += [(row["attempt_at"], row["attempt_at"], "delivery_attempts", row["attempt_id"])
                          for row in self.attempts.get(order_id, []) if row["outcome"] == "delivered"]
             delivered = min(delivery) if delivery else None
-            terminal_times = [row["event_at"] for row in history if row["status"] in TERMINAL]
+            terminal_times = [row["event_at"] for row in history
+                              if row["status"] in TERMINAL and row["status"] != "delivered"]
             if order["cancelled_at"]:
                 terminal_times.append(order["cancelled_at"])
-            end = datetime.fromisoformat(delivered[0]) if delivered else min(
-                [snapshot.tick_at] + [datetime.fromisoformat(value) for value in terminal_times]
+            terminal_at = min((datetime.fromisoformat(value) for value in terminal_times), default=None)
+            delivered_at = datetime.fromisoformat(delivered[0]) if delivered else None
+            training_delivery = delivered_at is not None and (
+                terminal_at is None or delivered_at < terminal_at
             )
+            end = min(value for value in (tick_at, terminal_at, delivered_at) if value is not None)
+            training_history = [row for row in history if datetime.fromisoformat(row["event_at"]) <= end]
             stages = {"created": datetime.fromisoformat(order["created_at"])}
-            for row in history:
+            for row in training_history:
                 if row["status"] not in TERMINAL:
                     stages[row["status"]] = datetime.fromisoformat(row["event_at"])
             previous_stage, previous_at = "created", datetime.fromisoformat(order["created_at"])
-            for row in history:
+            for row in training_history:
                 event_at = datetime.fromisoformat(row["event_at"])
                 if row["status"] != previous_stage:
                     dwell_times[(order["carrier_id"], order["service_level"], previous_stage)].append(
@@ -65,7 +87,7 @@ class ReleaseAdapter:
                 if seconds < 0:
                     continue
                 key = (order["carrier_id"], order["service_level"], stage)
-                cohorts[key].append(Observation(order_id, seconds, delivered is not None))
+                cohorts[key].append(Observation(order_id, seconds, training_delivery))
         self.curves = {key: SurvivalCurve(samples) for key, samples in cohorts.items()}
         self.stage_medians = {key: median(values) for key, values in dwell_times.items() if len(values) >= 20}
 
@@ -118,7 +140,7 @@ class ReleaseAdapter:
                 if customer_fault and stage not in ("lost", "damaged"):
                     evidence.append(_evidence("delivery_attempts", attempt["attempt_id"], seen, "fault_party", "customer"))
 
-            if not delivered and stage not in TERMINAL:
+            if not delivered and stage not in TERMINAL and stage in stages:
                 deadline = datetime.combine(guaranteed + timedelta(days=1), time.min, VIETNAM)
                 # Already-late orders still need an ETA; their probability is factual in A2.
                 remaining = max(0.0, (deadline - tick_at).total_seconds() - 0.000001)

@@ -7,10 +7,11 @@ from .questions import QuestionStore
 from .replay import ReleaseReader, ReplaySnapshot
 from .progress import ProgressTracker
 from .service import assessment_payload, evaluate_tick, supervisor_questions
+from .handoff import assessed_orders_payload
 
 __all__ = [
     "FeedHealth", "OrderFacts", "QuestionStore", "SupervisorQuestion", "TickResult",
     "assess_order", "assessment_payload", "evaluate_tick", "supervisor_questions",
     "ReleaseAdapter", "ReleaseReader", "ReplaySnapshot",
-    "ProgressTracker",
+    "ProgressTracker", "assessed_orders_payload",
 ]
