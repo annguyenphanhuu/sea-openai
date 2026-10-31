@@ -50,5 +50,37 @@ export async function POST(request: Request) {
     const input = commandSchema.safeParse(await request.json().catch(() => null));
     if (!input.success) return NextResponse.json({ error: "Lệnh không hợp lệ." }, { status: 400 });
     const { kind, ...payload } = input.data;
+    if (kind === "say" && request.headers.get("accept")?.includes("application/x-ndjson")) {
+        const requestId = input.data.request_id;
+        const sessionId = input.data.session_id;
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+                let connected = true;
+                const send = (event: object) => {
+                    if (!connected) return;
+                    try { controller.enqueue(encoder.encode(JSON.stringify(event) + "\n")); }
+                    catch { connected = false; }
+                };
+                send({ kind: "acknowledged", request_id: requestId });
+                send({ kind: "status", request_id: requestId, status: "processing" });
+                try {
+                    const response = await upstream(paths[kind], payload);
+                    const body: unknown = await response.json();
+                    if (!response.ok) throw new Error("Upstream unavailable");
+                    const snapshot = runtimeSchema.parse(body);
+                    if (!snapshot.chat || snapshot.chat.session_id !== sessionId) throw new Error("Session mismatch");
+                    const reply = snapshot.chat.messages.find(message => message.kind === "response" && message.id === snapshot.turn_result?.message_id);
+                    if (reply) send({ kind: "reply", request_id: requestId, message_id: reply.id, text: reply.text });
+                    send({ kind: "done", request_id: requestId, snapshot });
+                } catch {
+                    send({ kind: "error", request_id: requestId, message: "Chưa xác nhận được kết quả. Gửi lại cùng yêu cầu để kiểm tra." });
+                } finally {
+                    if (connected) controller.close();
+                }
+            },
+        });
+        return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no" } });
+    }
     return upstream(paths[kind], payload);
 }

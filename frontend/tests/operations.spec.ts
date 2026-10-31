@@ -19,6 +19,7 @@ test("real pipeline, persisted chat, guard and handoff", async ({ page, request 
     await page.getByRole("textbox", { name: "Tin nhắn khách trong phiên local" }).fill("Tại sao đơn hàng trễ?");
     await page.getByRole("button", { name: "Gửi text", exact: true }).click();
     await expect(page.getByText("Tại sao đơn hàng trễ?", { exact: true })).toBeVisible();
+    await expect(page.locator(".reply-pending")).toHaveCount(0);
     await page.reload();
     await expect(page.getByText("Tại sao đơn hàng trễ?", { exact: true })).toBeVisible();
     await page.getByRole("textbox", { name: "Tin nhắn khách trong phiên local" }).fill("Tôi muốn hủy đơn");
