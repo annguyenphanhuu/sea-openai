@@ -105,6 +105,9 @@ class ReleaseAdapter:
             last = history[-1] if history else None
             stage = last["status"] if last else "created"
             evidence = [_evidence("orders", order_id, created_at, "guaranteed_date", guaranteed.isoformat())]
+            for code in ("payment_method", "items_value_vnd"):
+                if order.get(code) is not None:
+                    evidence.append(_evidence("orders", order_id, created_at, code, order[code]))
             if last:
                 seen = datetime.fromisoformat(last["ingested_at"])
                 evidence += [
@@ -126,6 +129,13 @@ class ReleaseAdapter:
                     _evidence(feed, record_id, datetime.fromisoformat(ingested), "confidence", 1.0),
                 ]
             attempts = self.attempts.get(order_id, [])
+            for failed in attempts:
+                if failed["outcome"] in ("no_answer", "rescheduled", "refused", "wrong_address", "other"):
+                    seen = datetime.fromisoformat(failed["attempt_at"])
+                    evidence += [
+                        _evidence("delivery_attempts", failed["attempt_id"], seen, "failed_delivery_attempt", True),
+                        _evidence("delivery_attempts", failed["attempt_id"], seen, "attempt_outcome", failed["outcome"]),
+                    ]
             if attempts:
                 attempt = attempts[-1]
                 seen = datetime.fromisoformat(attempt["attempt_at"])

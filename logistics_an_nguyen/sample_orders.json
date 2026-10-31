@@ -54,6 +54,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 348000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA23636607",
@@ -194,6 +212,24 @@
           "ingested_at": "2026-10-18T12:07:17.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 133000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
           "is_structured": true
         },
         {
@@ -342,6 +378,69 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 541000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA29882592",
+          "ingested_at": "2026-10-21T03:07:56.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "other",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA29882592",
+          "ingested_at": "2026-10-21T03:07:56.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA21769359",
+          "ingested_at": "2026-10-23T09:04:13.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA21769359",
+          "ingested_at": "2026-10-23T09:04:13.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA42024331",
+          "ingested_at": "2026-10-24T08:42:38.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA42024331",
@@ -357,6 +456,15 @@
           "ingested_at": "2026-10-24T08:42:38.000000Z",
           "fact_code": "call_attempts",
           "value": 3,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA42024331",
+          "ingested_at": "2026-10-24T08:42:38.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -480,6 +588,51 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 185000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA99843097",
+          "ingested_at": "2026-10-20T03:49:31.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "other",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA99843097",
+          "ingested_at": "2026-10-20T03:49:31.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA94306700",
+          "ingested_at": "2026-10-21T03:02:47.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "refused",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA94306700",
@@ -495,6 +648,15 @@
           "ingested_at": "2026-10-21T03:02:47.000000Z",
           "fact_code": "call_attempts",
           "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA94306700",
+          "ingested_at": "2026-10-21T03:02:47.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -618,6 +780,33 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 79000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA64737481",
+          "ingested_at": "2026-10-21T08:14:50.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "refused",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA64737481",
@@ -633,6 +822,15 @@
           "ingested_at": "2026-10-21T08:14:50.000000Z",
           "fact_code": "call_attempts",
           "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA64737481",
+          "ingested_at": "2026-10-21T08:14:50.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -742,7 +940,8 @@
         "status:late",
         "guaranteed_day_exceeded",
         "delivery_confirmed",
-        "fault:unknown"
+        "fault:unknown",
+        "cod_refusal_risk:high"
       ],
       "evidence": [
         {
@@ -752,6 +951,42 @@
           "ingested_at": "2026-10-18T10:20:12.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-23",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 308000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA79122615",
+          "ingested_at": "2026-10-22T06:02:26.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA79122615",
+          "ingested_at": "2026-10-22T06:02:26.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -868,7 +1103,8 @@
           "status:late",
           "guaranteed_day_exceeded",
           "delivery_confirmed",
-          "fault:unknown"
+          "fault:unknown",
+          "cod_refusal_risk:high"
         ]
       },
       "evidence_ref": "#/orders/5/evidence"
@@ -898,6 +1134,24 @@
           "ingested_at": "2026-10-18T08:59:55.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 230000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
           "is_structured": true
         },
         {
@@ -1017,7 +1271,8 @@
         "guaranteed_day_exceeded",
         "fault:unknown",
         "eta_missing",
-        "confidence_missing"
+        "confidence_missing",
+        "cod_refusal_risk:high"
       ],
       "evidence": [
         {
@@ -1027,6 +1282,69 @@
           "ingested_at": "2026-10-18T12:29:30.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-24",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 386000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA13847361",
+          "ingested_at": "2026-10-23T06:10:53.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA13847361",
+          "ingested_at": "2026-10-23T06:10:53.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA46071705",
+          "ingested_at": "2026-10-25T08:35:53.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA46071705",
+          "ingested_at": "2026-10-25T08:35:53.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA93490320",
+          "ingested_at": "2026-10-26T09:47:14.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
           "is_structured": true
         },
         {
@@ -1045,6 +1363,15 @@
           "ingested_at": "2026-10-26T09:47:14.000000Z",
           "fact_code": "call_attempts",
           "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA93490320",
+          "ingested_at": "2026-10-26T09:47:14.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -1126,7 +1453,8 @@
           "guaranteed_day_exceeded",
           "fault:unknown",
           "eta_missing",
-          "confidence_missing"
+          "confidence_missing",
+          "cod_refusal_risk:high"
         ]
       },
       "evidence_ref": "#/orders/7/evidence"
@@ -1159,6 +1487,69 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 677000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA20393996",
+          "ingested_at": "2026-10-19T04:40:34.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA20393996",
+          "ingested_at": "2026-10-19T04:40:34.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA80742682",
+          "ingested_at": "2026-10-21T06:08:50.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA80742682",
+          "ingested_at": "2026-10-21T06:08:50.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA83184161",
+          "ingested_at": "2026-10-22T04:55:37.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA83184161",
@@ -1174,6 +1565,15 @@
           "ingested_at": "2026-10-22T04:55:37.000000Z",
           "fact_code": "call_attempts",
           "value": 3,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA83184161",
+          "ingested_at": "2026-10-22T04:55:37.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -1293,6 +1693,24 @@
           "ingested_at": "2026-10-18T03:40:06.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-22",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 276000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
           "is_structured": true
         },
         {
@@ -1438,6 +1856,60 @@
           "ingested_at": "2026-10-18T04:01:32.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-24",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 338000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA87537749",
+          "ingested_at": "2026-10-22T03:33:55.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "rescheduled",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA87537749",
+          "ingested_at": "2026-10-22T03:33:55.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA76430794",
+          "ingested_at": "2026-10-24T09:24:54.000000Z",
+          "fact_code": "attempt_outcome",
+          "value": "no_answer",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA76430794",
+          "ingested_at": "2026-10-24T09:24:54.000000Z",
+          "fact_code": "failed_delivery_attempt",
+          "value": true,
           "is_structured": true
         },
         {
@@ -1587,6 +2059,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 102000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
           "feed": "scan_events",
           "source_table": "scan_events",
           "record_id": "EV001455546",
@@ -1716,6 +2206,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 62000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
           "feed": "scan_events",
           "source_table": "scan_events",
           "record_id": "EV001501598",
@@ -1830,7 +2338,8 @@
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
-        "eta_from_structured_evidence"
+        "eta_from_structured_evidence",
+        "cod_refusal_risk:medium"
       ],
       "evidence": [
         {
@@ -1840,6 +2349,24 @@
           "ingested_at": "2026-10-21T13:56:19.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 956000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
           "is_structured": true
         },
         {
@@ -2108,7 +2635,8 @@
         "reason_codes": [
           "status:at_risk",
           "fault:unknown",
-          "eta_from_structured_evidence"
+          "eta_from_structured_evidence",
+          "cod_refusal_risk:medium"
         ]
       },
       "evidence_ref": "#/orders/13/evidence"
@@ -2136,6 +2664,24 @@
           "ingested_at": "2026-10-21T13:54:45.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 171000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
           "is_structured": true
         },
         {
@@ -2437,6 +2983,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 203000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
           "feed": "scan_events",
           "source_table": "scan_events",
           "record_id": "EV001010885",
@@ -2551,7 +3115,8 @@
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
-        "eta_from_structured_evidence"
+        "eta_from_structured_evidence",
+        "cod_refusal_risk:medium"
       ],
       "evidence": [
         {
@@ -2561,6 +3126,24 @@
           "ingested_at": "2026-10-21T15:31:38.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 297000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
           "is_structured": true
         },
         {
@@ -2829,7 +3412,8 @@
         "reason_codes": [
           "status:at_risk",
           "fault:unknown",
-          "eta_from_structured_evidence"
+          "eta_from_structured_evidence",
+          "cod_refusal_risk:medium"
         ]
       },
       "evidence_ref": "#/orders/16/evidence"
@@ -2857,6 +3441,24 @@
           "ingested_at": "2026-10-22T11:34:34.000000Z",
           "fact_code": "guaranteed_date",
           "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 83000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
           "is_structured": true
         },
         {
@@ -3156,6 +3758,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 1020000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        },
+        {
           "feed": "scan_events",
           "source_table": "scan_events",
           "record_id": "EV001664949",
@@ -3452,6 +4072,24 @@
           "is_structured": true
         },
         {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "items_value_vnd",
+          "value": 226000,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        },
+        {
           "feed": "scan_events",
           "source_table": "scan_events",
           "record_id": "EV001418929",
@@ -3730,6 +4368,7 @@
     "count": 20,
     "selection": "Round-robin by STATUSES rank and payment_method; order_id ascending within each group.",
     "feed_health_source": "platform_huy.sysguard.health_for on the full as-of source snapshot",
-    "usage": "Internal UI output example; not replay input or authority for contact/actions."
+    "usage": "Internal UI output example; not replay input or authority for contact/actions.",
+    "risk_rule": "COD late: high if integer items_value_vnd >= 1000000 or a visible failed delivery attempt; other COD late/at_risk: medium."
   }
 }

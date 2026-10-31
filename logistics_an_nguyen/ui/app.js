@@ -1,4 +1,4 @@
-import { STATUSES, FAULTS, causeLabels, filterOrders, formatDay, formatInstant, loadOrders, reasonLabel, resolveEvidence } from "./data.mjs";
+import { STATUSES, FAULTS, causeLabels, codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, reasonLabel, resolveEvidence } from "./data.mjs";
 
 const $ = (id) => document.getElementById(id);
 const mode = new URLSearchParams(location.search).get("source") || "sample";
@@ -117,7 +117,16 @@ function render() {
         const row = node("tr", null, `order-row${isOpen ? " selected" : ""}`);
         const identity = node("th"); identity.scope = "row";
         identity.append(node("span", order.order_id, "order-id"), node("small", order.customer_id || "Chưa có mã khách", "secondary-value"));
-        const status = node("span", STATUSES[order.status], `status status-${order.status}`); status.title = order.status;
+        const status = node("div", null, "status-group");
+        const statusLabel = node("span", STATUSES[order.status], `status status-${order.status}`);
+        statusLabel.title = order.status;
+        status.append(statusLabel);
+        const riskBadge = codRefusalBadge(order);
+        if (riskBadge) {
+            const badge = node("span", riskBadge.label, `cod-risk cod-risk-${riskBadge.level}`);
+            badge.title = "Tín hiệu theo quy tắc A2; không phải xác nhận khách đã từ chối nhận hàng.";
+            status.append(badge);
+        }
         const cause = node("div");
         const causes = causeLabels(order);
         cause.append(node("span", causes[0]));

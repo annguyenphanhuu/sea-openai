@@ -77,6 +77,10 @@ table { width: 100%; border-collapse: collapse; text-align: left; }
 .status-unknown_feed { color: #475d75; background: #e9eff5; }
 .status-watch, .status-slow_safe { color: #5c6332; background: #f0f1dc; }
 .status-on_track { color: #2d6541; background: #e8f0e3; }
+.status-group { display: flex; align-items: flex-start; flex-direction: column; gap: 7px; }
+.cod-risk { display: inline-block; padding: 5px 7px; border-radius: 4px; font-size: 11px; font-weight: 650; line-height: 1.45; text-align: left; }
+.cod-risk-high { color: #fff; background: #a52e28; }
+.cod-risk-medium { color: #81510d; background: #fcf0d6; }
 .late-value { font-weight: 650; font-variant-numeric: tabular-nums; }
 .late-value.is-late { color: #973e2d; }
 .verify-button { color: var(--green); background: transparent; border-color: #bfd0c0; padding: 6px 8px; font-size: 11px; line-height: 1.45; width: 100%; min-height: 36px; }
@@ -138,6 +142,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflo
     .order-row > td, .order-row > th { display: block; padding: 0; border: 0; font-size: 13px; min-width: 0; }
     .order-row > td:nth-child(5), .order-row > td:last-child { grid-column: 1 / -1; }
     .order-row > td:nth-child(2) { text-align: right; }
+    .status-group { align-items: flex-end; }
     .order-id { font-size: 13px; overflow-wrap: anywhere; }
     .field-label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 5px; font-weight: 500; }
     .order-row > td:nth-child(2) .field-label { display: none; }

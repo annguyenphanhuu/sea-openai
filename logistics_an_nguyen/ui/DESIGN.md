@@ -26,6 +26,7 @@ colors:
   watch-surface: "#f0f1dc"
   track-ink: "#2d6541"
   track-surface: "#e8f0e3"
+  cod-high: "#a52e28"
 typography:
   body:
     fontFamily: "Segoe UI, Arial, sans-serif"
@@ -164,6 +165,7 @@ Controls use gently rounded corners; section containers are slightly softer and 
 - **Evidence action:** a bordered green-text control fills green when expanded. It is at least 36px tall on desktop and 44px on phones. The selected order receives a pale green row fill. Opening evidence is inspection, not a recorded approval.
 - **Fields:** labelled search and native selects use white surfaces, one-pixel borders, rounded corners and 42px height. The search icon sits inside a reserved left inset.
 - **Status labels:** short text on lightly tinted rectangular chips. Exception and late share a pair; watch and slow-safe share a pair.
+- **COD risk badges:** a second labelled badge below status, never a replacement. High uses white on `cod-high`; medium reuses the risk ink/surface pair. Both use 11px, weight 650, 1.45 line-height, 5px 7px padding and 4px corners. The text identifies the risk and level without relying on color. Only the supplied A2 reason controls visibility.
 - **Order container:** one bordered white section contains filters, result count, list and load/empty/error feedback. Desktop row cells use 17px vertical and 12px horizontal padding.
 - **Evidence panel:** a pale inset section with a heading, close control, metadata, source tables and native JSON disclosure. Text and raw values wrap; wide evidence tables scroll independently.
 - **Masthead:** a compact identity and workspace header with a source badge. It is not a navigation menu.
