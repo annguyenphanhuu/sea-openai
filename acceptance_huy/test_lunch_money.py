@@ -217,8 +217,8 @@ def test_known_voucher_history_does_not_consume_coins(case):
     assert run(case).decision == 'succeeded'
 
 
-@pytest.mark.parametrize('age,allowed', [(90, True), (91, False)])
-def test_heartbeat_90_minute_boundary_with_current_source_health(case, age, allowed):
+@pytest.mark.parametrize('age,allowed', [(60, True), (61, False), (90, False), (91, False)])
+def test_heartbeat_contract_boundary_with_current_source_health(case, age, allowed):
     conn, *_ = case
     conn.execute('DELETE FROM feed_health')
     conn.execute('DELETE FROM guard_heartbeat')

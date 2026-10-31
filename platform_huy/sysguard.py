@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 import json
 import sqlite3
 
+from contracts.params import guard_heartbeat_max_min
+
 from logistics_an_nguyen.models import FeedHealth, FeedStatus, aware, parse_instant, utc_iso
 from logistics_an_nguyen.replay import ReplaySnapshot, STAGES
 
@@ -109,6 +111,8 @@ def proactive_allowed(state: sqlite3.Connection, now: datetime) -> bool:
     if not guard_alive(state, now) or _control(state, "proactive_block"):
         return False
     tick = state.execute("SELECT tick_at FROM guard_heartbeat WHERE agent_id='A3' ORDER BY tick_at DESC LIMIT 1").fetchone()[0]
+    if now - parse_instant(tick, "heartbeat tick_at") > timedelta(minutes=guard_heartbeat_max_min):
+        return False
     rows = state.execute(
         "SELECT feed,status,source_timestamp,last_ingested_at,checked_at FROM feed_health WHERE tick_at=?", (tick,),
     ).fetchall()

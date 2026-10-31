@@ -330,7 +330,8 @@ class CareHarness:
                     history = [{'role': 'user' if item['kind'] == 'customer' else 'assistant',
                                 'text': json.loads(item['content']).get('text', '')}
                                for item in events if item['kind'] in ('customer', 'response')]
-                    model_context = build_natural_context(outcome, snapshot, history, event.text or '')
+                    model_context = build_natural_context(outcome, snapshot, history, event.text or '',
+                        semantic_topics=getattr(self.selector, 'semantic_topics', False) is True)
                 else:
                     history = [json.loads(item['content']).get('text', '') for item in events
                                if item['kind'] == 'customer'][-4:]
