@@ -6,6 +6,7 @@ import json
 import sqlite3
 
 from .runtime_types import CareError, CustomerEvent, TrustedRequestContext, canonical
+from .storage_port import StorageError
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,5 +55,5 @@ class CareApi:
             return ApiResponse(error.status, {"error": error.code})
         except ValueError:
             return ApiResponse(400, {"error": "invalid_payload"})
-        except (sqlite3.DatabaseError, OSError):
+        except (StorageError, sqlite3.DatabaseError, OSError):
             return ApiResponse(503, {"error": "service_error"})

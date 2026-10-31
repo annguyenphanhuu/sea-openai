@@ -61,3 +61,19 @@ def test_internal_runtime_operations_are_not_public(tmp_path):
         assert (await api.handle('open_chat',{'order_id':'o1','request_id':'r'},None)).status==401
         h.store.close()
     asyncio.run(check())
+
+
+@pytest.mark.parametrize('operation,payload', [
+    ('get_messages', {}),
+    ('handle_message', {'message_id': 'm', 'text': 'hello'}),
+])
+def test_storage_failure_preserves_service_error_response(tmp_path, operation, payload):
+    async def check():
+        h = harness(tmp_path)
+        api = CareApi(h)
+        sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
+        h.store.close()
+        response = await api.handle(operation, {'session_id': sid, **payload}, CUSTOMER)
+        assert response.status == 503
+        assert response.body == {'error': 'service_error'}
+    asyncio.run(check())
