@@ -1,37 +1,53 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button, Input, Textarea } from "@fluentui/react-components";
-import { requestRuntime, statusLabels, type Command, type Runtime } from "@/lib/runtime";
+import { Button } from "@fluentui/react-components";
+import { ArrowClockwise, ArrowRight, Clock, Play, ShieldCheck, WarningCircle } from "@phosphor-icons/react";
+import { requestRuntime, type Command, type Runtime } from "@/lib/runtime";
+import { feedLabels, formatDate, sourceLabels, statusLabels } from "@/lib/presentation";
 import { Shell, type View } from "./shell";
+import { CareConversation, LogisticsDetail, OrderBrowser, Status } from "./workspace";
 
 type Load = { kind: "loading" } | { kind: "ready"; value: Runtime } | { kind: "error"; message: string };
-const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa có dữ liệu";
+type MobilePane = { kind: "list" } | { kind: "detail" };
+const titles: Record<View, { title: string; subtitle: string }> = {
+    overview: { title: "Tổng quan vận hành", subtitle: "Từ dữ liệu đáng tin đến bước chăm sóc phù hợp." },
+    logistics: { title: "Đánh giá đơn hàng", subtitle: "Ngày cam kết, mức rủi ro và căn cứ của từng đơn." },
+    care: { title: "Chăm sóc khách hàng", subtitle: "Chọn đơn cần hỗ trợ và tiếp tục hội thoại." },
+    guard: { title: "Giám sát dữ liệu", subtitle: "Kiểm tra nguồn dữ liệu trước khi chủ động liên hệ." },
+};
 
 export function Operations() {
-    const [view, setView] = useState<View>("overview");
+    const [view, setView] = useState<View>("care");
     const [load, setLoad] = useState<Load>({ kind: "loading" });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
-    const [query, setQuery] = useState("");
     const [text, setText] = useState("");
-    const sequence = useRef(0);
+    const [pane, setPane] = useState<MobilePane>({ kind: "list" });
     const mutationLock = useRef(false);
     const pendingMessage = useRef<Extract<Command, { kind: "say" }> | null>(null);
     useEffect(() => {
         let active = true;
-        requestRuntime().then(value => { if (active) setLoad({ kind: "ready", value }); })
-            .catch(error => { if (active) setLoad({ kind: "error", message: error instanceof Error ? error.message : "Không thể tải dữ liệu." }); });
+        async function start() {
+            try {
+                let value = await requestRuntime();
+                const session = value.active_chats.find(item => item.status === "active");
+                if (!value.chat && session) value = await requestRuntime({ session_id: session.session_id });
+                if (active) setLoad({ kind: "ready", value });
+            } catch (error) {
+                if (active) setLoad({ kind: "error", message: error instanceof Error ? error.message : "Không thể tải dữ liệu." });
+            }
+        }
+        start();
         return () => { active = false; };
     }, []);
     async function run(input?: Command | { order_id?: string; session_id?: string }) {
-        if (mutationLock.current) return;
+        if (mutationLock.current) return false;
         mutationLock.current = true;
-        const request = ++sequence.current;
         setBusy(true); setError("");
         try {
             const value = await requestRuntime(input);
-            if (request === sequence.current) setLoad({ kind: "ready", value });
+            setLoad({ kind: "ready", value });
             return true;
         } catch (error) {
             setError(error instanceof Error ? error.message : "Không thể thực hiện yêu cầu.");
@@ -39,8 +55,12 @@ export function Operations() {
         } finally { mutationLock.current = false; setBusy(false); }
     }
     const value = load.kind === "ready" ? load.value : null;
-    const order = value?.orders.find(item => item.order_id === value.selected_order_id);
-    const rows = value?.orders.filter(item => item.order_id.toLowerCase().includes(query.toLowerCase())) ?? [];
+    const order = value?.orders.find(item => item.order_id === value.selected_order_id) ?? value?.orders[0];
+    const careOrder = value?.chat ? value.orders.find(item => item.order_id === value.chat?.order_id) : order;
+    function navigate(next: View) { setView(next); setPane({ kind: "list" }); }
+    async function select(input: { order_id: string } | { session_id: string }) {
+        if (await run(input)) { setPane({ kind: "detail" }); if (!pendingMessage.current) setText(""); }
+    }
     async function say(message: string, reply_to?: string) {
         if (!value?.chat) return;
         const previous = pendingMessage.current;
@@ -52,23 +72,21 @@ export function Operations() {
         pendingMessage.current = command;
         if (await run(command)) { setText(""); pendingMessage.current = null; }
     }
-    return <Shell view={view} onView={setView}>
-        <div className="page-heading"><div><div className="page-kicker">CHỢ PHỐ CARE</div><h1>Phòng điều hành tích hợp.</h1><p>Dữ liệu replay → A3 → A2 → A1. Tin nhắn và hành động được lưu trong phiên local.</p></div><div className="runtime-buttons"><Button disabled={busy} onClick={() => run()}>Tải lại dữ liệu</Button><Button appearance="primary" disabled={busy || !value} onClick={() => run({ kind: "next" })}>NEXT +30 phút</Button></div></div>
-        {load.kind === "loading" && <p role="status">Đang kết nối pipeline...</p>}
-        {load.kind === "error" && <div className="panel error-state" role="alert"><h2>Chưa thể tải phòng điều hành</h2><p>{load.message}</p><Button disabled={busy} onClick={() => run()}>Thử lại</Button></div>}
-        {error && <p className="inline-error" role="alert">{error}</p>}
-        {busy && <p role="status">Đang xử lý...</p>}
-        {value?.llm && <p role="status">LLM A1 {value.llm.enabled ? `đã bật · ${value.llm.model}` : "chưa bật"}. {value.inside ? value.inside.used_llm ? "Lượt vừa rồi dùng OpenAI diễn đạt câu trả lời." : "Lượt vừa rồi dùng rules/template." : "Model diễn đạt hội thoại; dữ kiện và quyền thực thi do code kiểm soát."}</p>}
-        {value && <>
-            <div className={`guard-banner ${value.proactive_allowed ? "" : "guard-failure"}`} role="status"><div><strong>{value.proactive_allowed ? "A3 cho phép kiểm tra liên hệ chủ động" : "A3 đang chặn liên hệ chủ động"}</strong><p>{date(value.now)} · {value.phase_trace.join(" → ") || "Chưa chạy tick. Nhấn NEXT để đánh giá dữ liệu."}</p></div></div>
-            <section className="metrics-strip" aria-label="Tổng quan runtime">{[["Đơn đã đánh giá", value.orders_total], ["Hàng đợi liên hệ", value.contact_queue_total], ["Phiên chat đang mở", value.active_chats.length], ["Bản ghi xu local", value.ledger_total]].map(([label, count]) => <div className="metric" key={label}><div className="metric-label">{label}</div><strong>{count}</strong></div>)}</section>
-            {view === "guard" ? <section className="panel guard-details"><h2>Giám sát A3</h2><p>Heartbeat {value.guard_alive ? "đang hoạt động" : "không hoạt động"}. Bật lại A3 cần NEXT để cập nhật nhịp.</p><div className="runtime-buttons"><Button disabled={busy} onClick={() => run({ kind: "kill" })}>Dừng A3</Button><Button disabled={busy} onClick={() => run({ kind: "revive" })}>Bật lại A3</Button></div><h3>Nguồn dữ liệu</h3>{value.feed_health.map(feed => <p key={feed.feed}>{feed.feed} · {feed.status} · {date(feed.source_timestamp)}</p>)}<h3>Phân bố đánh giá A2</h3><pre>{JSON.stringify(value.label_counts, null, 2)}</pre></section> : <div className="operations-grid">
-                <section className="panel order-panel" aria-label="Danh sách đơn hàng"><div className="panel-heading"><div><h2>Hàng đợi liên hệ A2</h2><p>{value.orders.length} đơn đang hiển thị trên {value.orders_total} đơn đã đánh giá.</p></div></div><div className="list-tools"><Input aria-label="Tìm đơn hàng" placeholder="Tìm mã đơn..." value={query} onChange={(_, data) => setQuery(data.value)} /></div><div className="order-rows">{rows.map(item => <button key={item.order_id} disabled={busy} className={`order-row ${item.order_id === order?.order_id ? "is-selected" : ""}`} onClick={() => run({ order_id: item.order_id })} aria-label={`Xem đơn ${item.order_id}`}><strong>{item.order_id}</strong><span className={`order-status status-${item.status}`}>{statusLabels[item.status]}</span><span>{item.guaranteed_date}</span><span>{Math.round(item.late_probability * 100)}%</span></button>)}</div>{!rows.length && <div className="empty-state">Chưa có đơn trong hàng đợi. Chạy NEXT hoặc tìm mã khác.</div>}<div className="list-footer">Hàng đợi ưu tiên từ backend, tối đa 30 đơn và đơn đang chọn.</div><div className="list-tools"><h3>Phiên đang mở</h3>{value.active_chats.map(chat => <Button key={chat.session_id} disabled={busy} onClick={() => run({ session_id: chat.session_id })}>{chat.order_id} · {chat.status}</Button>)}</div></section>
-                <section className="panel runtime-detail" aria-label="Chi tiết đơn hàng"><div className="detail-heading"><h2>{order?.order_id ?? "Chọn đơn hàng"}</h2>{order && <p>{statusLabels[order.status]} · Bên có lỗi {order.fault_party}</p>}</div>{order && <div className="detail-body"><dl className="date-grid"><div><dt>Ngày cam kết</dt><dd>{order.guaranteed_date}</dd></div><div><dt>ETA mới</dt><dd>{date(order.revised_eta)}</dd></div><div><dt>Ngày đặt</dt><dd>{date(order.created_at)}</dd></div><div><dt>Bàn giao hãng</dt><dd>{date(order.handed_over_at)}</dd></div></dl><p>{order.late_days} ngày trễ · Độ tin {Math.round(order.confidence * 100)}%</p><p>{order.reason_codes.join(" · ")}</p><details><summary>Bằng chứng A2</summary><pre>{JSON.stringify(order.evidence, null, 2)}</pre></details><Button disabled={busy || !value.proactive_allowed || !!value.chat} onClick={() => run({ kind: "open", order_id: order.order_id })}>Mở chat A1</Button></div>}
-                    <div className="detail-body"><h3>Hội thoại A1</h3>{value.chat ? <><p>Phiên {value.chat.session_id} · {value.chat.status}</p><div className="runtime-messages" aria-live="polite">{value.chat.messages.map(message => <div className="message-bubble" key={message.id}><small>{message.kind === "customer" ? "Khách" : "A1"}</small><p>{message.text}</p></div>)}</div><form onSubmit={event => { event.preventDefault(); say(text); }}><label htmlFor="customer-text">Tin nhắn khách trong phiên local</label><Textarea id="customer-text" value={text} disabled={busy || value.chat.status === "transferred"} onChange={(_, data) => setText(data.value)} /><div className="runtime-buttons"><Button type="submit" appearance="primary" disabled={busy || !text.trim() || value.chat.status === "transferred"}>Gửi text</Button><Button disabled={busy || value.chat.status === "transferred"} onClick={() => say("Tôi muốn gặp nhân viên")}>Yêu cầu gặp nhân viên</Button>{value.chat.pending && <Button disabled={busy} onClick={() => say("Đồng ý", value.chat?.pending?.reply_to)}>Xác nhận yêu cầu hủy</Button>}</div></form></> : <p>Chưa mở phiên. NEXT tự mở các liên hệ đủ điều kiện qua A1.</p>}</div>
-                </section>
-            </div>}
-            <details className="demo-controls"><summary>Bản ghi thực thi local</summary><p>{value.outbox_total} outbox · {value.handoffs.length} chuyển nhân viên. Ledger local không phải thanh toán vào ví bên ngoài. Hủy cần xác nhận lại và chờ duyệt.</p><pre>{JSON.stringify({ ledger: value.ledger, outbox: value.outbox, cancellations: value.cancellations, handoffs: value.handoffs }, null, 2)}</pre></details>
+    function openCare() { setView("care"); setPane({ kind: "detail" }); }
+    return <Shell view={view} onView={navigate}>
+        <div className="page-heading"><div><h1>{titles[view].title}</h1><p>{titles[view].subtitle}</p></div><div className="header-actions"><Button appearance="subtle" icon={<ArrowClockwise size={17} />} disabled={busy} onClick={() => run()} aria-label="Tải lại dữ liệu">Tải lại</Button><Button appearance="primary" icon={<Play size={16} weight="fill" />} disabled={busy || !value} onClick={() => run({ kind: "next" })}>Chạy tiếp +30 phút</Button></div></div>
+        {load.kind === "loading" && <div className="loading-state" role="status"><span className="loading-dot" />Đang tải phòng điều hành…</div>}
+        {load.kind === "error" && <div className="panel error-state" role="alert"><WarningCircle size={32} /><h2>Chưa thể kết nối hệ thống</h2><p>{load.message}</p><Button disabled={busy} onClick={() => run()}>Thử lại</Button></div>}
+        {error && <div className="inline-error" role="alert">{error}</div>}
+        {value && <><div className="runtime-bar"><span className="replay-clock"><Clock size={15} />Mô phỏng <strong>{formatDate(value.now, true)}</strong></span><button className={`health-badge ${value.proactive_allowed ? "health-good" : "health-blocked"}`} onClick={() => navigate("guard")}>{value.proactive_allowed ? <ShieldCheck size={15} /> : <WarningCircle size={15} />}{value.proactive_allowed ? "Nguồn đã xác minh" : "Đang chặn liên hệ chủ động"}</button><details className="llm-badge"><summary><span className={`status-dot ${value.llm?.enabled ? "" : "dot-muted"}`} />{value.llm?.enabled ? "AI đang bật" : "Chế độ quy tắc"}</summary><div><p>Model: {value.llm?.model ?? "Chưa cấu hình"}</p><p>{value.inside ? value.inside.used_llm ? "Lượt vừa rồi có sử dụng OpenAI." : "Lượt vừa rồi dùng quy tắc hoặc câu dự phòng." : "AI diễn đạt hội thoại. Dữ kiện và quyền thực thi do hệ thống kiểm soát."}</p></div></details>{busy && <span className="busy-label" role="status">Đang xử lý...</span>}</div>
+            {!value.proactive_allowed && <div className="blocking-notice" role="status"><WarningCircle size={17} /><span>{!value.orders_total ? "Chưa chạy bước mô phỏng. Chọn Chạy tiếp +30 phút để đánh giá dữ liệu." : "A3 đang chặn liên hệ chủ động. Hội thoại hiện có vẫn có thể được hỗ trợ theo quyền của phiên."}</span></div>}
+            {(view === "care" || view === "logistics") && <div className={`workspace-layout ${pane.kind === "detail" ? "mobile-detail" : "mobile-list"}`}><OrderBrowser value={value} order={view === "care" ? careOrder : order} busy={busy} onOrder={id => select({ order_id: id })} onSession={id => { setView("care"); select({ session_id: id }); }} />{view === "care" ? <CareConversation value={value} order={careOrder} busy={busy} text={text} setText={setText} onSay={say} onOpen={id => run({ kind: "open", order_id: id })} onBack={() => setPane({ kind: "list" })} /> : <LogisticsDetail order={order} onCare={openCare} onBack={() => setPane({ kind: "list" })} />}</div>}
+            {view === "overview" && <><section className="overview-metrics" aria-label="Kết quả vận hành">{[["Đơn đã đánh giá", value.orders_total], ["Đơn trong hàng đợi liên hệ", value.contact_queue_total], ["Hội thoại đang xử lý", value.active_chats.length], ["Bản ghi xu local", value.ledger_total]].map(([label, count]) => <div key={label}><span>{label}</span><strong>{count.toLocaleString("vi-VN")}</strong></div>)}</section><div className="overview-grid"><section className="panel overview-priorities"><div className="section-heading"><div><span className="eyebrow">BƯỚC TIẾP THEO</span><h2>Đơn cần chú ý</h2></div><Button appearance="subtle" onClick={() => navigate("logistics")}>Xem đánh giá <ArrowRight size={15} /></Button></div>{value.orders.slice(0, 5).map(item => <button className="priority-row" key={item.order_id} onClick={async () => { if (await run({ order_id: item.order_id })) openCare(); }} disabled={busy}><strong>{item.order_id}</strong><Status order={item} /><span>{item.late_days > 0 ? `Trễ ${item.late_days} ngày` : `Cam kết ${formatDate(item.guaranteed_date)}`}</span><ArrowRight size={17} /></button>)}{!value.orders.length && <div className="empty-content"><p>Chạy bước mô phỏng để bắt đầu đánh giá đơn hàng.</p></div>}</section><section className="panel process-summary"><span className="eyebrow">LUỒNG ĐANG CHẠY</span><h2>Dữ liệu trước, chăm sóc sau</h2><ol><li><b>A3</b><div><strong>Kiểm tra nguồn</strong><p>Xác minh nguồn dữ liệu và điều kiện liên hệ.</p></div></li><li><b>A2</b><div><strong>Đánh giá đơn</strong><p>Ưu tiên rủi ro theo bằng chứng đã có.</p></div></li><li><b>A1</b><div><strong>Hỗ trợ khách hàng</strong><p>Giải thích, tiếp nhận nhu cầu và bàn giao khi cần.</p></div></li></ol><p className="muted">{value.phase_trace.length ? `Bước gần nhất hoàn tất theo thứ tự ${value.phase_trace.join(" → ")}.` : "Chưa có bước mô phỏng nào được chạy."}</p><Button appearance="primary" onClick={() => navigate("care")}>Mở màn chăm sóc</Button></section></div></>}
+            {view === "guard" && <section className="panel guard-workspace"><div className="section-heading"><div><span className="eyebrow">A3 · GIÁM SÁT</span><h2>Chất lượng nguồn dữ liệu</h2><p>{value.guard_alive ? "Nhịp giám sát đang hoạt động." : "Chưa có nhịp giám sát còn hiệu lực."} Bật lại A3 cần chạy bước tiếp để cập nhật.</p></div><div className="header-actions"><Button disabled={busy} onClick={() => run({ kind: "kill" })}>Dừng A3</Button><Button appearance="primary" disabled={busy} onClick={() => run({ kind: "revive" })}>Bật lại A3</Button></div></div><div className="feed-table"><div className="feed-row feed-heading"><span>Nguồn</span><span>Trạng thái</span><span>Dấu thời gian nguồn</span></div>{value.feed_health.map(feed => <div className="feed-row" key={feed.feed}><strong>{sourceLabels[feed.feed] ?? "Nguồn dữ liệu bổ sung"}</strong><span className={`order-status ${feed.status === "trusted" ? "status-on_track" : "status-unknown_feed"}`}>{feedLabels[feed.status] ?? "Cần kiểm tra"}</span><time>{formatDate(feed.source_timestamp, true)}</time></div>)}</div><div className="guard-distribution"><h3>Phân bố trạng thái đơn</h3><div>{statusesForCounts(value).map(([status, count]) => <p key={status}><span>{status}</span><strong>{count}</strong></p>)}</div></div><details className="technical-details"><summary>Chi tiết kỹ thuật nguồn</summary><pre>{JSON.stringify(value.feed_health, null, 2)}</pre></details></section>}
+            <details className="runtime-records"><summary>Bản ghi thực thi và chi tiết kỹ thuật</summary><p>{value.outbox_total} yêu cầu · {value.handoffs.length} lượt bàn giao · {value.ledger_total} bản ghi xu local. Đây là kết quả trong phiên mô phỏng, không phải thanh toán ví bên ngoài.</p><pre>{JSON.stringify({ ledger: value.ledger, outbox: value.outbox, cancellations: value.cancellations, handoffs: value.handoffs }, null, 2)}</pre></details>
         </>}
     </Shell>;
+}
+function statusesForCounts(value: Runtime) {
+    return Object.entries(statusLabels).map(([status, label]) => [label, value.label_counts[status] ?? 0] satisfies [string, number]);
 }
