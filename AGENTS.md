@@ -39,4 +39,4 @@ Use pytest; name files `test_*.py` and functions `test_*` inside your acceptance
 
 ## Commits & Pull Requests
 
-Use personal branches `huy`, `an-nguyen`, `truc`. History uses short descriptive subjects, e.g. “Set up hackathon contracts.” Commit locally; push only on explicit request. PRs should describe behavior, affected contracts, and test results; link relevant issues and include screenshots for UI changes.
+Use task branches `<type>/<lowercase-kebab-description>`, e.g. `chore/repository-guardrails` or `feat/order-tracking`. Allowed types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `revert`. Personal branches `huy`, `an-nguyen`, and `truc` are superseded by this convention; folder ownership still applies. Hooks reject commits/pushes from invalid branch names, `main`, and detached HEAD. History uses short descriptive subjects, e.g. “Set up hackathon contracts.” Commit locally; push only on explicit request. PRs should describe behavior, affected contracts, and test results; link relevant issues and include screenshots for UI changes.
