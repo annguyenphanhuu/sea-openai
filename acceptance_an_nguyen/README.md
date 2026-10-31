@@ -1,6 +1,6 @@
 # An Nguyen acceptance tests
 
-Owner: An Nguyen. Run `python -m pytest -q acceptance_an_nguyen` from the root.
+Initial regression tests: An Nguyen. Cross-test ownership after handoff: Truc. Run `python -m pytest -q acceptance_an_nguyen` from the root.
 
 - `test_assessment.py`: status priority, probability boundaries, Vietnam midnight,
   delivered-order lateness, ingestion visibility, structured ETA/fault, conflicting

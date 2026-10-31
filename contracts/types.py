@@ -1,6 +1,6 @@
 """Version-zero data contracts; wire conventions are documented in decisions.md."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal, TypedDict
 
@@ -13,23 +13,30 @@ STATUSES: tuple[OrderStatus, ...] = (
     "at_risk", "watch", "slow_safe", "on_track",
 )
 
-# Intent names and their priority are proposed defaults, not an implemented router.
 Intent = Literal[
-    "request_human", "confirm_cancel", "cancel_order", "request_late_xu",
-    "report_delivery_issue", "ask_eta", "ask_status", "other",
+    "unreasonable_abusive", "ask_human", "want_cancel", "want_more",
+    "ask_why", "accept", "off_topic",
 ]
 INTENTS: tuple[Intent, ...] = (
-    "request_human", "confirm_cancel", "cancel_order", "request_late_xu",
-    "report_delivery_issue", "ask_eta", "ask_status", "other",
+    "unreasonable_abusive", "ask_human", "want_cancel", "want_more",
+    "ask_why", "accept", "off_topic",
 )
 
-Actor = Literal["A1", "A2", "A3", "human"]
 Channel = Literal["chat", "web_voice"]
 FaultParty = Literal["customer", "carrier", "platform", "force_majeure", "unknown"]
+ActionSource = Literal["a1", "app", "rule", "cancel_reviewer"]
 ActionKind = Literal[
-    "open_chat", "start_web_voice", "request_cancel",
-    "cancel_order", "handoff_human", "grant_late_xu",
+    "coins", "cancel_request", "eta_notice", "voucher", "refund",
+    "shipping_fee_refund",
 ]
+ALLOWED_SOURCES: dict[ActionKind, frozenset[ActionSource]] = {
+    "coins": frozenset({"a1"}),
+    "cancel_request": frozenset({"a1", "app"}),
+    "eta_notice": frozenset({"a1"}),
+    "voucher": frozenset({"rule"}),
+    "refund": frozenset({"cancel_reviewer"}),
+    "shipping_fee_refund": frozenset({"cancel_reviewer"}),
+}
 
 
 class Evidence(TypedDict):
@@ -74,9 +81,11 @@ class Action:
     action_id: str
     order_id: str
     kind: ActionKind
-    actor: Actor
+    amount_vnd: int
+    source: ActionSource
     requested_at: datetime
     idempotency_key: str
-    contact_id: str | None = None
+    evidence_ref: str
+    needs_approval: bool
+    queue: str
     confirmation_id: str | None = None
-    evidence_refs: tuple[str, ...] = field(default_factory=tuple)
