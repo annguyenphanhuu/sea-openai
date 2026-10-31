@@ -1,7 +1,10 @@
 # Independent spec review — Huy platform, 2026-10-31
 
-**Current final status: Approved after re-review.** The initial findings below are
-preserved as review history; their resolution is recorded at the end.
+**Historical core-spec status: Approved after re-review.** This approval applies to
+the prior v1 core baseline, before the later demo-first and voucher extension.
+It does not approve the current voucher/demo extension or authorize implementation
+of unresolved policy. The initial findings below are preserved as review history;
+their resolution is recorded at the end.
 
 ## Spec Review
 

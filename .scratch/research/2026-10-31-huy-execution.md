@@ -2,7 +2,7 @@
 
 Phạm vi: đặc tả để review và lập kế hoạch, chưa triển khai. Chỉ Huy sở hữu contracts, state và Python service thực thi; Trúc sở hữu HTTP/auth/UI/A1, An Nguyen sở hữu A2. Không thêm route, không chọn framework/provider, không viết vào DB nguồn. Baseline do controller cung cấp: `huy`, HEAD `41cf049`; báo cáo này không chạy Git hay kiểm thử.
 
-Steering mới nhất: Huy đã duyệt scope coins + cancel; công thức coins vẫn 5%, floor nghìn, min 10.000/max 1.000.000. Voucher/refund là hướng tương lai, tiếp tục `policy_not_configured`. Huy đã chọn “Hiển thị số lần hoàn trả có bằng chứng, shop tự đánh giá”; phần bổ sung 10 ghi giới hạn dữ liệu và seam đọc, không có cảnh báo fraud tự động/ngưỡng/model.
+**Historical v1 baseline; see [current decisions](2026-10-31-huy-demo-decisions.md) for the later voucher decision.** Steering mới nhất: Huy đã duyệt scope coins + cancel; công thức coins vẫn 5%, floor nghìn, min 10.000/max 1.000.000. Voucher/refund là hướng tương lai, tiếp tục `policy_not_configured`. Huy đã chọn “Hiển thị số lần hoàn trả có bằng chứng, shop tự đánh giá”; phần bổ sung 10 ghi giới hạn dữ liệu và seam đọc, không có cảnh báo fraud tự động/ngưỡng/model.
 
 ## 1. Hợp đồng đã có và khoảng trống thực tế
 
