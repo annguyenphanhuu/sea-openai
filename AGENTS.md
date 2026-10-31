@@ -2,11 +2,11 @@
 
 ## Project Structure & Ownership
 
-- Huy: `platform_huy/` (platform/A3), `acceptance_truc/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
+- Huy: `platform_huy/` (data validation/A3 and shared execution gate, except UI prototype), `acceptance_truc/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
 - An Nguyen: `logistics_an_nguyen/` (A2), `acceptance_huy/`.
-- Truc: `care_truc/` (A1), `acceptance_an_nguyen/`.
+- Truc: `care_truc/` (A1, UI, HTTP APIs/auth), existing `platform_huy/ui_prototype/`, and `acceptance_an_nguyen/`.
 
-Acceptance folders name the person being tested. Follow `docs/team_plan.md`; only Huy edits contracts/dependencies. Request changes from other owners. This user-requested scaffold correction may update existing contract tests before handoff. The repository currently contains a scaffold, not runnable agents.
+Acceptance folders name the person being tested. Follow `docs/team_plan.md`; only Huy edits contracts/dependencies. Request changes from other owners. A2 supplies assessed-order lists to Truc; Huy supplies source validation and feed trust. A2 and an illustrative UI prototype exist; the full pipeline is not implemented.
 
 ## Development Commands
 
@@ -18,7 +18,7 @@ python -c "import contracts"                 # Check contract imports.
 pytest -q                                   # Run acceptance tests.
 ```
 
-No application launch or build command exists yet.
+See module READMEs for A2 and prototype commands; no full application server exists yet.
 
 ## Coding Style
 

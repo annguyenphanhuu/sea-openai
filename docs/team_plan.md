@@ -1,6 +1,6 @@
 # Team plan — hackathon đơn trễ, 7 giờ
 
-Team: **Huy, An Nguyen, Trúc**. Viết mới theo yêu cầu Huy ngày 31/10/2026. D1–D5 là quyết định đã chốt; lịch giờ và route dưới đây là kế hoạch triển khai. Repo hiện có scaffold/contracts/tests, chưa có agent, API server, UI hoặc executor chạy thật.
+Team: **Huy, An Nguyen, Trúc**. Phân công mới nhất: Huy kiểm định database/A3; An Nguyen đánh giá đơn và bàn giao danh sách; Trúc làm A1 cùng toàn bộ UI/API. D1–D5 giữ các quyết định đã chốt. Main đã có code A2 và UI prototype minh họa; chưa có pipeline đầy đủ, A3/A1, API server hay executor chạy thật.
 
 ## 1. Cấu trúc folder và quyền sở hữu
 
@@ -10,9 +10,10 @@ Team: **Huy, An Nguyen, Trúc**. Viết mới theo yêu cầu Huy ngày 31/10/20
 | --- | --- | --- |
 | `contracts/` | Types, permission matrix, params, schema | Chỉ Huy |
 | `requirements/` | Dependencies runtime/dev | Chỉ Huy |
-| `platform_huy/` | Replay, state, A3, execute_action, API tích hợp, UI quản lý | Huy |
-| `logistics_an_nguyen/` | A2: trạng thái, ETA, bằng chứng, câu hỏi supervisor | An Nguyen |
-| `care_truc/` | A1: chat/web voice, rules, template/validator, handoff | Trúc |
+| `platform_huy/` | Kiểm định DB, replay/state, A3 và cổng execute_action | Huy, trừ prototype UI bên dưới |
+| `platform_huy/ui_prototype/` | Prototype UI hiện có để Trúc tham khảo/tiếp quản | Trúc |
+| `logistics_an_nguyen/` | A2: đánh giá, danh sách đơn, mốc vận chuyển, ETA, nguyên nhân và bằng chứng | An Nguyen |
+| `care_truc/` | A1: chăm sóc khách/chat/web voice; toàn bộ UI và HTTP API/auth | Trúc |
 | `acceptance_huy/` | Test chéo cho platform/A3 của Huy | An Nguyen |
 | `acceptance_an_nguyen/` | Test chéo cho A2 của An Nguyen | Trúc |
 | `acceptance_truc/` | Test chéo cho A1 của Trúc | Huy |
@@ -25,6 +26,8 @@ Tên `acceptance_<người>` chỉ người được kiểm thử. Không sửa 
 ### 1.2. Luồng tổng thể
 
 Mỗi tick 30 phút: dữ liệu được phép thấy → **A3 → A2 → A1** → outbox/platform. A3 kiểm độ tin feed; A2 đánh giá logistics; A1 tương tác khách. Output vào state riêng, không ghi DB nguồn. Chỉ platform thực hiện tiền qua một cổng có kiểm quyền. Mọi chức năng UI phải có API.
+
+Bàn giao theo người: **Huy xác nhận dữ liệu/feed → An Nguyen xuất danh sách đánh giá đơn → Trúc hiển thị UI/API và chăm sóc khách**. UI/API không tự sửa ETA, fault hoặc nguyên nhân của A2. Huy giữ contracts, dependencies và cổng kiểm quyền tiền đã chốt; Trúc gọi cổng đó qua API khi có action hợp lệ, không tự ghi ledger.
 
 ## 2. Hợp đồng chung: types, schema, params, API
 
@@ -65,24 +68,40 @@ Params: `tick_min=30`, `p_contact=0.7`, `p_watch=0.2`, `feed_stale_max_min=30`, 
 
 ### 2.3. Danh sách API phải triển khai
 
-Huy sở hữu route/auth/state, An Nguyen cung cấp logic A2, Trúc cung cấp logic A1. Các route dưới đây chưa hoạt động trong scaffold.
+Trúc sở hữu toàn bộ route HTTP, auth và UI cho quản lý/khách/shop. An Nguyen cung cấp danh sách assessment, metadata và serializer; Huy cung cấp kiểm định nguồn, A3, state và cổng kiểm quyền thực thi. Các route dưới đây chưa hoạt động trong scaffold.
 
 | Chức năng | Route dự kiến | Logic |
 | --- | --- | --- |
-| Đơn/assessment | `GET /api/orders`, `GET /api/orders/{id}`, `GET /api/orders/{id}/assessment` | Huy + An Nguyen |
-| App khách/trang shop | `GET /api/customer/orders`, `GET /api/shop/orders` | Huy, lọc chủ đơn |
+| Đơn/assessment | `GET /api/orders`, `GET /api/orders/{id}`, `GET /api/orders/{id}/assessment` | Trúc dùng dữ liệu An Nguyen |
+| App khách/trang shop | `GET /api/customer/orders`, `GET /api/shop/orders` | Trúc, lọc chủ đơn |
 | Chat | `POST /api/chats`, `GET/POST /api/chats/{id}/messages` | Trúc |
 | Web voice | `POST /api/voice/sessions`, `POST /api/voice/sessions/{id}/end` | Trúc; API trả session negotiation |
-| Giám sát cuộc gọi | `GET /api/calls`, `GET /api/calls/{id}` | Huy + Trúc |
-| Hủy/xác nhận lần hai | `POST /api/orders/{id}/cancel-requests`, `POST /api/cancel-requests/{id}/confirm` | A1/app → Huy |
-| Hàng chờ/phê duyệt | `GET /api/review-queue`, `POST /api/actions/{id}/review` | Huy, cancel_reviewer |
-| Chuyển người | `POST /api/chats/{id}/handoff`, `GET /api/handoffs` | Trúc + Huy |
-| Câu hỏi A2 | `GET/POST /api/supervisor-questions`, `POST /api/supervisor-questions/{id}/answer` | An Nguyen + Huy |
-| Trạng thái A3 | `GET /api/guard`, `GET /api/feed-health`, `GET /api/incidents` | Huy |
-| Controls | `GET /api/controls`, `PATCH /api/controls/{key}` | Huy, kiểm quyền A3 chỉ siết |
-| Lịch sử action | `GET /api/orders/{id}/actions` | Huy |
+| Giám sát cuộc gọi | `GET /api/calls`, `GET /api/calls/{id}` | Trúc |
+| Hủy/xác nhận lần hai | `POST /api/orders/{id}/cancel-requests`, `POST /api/cancel-requests/{id}/confirm` | Trúc gọi gateway của Huy |
+| Hàng chờ/phê duyệt | `GET /api/review-queue`, `POST /api/actions/{id}/review` | Trúc gọi gateway, source cancel_reviewer |
+| Chuyển người | `POST /api/chats/{id}/handoff`, `GET /api/handoffs` | Trúc |
+| Câu hỏi A2 | `GET/POST /api/supervisor-questions`, `POST /api/supervisor-questions/{id}/answer` | Trúc dùng QuestionStore của An Nguyen |
+| Trạng thái A3 | `GET /api/guard`, `GET /api/feed-health`, `GET /api/incidents` | Trúc đọc output A3 của Huy |
+| Controls | `GET /api/controls`, `PATCH /api/controls/{key}` | Trúc gọi gate của Huy, A3 chỉ siết |
+| Lịch sử action | `GET /api/orders/{id}/actions` | Trúc đọc state qua platform |
 
 Mutation phải chống retry bằng idempotency, kiểm ownership/quyền server-side. Không có endpoint cho LLM/client tự cấp tiền; xu đi qua text chat theo D4. Team chọn framework và provider/transport voice trong giờ đầu; chỉ Huy thêm requirements. Scaffold này chưa tự chọn dependency.
+
+### 2.4. Danh sách An Nguyen bàn giao cho Trúc
+
+Mỗi phần tử gắn một order_id và một thời điểm đánh giá, gồm:
+
+| Thông tin hiển thị/chăm sóc | Nguồn và ý nghĩa |
+| --- | --- |
+| Mã đơn, trạng thái | order_id và đúng một status từ A2 |
+| Ngày đặt | orders.created_at đã qua lọc as-of |
+| Ngày bắt đầu vận chuyển | Mốc bàn giao hãng từ scan handed_over đã được ingest; không nhầm với ngày đặt |
+| Ngày cam kết | guaranteed_date cố định, theo D1 |
+| Ngày dự kiến mới | revised_eta do A2 đánh giá; có thể null |
+| Vì sao trễ/có nguy cơ trễ | reason_codes và evidence đã được đánh giá; chưa đủ căn cứ thì thể hiện chưa xác định |
+| Độ tin và thời điểm cập nhật | confidence, assessed_at và tình trạng feed/A3 để Trúc biết có được chủ động liên hệ không |
+
+Phân biệt nhãn ngày đặt/ngày bàn giao/ngày cam kết/ETA mới trên UI. Ngày bàn giao thiếu thì trả null, không tự lấy ngày đặt thay. Hiện OrderAssessment có cam kết/ETA/reasons/evidence nhưng chưa có trường riêng ngày đặt/bàn giao; An Nguyen và Trúc phối hợp bổ sung metadata as-of trong payload bàn giao, mọi thay đổi contracts qua Huy. Đây là yêu cầu bàn giao, chưa phải payload/API đã triển khai.
 
 ## 3. Chia việc theo 7 giờ, 3 nhánh
 
@@ -90,25 +109,25 @@ Giờ tính từ lúc team bắt đầu thực thi plan. Huy dùng `huy`, An Ngu
 
 Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh cá nhân nếu có, rồi merge main vào nhánh cá nhân. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook, không ép tên nhánh feat/chore. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
 
-| Giờ | Huy — platform/A3 | An Nguyen — A2 | Trúc — A1 |
+| Giờ | Huy — kiểm định dữ liệu/A3 | An Nguyen — A2 và danh sách bàn giao | Trúc — A1, UI và API |
 | --- | --- | --- | --- |
-| 0–1 | Chốt contracts/API; schema/hash nguồn; state; chọn stack cùng team | Mapping evidence, 8 nhãn, ngày cam kết | 7 intent, template, adapter chat/voice |
-| 1–2 | Replay read-only/cursor/che tương lai; A3 heartbeat/feed | D1/D2, exception, customer fault, trạng thái | Rules, session text, max_turns, đếm chửi, handoff |
+| 0–1 | Kiểm schema/hash/timestamp/quan hệ; chốt contracts cùng team | Mapping evidence, 8 nhãn, mốc ngày và payload danh sách | Chọn stack UI/API, 7 intent, template và route |
+| 1–2 | Replay read-only/cursor/che tương lai; A3 heartbeat/feed | D1/D2, exception, customer fault, trạng thái | Khung API/UI danh sách đơn; rules, session và handoff |
 | 2–3 | Gate A3; execute_action/permission/idempotency; thiết kế ledger cho các loại tiền | ETA/risk, watch 2 tick, slow_safe, câu hỏi supervisor | Validator, xác nhận hủy, điều kiện D4 |
-| 3–4 | API quản lý/khách/shop, queue/review; test chéo A1 | Adapter assessment; test chéo platform/A3 | Adapter chat/web voice; test chéo A2 |
-| 4–5 | Ghép A3→A2→A1; guard trước gửi; UI danh sách/hàng chờ | Ghép replay; sửa lỗi test Trúc báo | Ghép platform, log voice/handoff; sửa lỗi test Huy báo |
-| 5–6 | Tích hợp API/auth, retry/double-grant; sửa lỗi An Nguyen báo | Kiểm nhãn/ETA trên release, chống future leakage/free-text fault | Kiểm injection, hủy, text/voice và từ chối xu đúng |
-| 6–7 | Khóa contracts, regression, merge được duyệt, chạy demo/reset state | Chọn case có bằng chứng, ghi giới hạn | Hoàn thiện flow demo và fallback voice/LLM |
+| 3–4 | Kiểm dữ liệu/permission/queue; test chéo A1 và ranh giới API | Adapter assessment và metadata ngày bàn giao; test chéo A3 | UI/API quản lý/khách/shop; nối danh sách A2, chat/voice; test chéo A2 |
+| 4–5 | Ghép gate A3 và state vào luồng; kiểm guard trước gửi | Ghép replay và payload cho Trúc; sửa lỗi test Trúc báo | Ghép UI/API với A1, platform, log voice/handoff; sửa lỗi test Huy báo |
+| 5–6 | Kiểm retry/double-grant, nguồn không đổi; sửa lỗi An Nguyen báo | Kiểm nhãn/ETA trên release, chống future leakage/free-text fault | Kiểm API/auth, injection, hủy, text/voice và từ chối xu đúng |
+| 6–7 | Khóa contracts, regression dữ liệu, merge được duyệt, reset state demo | Chọn case có bằng chứng, ghi giới hạn | Hoàn thiện UI/API và flow demo, fallback voice/LLM |
 
 Ưu tiên một tick thật qua ba agent trước khi mở rộng UI. Voice chưa sẵn thì báo chưa hoàn thành, không gọi hotline hay giả kết quả. Không dùng LLM bịa dữ liệu thiếu. Ai sở hữu implementation người đó sửa lỗi do test chéo phát hiện.
 
 ## 4. Thứ tự merge
 
 1. Huy: contracts/schema/params/docs làm nền; import và pytest xanh.
-2. Huy: replay/state/A3 và interface executor/API để A2/A1 ghép.
+2. Huy: kiểm định/replay/state/A3 và interface executor để A2/A1/UI/API ghép.
 3. An Nguyen: A2 và test platform do An viết; chạy test A2 do Trúc cung cấp.
-4. Trúc: A1 và test A2 do Trúc viết; chạy test A1 do Huy cung cấp.
-5. Huy: test A1, tích hợp API/UI/voice và regression toàn luồng; giải quyết conflict cùng chủ folder.
+4. Trúc: A1/UI/API và test A2 do Trúc viết; chạy test A1/API do Huy cung cấp.
+5. Huy kiểm dữ liệu/gate, An kiểm assessment, Trúc ghép UI/API/voice; cùng regression toàn luồng và giải quyết conflict theo chủ folder.
 
 Đưa test chéo cho chủ implementation chạy sớm trước merge. Không đổi contract âm thầm; mọi đổi contract qua Huy và thông báo hai bên dùng. Theo yêu cầu mới của Huy, **mỗi phần hoàn thành và kiểm tra đạt phải commit rồi push lên nhánh huy của repo team** (`upstream` trong checkout hiện tại). Merge vào main khi Huy yêu cầu. Các thành viên tiếp tục dùng nhánh cá nhân của mình.
 

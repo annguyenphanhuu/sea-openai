@@ -15,11 +15,11 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 | Chọn ETA, fault và risk từ bằng chứng có cấu trúc | Đã triển khai; không tự dựng mô hình dự báo |
 | Lọc dữ liệu theo `ingested_at`, kiểm tra dữ liệu đầu vào | Đã triển khai trên snapshot do platform cung cấp |
 | Câu hỏi quản lý, lưu/đọc/trả lời và chống trùng khi retry | Đã triển khai trong `service.py` và `questions.py` |
-| Đầu ra JSON cho API orders/shop và review | Đã có Python API và serializer để Huy gắn HTTP route |
+| Đầu ra JSON cho API orders/shop và review | Đã có Python API và serializer để Trúc gắn HTTP route/UI |
 | Kiểm thử biên và lỗi A2 | Đã có trong `acceptance_an_nguyen/` |
 | Adapter đọc DB release | Đã nối schema `release_main`, đọc as-of và chỉ đọc |
 | Baseline ETA/xác suất | Đã có survival model từ lịch sử nhìn thấy; chưa hiệu chỉnh/kiểm định độ chính xác |
-| Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy tích hợp; A1 do Truc phụ trách |
+| Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy phụ trách kiểm định/A3/state; Trúc phụ trách A1/UI/HTTP/auth; An bàn giao danh sách assessment |
 
 ## Python API
 
@@ -139,8 +139,8 @@ lọc trường nội bộ/quyền truy cập trước khi trả cho khách ho�
    diễn thiếu forecast và mapping fault. Huy ghi quyết định chung trong docs.
 3. Huy và An Nguyen kiểm định baseline survival mới theo nhiều tick, thống nhất
    nhóm tuyến và tiêu chí chất lượng trước khi dùng tự động cho khách hàng.
-4. Huy gắn serializer vào API orders/shop và QuestionStore vào API supervisor,
-   thêm auth, phân quyền, xử lý lỗi và transaction/checkpoint của tick.
+4. Trúc gắn serializer vào API orders/shop và QuestionStore vào API supervisor,
+   thêm UI, auth, phân quyền và xử lý lỗi; Huy giữ transaction/checkpoint của tick.
 5. Truc đọc `OrderAssessment`, reason/evidence và kiểm tra guard qua platform;
    không suy diễn eligibility xu từ riêng status hoặc probability.
 
