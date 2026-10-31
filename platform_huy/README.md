@@ -8,3 +8,4 @@ Boundary: Future platform implementation; no agent or financial executor is incl
 
 Use `python -m platform_huy.serve_ui --integrated --llm` to enable OpenAI for
 A1, A2 and A3. See [LLM.md](LLM.md) for scope, audit APIs and live verification.
+See [DEMO_LLM_VI.md](DEMO_LLM_VI.md) for three frontend demo scripts in Vietnamese.
