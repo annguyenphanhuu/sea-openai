@@ -30,6 +30,43 @@ Python packages; they do not install or replace the Python interpreter.
 
 Place source files under `data/release_main/` and `data/tiny/`; data is gitignored and must be shared separately. Open source databases read-only. Runtime state belongs in `runs/`.
 
+## Connect to MongoDB
+
+Copy `.env.example` to `.env` if `.env` does not exist. Set `MONGODB_URI` to your
+MongoDB connection URI and `MONGODB_DATABASE` to the application database name.
+The default database is `sea_openai`. Use `mongodb://127.0.0.1:27017` for an
+existing local server, or your Atlas connection URI.
+
+If the URI contains credentials, leave `MONGODB_USERNAME` and `MONGODB_PASSWORD`
+empty. Alternatively, set both fields to supply raw credentials separately.
+Separate credentials override credentials in the URI and do not need URL encoding.
+Operating-system environment variables override `.env` values.
+The loader reads `.env` from the repository root regardless of the working directory.
+Keep `.env` untracked.
+
+After installing requirements, run the read-only connection check:
+
+```powershell
+.\.venv\Scripts\python.exe -m platform_huy.mongodb
+```
+
+Success prints `MongoDB connection succeeded.`. Failure exits with code 1 and
+does not print credentials. Check Atlas network access and database-user permissions
+if the connection fails. A ping does not create a database or collections.
+
+Application code can reuse the managed connection:
+
+```python
+from platform_huy.mongodb import mongo_database
+
+with mongo_database() as database:
+    database.command("ping")
+```
+
+The connection closes when the block exits. MongoDB setup does not migrate the
+SQLite source databases or implement the runtime state schema.
+See the [PyMongo connection guide](https://www.mongodb.com/docs/languages/python/pymongo-driver/current/connect/mongoclient/).
+
 Huy owns data validation/A3 and shared execution safeguards. An Nguyen owns A2 and supplies assessed-order lists, dates, ETA, and delay evidence. Truc owns A1, all UI, and HTTP APIs.
 
 The release dataset supports initial development. Tiny lacks promised dates and ops telemetry; it cannot validate the full workflow. A2 logic and a static UI prototype are available; the integrated agents, API server, and action executor are not implemented yet. See the [prototype limitations](platform_huy/ui_prototype/README.md).
