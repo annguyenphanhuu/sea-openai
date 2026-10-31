@@ -88,6 +88,8 @@ Mutation phải chống retry bằng idempotency, kiểm ownership/quyền serve
 
 Giờ tính từ lúc team bắt đầu thực thi plan. Huy dùng `huy`, An Nguyen dùng `an-nguyen`, Trúc dùng `truc`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
 
+Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh cá nhân nếu có, rồi merge main vào nhánh cá nhân. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook, không ép tên nhánh feat/chore. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
+
 | Giờ | Huy — platform/A3 | An Nguyen — A2 | Trúc — A1 |
 | --- | --- | --- | --- |
 | 0–1 | Chốt contracts/API; schema/hash nguồn; state; chọn stack cùng team | Mapping evidence, 8 nhãn, ngày cam kết | 7 intent, template, adapter chat/voice |

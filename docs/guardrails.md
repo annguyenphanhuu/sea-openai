@@ -1,65 +1,27 @@
-# Commit and PR guardrails
+# Kiểm tra và đồng bộ thủ công
 
-From the repository root, with Python 3.11+ and Git on PATH:
+Theo yêu cầu Huy, team dùng ba nhánh `huy`, `an-nguyen`, `truc`; không cài hook hoặc bắt tên nhánh feat/chore. Các script hook, workflow GitHub và test riêng cho cơ chế đó đã được gỡ. Ownership và quy tắc nghiệp vụ trong AGENTS.md vẫn áp dụng.
 
-```powershell
-python -m pip install -r requirements/dev.txt
-python scripts/install_hooks.py
-```
-
-Each clone needs installation. The installer sets local `core.hooksPath` to
-the absolute `.githooks` path in the installing checkout and refuses to replace
-a different configured hooks directory. Keep that checkout available: linked
-worktrees share these hooks, including when their branch has older hook files.
-Use your personal branch (`huy`, `an-nguyen`, or `truc`) as required by AGENTS.md.
-
-`pre-commit` checks the staged snapshot, rejecting private paths, unresolved
-conflict markers, and whitespace errors. Unstaged fixes do not fix staged errors;
-stage the corrected file again. Removing an accidentally tracked private file is
-allowed. `.env.example` is allowed and must contain placeholders only.
-
-`pre-push` checks all tracked index entries, imports `contracts`, and runs the
-entire acceptance suite. Run the same command manually before opening a PR:
+Trước mỗi phần việc và trước khi push, kiểm tra working tree rồi đồng bộ repo team. Ví dụ với checkout Huy, remote team là upstream:
 
 ```powershell
-python scripts/guardrails.py --all --tests
+git status --short --branch
+git fetch upstream
+git switch huy
+git merge upstream/huy
+git merge upstream/main
 ```
 
-GitHub Actions repeats this check on PRs and pushes to team branches and main.
-The PR template records behavior, contract changes, review ownership, and evidence.
-To enforce checks before merge, a repository administrator must require
-`Guardrails and acceptance tests` in the main branch ruleset. This setup does not
-change GitHub branch protection or publish changes.
+Giữ lại thay đổi chưa commit của mình trước khi merge; không reset hoặc force push để giải quyết conflict. Nếu dùng clone trực tiếp repo team, kiểm tra remote và thay upstream bằng origin khi phù hợp. An Nguyen/Trúc dùng nhánh cá nhân tương ứng.
 
-Local hooks can be bypassed; they are feedback, not an authorization boundary.
-Push checks inspect the local index, not every historical commit being pushed.
-CI checks the PR checkout. Path checks do not detect arbitrary secrets embedded
-in source files. Ownership and business safety rules still require human review
-and appropriate acceptance tests; these hooks do not implement agent safety logic.
-
-CodeGraph is initialized locally. Its `.codegraph/` index stays untracked.
-
-## Local files in worktrees
-
-`docs/superpowers/` contains local specs and plans and stays ignored.
-After installing hooks, use ordinary Git commands:
+Sau khi hoàn thành một phần, chạy:
 
 ```powershell
-git worktree add ../sea-openai-huy huy
+python -c "import contracts"
+pytest -q
+git diff --check
 ```
 
-The `post-checkout` hook copies all ignored files from the installing checkout
-into the newly created worktree, including local specs, `.env`, data, databases,
-virtual environments, and caches. It skips existing destination files and other
-linked worktrees; it does not modify source files. This is a one-time copy, not
-ongoing synchronization. Large ignored directories increase creation time, and
-copied virtual environments may need recreation because they contain absolute paths.
+Stage đúng các file của phần việc, kiểm tra staged diff, commit và push nhánh cá nhân. Nếu remote có thêm commit trong lúc làm, fetch/merge rồi chạy lại các kiểm tra liên quan trước push. Chỉ merge và push main khi Huy yêu cầu.
 
-Git does not invoke this hook for `git worktree add --no-checkout`.
-To copy manually, run the source checkout's `scripts/sync_worktree_ignored.py`
-using an absolute path while your current directory is the destination worktree.
-Ordinary branch switches do not trigger copying. Existing tracked files are never
-overwritten. The installer also adds local shared exclude rules for
-`docs/superpowers/`, `.codegraph/`, and `.worktrees/` so these remain ignored
-even in branches predating this configuration. Other ignore rules come from
-each branch or your global Git configuration.
+Không stage `.env`, `data/`, `runs/`, `truth/` hoặc DB. Dữ liệu được chia sẻ riêng, luôn đọc nguồn ở chế độ read-only. Không còn tự copy ignored files khi tạo worktree.
