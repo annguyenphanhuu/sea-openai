@@ -58,12 +58,24 @@ Adapter đáng tin cậy phải liên kết bằng chứng với đúng đơn; c
 không có `order_id`, nên A2 không tự xác minh được liên kết này. Không nhận
 trực tiếp payload khách hàng rồi gắn `is_structured=True`.
 
+`ReleaseAdapter` kiểm tra timestamp của snapshot trước khi dựng lịch sử: ngày
+tạo/hủy, event/ingestion của scan, lần giao và báo cáo không được vượt tick và
+phải có timezone. Snapshot tự cấp sai cutoff bị từ chối bằng `ValueError`;
+caller cần lọc/mask qua replay trước khi gọi. Các lần giao được sắp theo thời
+gian để thứ tự dòng trong projection không làm đổi kết luận lỗi khách.
+
 `FeedHealth(feed, status, checked_at, source_timestamp, last_ingested_at=None)`
 dùng status `trusted/stale/corrupt/missing` theo schema mới. Phải trusted, có
 timestamp nguồn không quá 30 phút và không ở tương lai; `checked_at` và ingestion
 mới không làm dữ liệu nguồn cũ thành mới. Đây không phải kiểm tra quyền liên hệ:
 heartbeat A3 (ngưỡng 60 phút), control và kiểm tra lại lúc gửi thuộc platform.
 A2 không tạo `ContactTask` hay `Action`.
+
+Khóa câu hỏi quản lý bỏ qua riêng timestamp quan sát của `a2_tick_progress`;
+tiến độ không đổi và không có bằng chứng mới sẽ không sinh câu hỏi lại mỗi tick.
+Giá trị tiến độ và bằng chứng nguồn vẫn tham gia khóa; audit giữ đủ timestamp.
+Khóa của câu hỏi có progress thay đổi so với bản cũ, nên kiểm thử/nâng cấp demo
+dùng run mới; không coi đây là migration gộp các câu hỏi đã lưu bằng khóa cũ.
 
 ## Payload danh sách bàn giao Trúc
 
@@ -289,6 +301,9 @@ Không đọc `truth_main.sqlite`,
 1. Lấy thời gian từ lần gần nhất vào giai đoạn đến giao thành công đã nhìn thấy.
 2. Đơn chưa giao vẫn tham gia dưới dạng right-censored tại tick; đơn kết thúc
    không giao bị censor tại thời điểm kết thúc. Không loại sạch đơn chậm đang chờ.
+   Nếu hoàn/hủy hoặc terminal không giao xảy ra trước hay cùng lúc một bản ghi
+   giao thành công, lịch sử huấn luyện dừng tại terminal và không tính là mẫu
+   giao thành công. Các chặng sau mốc kết thúc không được đưa lại vào cohort.
 3. Điều kiện hóa theo số giờ đơn hiện tại đã ở giai đoạn; tính xác suất vẫn
    chưa giao sau cuối ngày đảm bảo và ETA trung vị của thời gian còn lại.
 4. Chỉ trả forecast khi còn ít nhất 20 mẫu phù hợp tuổi giai đoạn và ít nhất
@@ -390,6 +405,10 @@ complete-case score. Chưa xác nhận mô hình đủ chất lượng để dù
 Test: `.venv/Scripts/python.exe -m pytest -q acceptance_huy/test_forecast_validation.py`.
 Ma trận case platform chờ interface thật nằm trong
 `../.scratch/specs/a2-platform-acceptance.md`; không phải các test tích hợp đã chạy.
+
+Đợt kiểm tra sâu A2 ngày 31/10/2026 gồm kiểm thử pipeline nhiều tick, retry,
+khôi phục progress, cutoff, training terminal và ghép với transaction/state nền
+của Huy. Xem [báo cáo và giới hạn](../.scratch/research/a2-verification.md).
 
 ## Kiểm tra offline ban đầu ngày 31/10/2026 (cách cũ)
 

@@ -50,9 +50,18 @@ def supervisor_questions(assessment: OrderAssessment) -> tuple[SupervisorQuestio
     questions = []
     # Changing the tick alone does not duplicate a question. Changed evidence does.
     structured = tuple(item for item in assessment.evidence if item["is_structured"])
+    identity_evidence = evidence_payload(structured)
+    for item in identity_evidence:
+        if item["source_table"] == "a2_tick_progress":
+            # The observation clock is not new source evidence. Keep count and
+            # provenance in the identity, and the full timestamp in the audit bundle.
+            item.pop("ingested_at")
+    if any(item["source_table"] == "a2_tick_progress" for item in identity_evidence):
+        # Removing the clock must also remove its influence on evidence ordering.
+        identity_evidence.sort(key=lambda item: json.dumps(item, sort_keys=True, ensure_ascii=False, allow_nan=False))
     for reason, prompt in sorted(prompts.items()):
         identity = json.dumps(
-            [assessment.order_id, reason, evidence_payload(structured)],
+            [assessment.order_id, reason, identity_evidence],
             sort_keys=True, ensure_ascii=False, allow_nan=False,
         )
         question_id = "a2-" + sha256(identity.encode("utf-8")).hexdigest()
