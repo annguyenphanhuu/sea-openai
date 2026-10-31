@@ -87,13 +87,18 @@ class SqliteEffectGateway:
         except (ValueError, KeyError, TypeError, AttributeError) as error:
             raise CareError('action_invalid', 400) from error
         if (action.order_id != proposal.order_id or action.evidence_ref != proposal.evidence_ref
-                or action.idempotency_key != proposal.key or action.kind not in ('coins', 'voucher')):
+                or action.idempotency_key != proposal.key or action.kind not in ('coins', 'voucher', 'cancel_request')):
             raise CareError('action_binding_invalid', 403)
         prefix = 'xu' if action.kind == 'coins' else 'voucher'
-        key = f'{prefix}:{action.order_id}'
+        key = (f'{self.run_id}:cancel:{action.confirmation_id}' if action.kind == 'cancel_request'
+               else f'{prefix}:{action.order_id}')
         allowed = {key}
         if action.kind == 'coins':
             allowed.add(f'{self.run_id}:coins:{action.order_id}')
+        if action.kind == 'cancel_request':
+            allowed.add(f'cancel:{action.order_id}:{action.confirmation_id}')
+            if action.amount_vnd != 0 or not action.needs_approval or not action.confirmation_id:
+                raise CareError('cancel_confirmation_invalid', 403)
         if action.idempotency_key not in allowed:
             raise CareError('action_key_invalid', 403)
         platform_reference = self.evidence_bindings.get(proposal.evidence_ref)
@@ -122,12 +127,33 @@ class SqliteEffectGateway:
                     or session['contact_id'] != contact['contact_id']
                     or state.contact_id != contact['contact_id']
                     or state.channel != 'chat' or state.opened_by != 'a1'
-                    or event != request or event['kind'] != 'message'
-                    or not isinstance(event['text'], str) or event['text'] != message['body']
+                    or event != request
                     or message['customer_id'] != self.context.customer_id
                     or message['order_id'] != action.order_id or contact['order_id'] != action.order_id
                     or canonical(proposal) not in [canonical(item) for item in bundle['proposals']]):
                 raise ValueError('Provenance does not match')
+            if action.kind == 'cancel_request':
+                facts = json.loads(actual['evidence']['payload_json'])
+                confirmation, pending = facts['cancellation'], session['pending']
+                if (not pending or confirmation['confirmed'] is not True
+                        or pending['confirmation_id'] != action.confirmation_id
+                        or confirmation['confirmation_id'] != action.confirmation_id
+                        or confirmation['request_id'] != proposal.evidence_ref
+                        or confirmation['reply_to'] != pending['reply_to']
+                        or confirmation['expires_at'] != pending['expires_at']):
+                    raise ValueError('Cancellation provenance does not match')
+                if event['kind'] == 'confirm_cancel':
+                    if event.get('confirmation_id') != action.confirmation_id or message['body'] != 'confirm_cancel:' + action.confirmation_id:
+                        raise ValueError('Cancellation event does not match')
+                elif event['kind'] == 'message':
+                    from care_truc.policy import signals
+                    if (signals(event.get('text') or '')[0] != 'accept' or event.get('reply_to') != pending['reply_to']
+                            or event['text'] != message['body']):
+                        raise ValueError('Cancellation acceptance does not match')
+                else:
+                    raise ValueError('Cancellation requires customer confirmation')
+            elif event['kind'] != 'message' or not isinstance(event['text'], str) or event['text'] != message['body']:
+                raise ValueError('Customer text does not match')
         except (ValueError, TypeError, KeyError, AttributeError) as error:
             raise CareError('care_evidence_invalid', 403) from error
 
@@ -135,7 +161,7 @@ class SqliteEffectGateway:
     def _receipt(proposal: EffectProposal, result: ExecutionResult) -> Receipt:
         success = result.decision == 'succeeded'
         return Receipt(proposal.effect_id, proposal.key, fingerprint(proposal.payload), 1,
-                       'succeeded' if success else 'rejected',
+                       ('awaiting_approval' if result.cancel_id else 'succeeded') if success else 'rejected',
                        result.action_id if success else 'blocked:' + ','.join(result.reason_codes))
 
     async def submit(self, proposal: EffectProposal, *, deadline: float) -> Receipt:
