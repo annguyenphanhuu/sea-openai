@@ -38,8 +38,11 @@ class AlgorithmContext:
             raise CareError('not_found', 404)
 
     async def load(self, ctx, order_id):
+        private_evidence = dict(feed='algorithm-feed', source_table='algorithm-private',
+            record_id='PRIVATE-ALGORITHM-ID', ingested_at=FIXTURE_TIME,
+            fact_code='driver_note', value='PRIVATE-ALGORITHM-NOTE', is_structured=False)
         assessment = OrderAssessment(order_id, FIXTURE_TIME, 'late', date(2026, 10, 28),
-                                     None, 2, .9, .9, 'carrier', ('delayed',), ())
+                                     None, 2, .9, .9, 'carrier', ('delayed',), (private_evidence,))
         guard = GuardSnapshot('a3', FIXTURE_TIME,
             (FeedSnapshot('algorithm-feed', 'trusted', FIXTURE_TIME),),
             ('algorithm-feed',), not self.blocked, not self.blocked)
@@ -159,6 +162,7 @@ async def run_adapter_demo(root: Path) -> dict:
         assert blocked
         public = json.dumps([history, cancellation, human_history])
         assert 'snapshot' not in public and 'algorithm-staff' not in public
+        assert 'PRIVATE-ALGORITHM-ID' not in public and 'PRIVATE-ALGORITHM-NOTE' not in public
         return {'label': 'adapter demo: algorithm fixtures only',
             'coin_receipt': 'succeeded', 'post_immutable': True, 'evidence_resolved': True,
             'cancel_receipt': 'succeeded', 'handoff_receipt': 'succeeded',

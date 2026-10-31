@@ -262,6 +262,8 @@ class TurnResponse:
             _strings(getattr(self, field), field)
         if self.assessment_ref is not None and not isinstance(self.assessment_ref, AssessmentRef):
             raise DomainError('invalid_assessment_ref')
+        if self.delivery_status is not None:
+            _text(self.delivery_status, 'delivery_status')
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,6 +281,8 @@ class PendingCancel:
     def __post_init__(self) -> None:
         for field in ('id', 'principal_id', 'session_id', 'order_id', 'prompt_message_id'):
             _text(getattr(self, field), field)
+        if self.contact_id is not None:
+            _text(self.contact_id, 'contact_id')
         _integer(self.version, 'version')
         _time(self, 'expires_at')
         _choice(self.status, ('pending', 'confirmed', 'retracted', 'expired', 'superseded'), 'cancel_status')
@@ -318,6 +322,8 @@ class HandoffSummary:
             _text(getattr(self, field), field)
         for field in ('facts', 'evidence_refs', 'staff_decisions_needed'):
             _strings(getattr(self, field), field)
+        if self.cancellation_state is not None:
+            _text(self.cancellation_state, 'cancellation_state')
         if not isinstance(self.action_receipts, tuple) or any(not isinstance(item, Receipt) for item in self.action_receipts):
             raise DomainError('invalid_action_receipts')
 

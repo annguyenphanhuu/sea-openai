@@ -89,6 +89,7 @@ class ContextSnapshot:
     contact_sent: bool = False
     evidence_resolvable: bool = False
     ledger_pending: bool | None = None
+    validation_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

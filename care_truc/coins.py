@@ -1,8 +1,10 @@
 """Pure D4 decisions shared by policy and the final local dispatch check."""
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import uuid4
 from contracts.params import late_xu_for
 from contracts.types import Action
+from .runtime_types import ContextSnapshot, CustomerEvent, SessionState
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,7 +14,7 @@ class Eligibility:
     amount_vnd: int | None = None
 
 
-def evaluate_facts(context) -> Eligibility:
+def evaluate_facts(context: ContextSnapshot) -> Eligibility:
     # Import lazily: Guardrails also consumes this decision at dispatch.
     from .guardrails import Guardrails
     guard = Guardrails().validate_context(context)
@@ -47,7 +49,7 @@ def evaluate_facts(context) -> Eligibility:
     return Eligibility(not codes, tuple(dict.fromkeys(codes)), amount if not codes else None)
 
 
-def evaluate_coins(state, event, context) -> Eligibility:
+def evaluate_coins(state: SessionState, event: CustomerEvent, context: ContextSnapshot) -> Eligibility:
     from .rules import classify
     facts = evaluate_facts(context)
     codes = list(facts.codes)
@@ -60,7 +62,8 @@ def evaluate_coins(state, event, context) -> Eligibility:
     return Eligibility(not codes, tuple(codes), facts.amount_vnd if not codes else None)
 
 
-def build_coin_action(state, eligibility, cutoff, evidence_ref='') -> Action:
+def build_coin_action(state: SessionState, eligibility: Eligibility, cutoff: datetime,
+                      evidence_ref: str = '') -> Action:
     if not eligibility.allowed or eligibility.amount_vnd is None:
         raise ValueError('coins_ineligible')
     return Action(uuid4().hex, state.order_id, 'coins', eligibility.amount_vnd, 'a1',

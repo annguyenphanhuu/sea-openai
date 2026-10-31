@@ -16,7 +16,7 @@ from .phrases import allowed_ids, build_model_context, select_phrase
 from .policy import CarePolicy
 from .renderer import ResponseRenderer
 from .runtime_types import (CareError, ContextSnapshot, CustomerEvent, EffectProposal,
-    PhraseSelection, PolicyOutcome, SessionState, TrustedRequestContext, TurnResult,
+    HookDecision, PhraseSelection, PolicyOutcome, SessionState, TrustedRequestContext, TurnResult,
     canonical, fingerprint)
 
 
@@ -84,10 +84,13 @@ class CareHarness:
         except TimeoutError:
             raise CareError("auth_unavailable", 503) from None
 
-    async def snapshot(self, state, ctx):
+    async def snapshot(self, state, ctx, *, handoff=False):
         try:
             snapshot = copy.deepcopy(await bounded(self.context_provider.load(ctx, state.order_id), self.clock, 2))
             if snapshot.order_id != state.order_id or snapshot.principal_id != state.principal_id:
+                raise CareError("context_binding_invalid", 503)
+            assessment = snapshot.assessment
+            if assessment is not None and assessment.order_id != state.order_id:
                 raise CareError("context_binding_invalid", 503)
             try:
                 snapshot = replace(snapshot, cutoff=normalize_utc(snapshot.cutoff))
@@ -95,7 +98,6 @@ class CareHarness:
                 raise CareError("context_cutoff_invalid", 503) from None
             if state.last_cutoff is not None and snapshot.cutoff < state.last_cutoff:
                 raise CareError("context_cutoff_regressed", 409)
-            assessment = snapshot.assessment
             if assessment is not None:
                 try:
                     assessed = normalize_utc(assessment.assessed_at)
@@ -104,7 +106,7 @@ class CareHarness:
                     eta = normalize_utc(assessment.revised_eta) if assessment.revised_eta else None
                 except (DomainError, KeyError, TypeError):
                     raise CareError("assessment_invalid", 409) from None
-                if assessment.order_id != state.order_id or assessed > snapshot.cutoff:
+                if assessed > snapshot.cutoff:
                     raise CareError("assessment_invalid", 409)
                 if any(item['ingested_at'] > snapshot.cutoff for item in evidence):
                     raise CareError("evidence_future", 409)
@@ -116,6 +118,16 @@ class CareHarness:
                     for row in self.store.effects())
                 snapshot = replace(snapshot, contact_sent=snapshot.contact_sent and sent_here)
             return snapshot
+        except CareError as error:
+            if not handoff or error.code not in (
+                    "context_cutoff_invalid", "context_cutoff_regressed",
+                    "assessment_invalid", "evidence_future"):
+                raise
+            # Discard the entire rejected business snapshot, including its time.
+            # Only the authenticated session identity survives for escalation.
+            return ContextSnapshot(state.principal_id, state.order_id,
+                datetime.min.replace(tzinfo=timezone.utc), None, None,
+                validation_codes=(error.code,))
         except (TimeoutError, OSError):
             # A sentinel marks absent business time; operational UTC cannot grant business rights.
             return ContextSnapshot(state.principal_id, state.order_id,
@@ -293,7 +305,8 @@ class CareHarness:
                         self.store.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
                             (original["response"], original["context"], request["id"]))
                     return self.store.response(original)
-            snapshot = await self.snapshot(state, ctx)
+            snapshot = await self.snapshot(state, ctx,
+                handoff=self.policy.escalation_reason(state, event) is not None)
             self.store.db.execute("UPDATE requests SET context=? WHERE id=?", (canonical(snapshot), request["id"]))
             input_hook = await self.hooks.run("on_input", {"kind": event.kind, "request_id": event.request_id})
             hook_outcomes = {"on_input": {"action": input_hook.action, "codes": input_hook.codes}}
@@ -312,6 +325,7 @@ class CareHarness:
                 if lifecycle is None or lifecycle["status"] != "pending" or lifecycle["data"] != canonical(state.pending):
                     state = replace(state, pending=None)
             outcome = self.policy.evaluate(state, event, snapshot)
+            outcome = replace(outcome, codes=outcome.codes + snapshot.validation_codes)
             if snapshot.cutoff != datetime.min.replace(tzinfo=timezone.utc):
                 outcome = replace(outcome, state=replace(outcome.state, last_cutoff=snapshot.cutoff))
             if outcome.state.pending is not None and outcome.state.pending != state.pending:
@@ -425,9 +439,7 @@ class CareHarness:
                 "text": payload.get("text", ""),
                 **({key: payload.get(key) for key in ("intent", "assessment_ref", "evidence_refs",
                     "codes", "effect_ids", "source", "message_id", "public_evidence")}
-                   if event["kind"] == "response" else {}),
-                **({"outcome": payload["outcome"], "effect_id": payload["effect_id"]}
-                   if event["kind"] == "receipt" else {})})
+                   if event["kind"] == "response" else {})})
         effects = [{"effect_id": row["id"], "delivery_status": row["state"], "outcome": row["outcome"]}
                    for row in self.store.effects() if row["session_id"] == session_id]
         return {"messages": messages, "system_events": system_events, "effects": effects, "status": state.status}
@@ -479,7 +491,10 @@ class CareHarness:
             if self.dispatcher is None or not getattr(self.dispatcher.gate, "supports_deadlines", False):
                 raise CareError("dispatcher_unavailable", 503)
             proposal = EffectProposal(**json.loads(row["proposal"]))
-            snapshot = await self.snapshot(state, ctx)
+            snapshot = await self.snapshot(state, ctx, handoff=True)
+            if snapshot.validation_codes:
+                self.record_observation(session_id, "context_validation",
+                    HookDecision(codes=snapshot.validation_codes), row["id"])
             if not self.guards.validate_dispatch(proposal, snapshot).allowed:
                 return "blocked"
             try:

@@ -20,6 +20,17 @@ def signals(text: str):
 class CarePolicy:
     version = "2"
 
+    def escalation_reason(self, state, event: CustomerEvent) -> str | None:
+        """Context-independent escalation, shared by admission and evaluation."""
+        intent, abuse, _, _ = signals(event.text or "")
+        if event.kind == "request_handoff" or intent == "ask_human":
+            return "customer_requested_human"
+        if state.abusive_turn_count + int(abuse) >= 3:
+            return "abuse_limit"
+        if state.turn_count + 1 >= max_turns:
+            return "turn_limit"
+        return None
+
     def evaluate(self, state, event: CustomerEvent, context) -> PolicyOutcome:
         if state.status in ("handoff_pending", "transferred", "completed"):
             raise CareError("session_state_conflict")
@@ -30,9 +41,8 @@ class CarePolicy:
             intent = "want_cancel"
         new = replace(state, turn_count=state.turn_count + 1,
                       abusive_turn_count=state.abusive_turn_count + int(abuse))
-        if intent == "ask_human" or new.turn_count >= max_turns or new.abusive_turn_count >= 3:
-            reason = ("customer_requested_human" if intent == "ask_human" else
-                      "abuse_limit" if new.abusive_turn_count >= 3 else "turn_limit")
+        reason = self.escalation_reason(state, event)
+        if reason:
             return self._handoff(new, intent, reason)
         if changed_mind:
             return PolicyOutcome(replace(new, pending=None, status="active"), intent,

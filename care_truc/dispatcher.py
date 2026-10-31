@@ -6,7 +6,7 @@ import json
 from .cancellation import lacks_cancellation_evidence, quarantine_legacy_cancellations
 from .hooks import bounded
 from .harness import tracked
-from .runtime_types import (CareError, DrainReport, EffectProposal, TrustedRequestContext)
+from .runtime_types import (CareError, DrainReport, EffectProposal, HookDecision, TrustedRequestContext)
 
 
 class EffectDispatcher:
@@ -57,7 +57,11 @@ class EffectDispatcher:
                     state = self.store.load_session(proposal.session_id)
                     ctx = TrustedRequestContext(state.principal_id)
                     await self.harness.authorize(ctx, state.order_id, state.principal_id)
-                    snapshot = await self.harness.snapshot(state, ctx)
+                    snapshot = await self.harness.snapshot(state, ctx,
+                        handoff=proposal.kind == "handoff_request")
+                    if snapshot.validation_codes:
+                        self.harness.record_observation(proposal.session_id, "context_validation",
+                            HookDecision(codes=snapshot.validation_codes), row["id"])
                     decision = self.harness.guards.validate_dispatch(proposal, snapshot)
                     adapters = (self.gateway, self.gate)
                     if (not decision.allowed

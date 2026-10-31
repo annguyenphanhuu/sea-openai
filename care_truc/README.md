@@ -102,6 +102,13 @@ use the server replay cutoff; source timestamps and ETAs are normalized to UTC,
 while customer dates are rendered in Vietnam time. Stale data never supplies a
 current ETA. The committed session cutoff cannot move backwards.
 
+Authenticated human requests and mandatory turn/abuse escalation do not depend
+on valid business facts. Rejected assessment/evidence timestamps or cutoff values
+are discarded as a whole snapshot for these handoffs; the audit records the
+validation code, with no rejected facts or business time. Identity/ownership
+binding errors remain errors. The same rule permits dispatch and internal retry
+of an existing handoff without weakening the platform gate or receipt checks.
+
 The integrated schema is the main harness schema. There is no migration from the
 superseded synchronous prototype database; existing prototype state must not be
 silently opened as harness state. Use a fresh run or design an explicit migration.

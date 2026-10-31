@@ -47,10 +47,15 @@ def test_run_id_is_one_safe_segment(run_id):
         TrustedContext(Principal('c', False), run_id, NOW)
 
 
-@pytest.mark.parametrize('principal', [None, 'customer', Principal('c', False)])
-def test_trusted_context_requires_principal_and_aware_cutoff(principal):
-    with pytest.raises(DomainError):
-        TrustedContext(principal, 'run-1', datetime(2026, 10, 31))
+@pytest.mark.parametrize('principal', [None, 'customer'])
+def test_trusted_context_requires_principal(principal):
+    with pytest.raises(DomainError, match='invalid_principal'):
+        TrustedContext(principal, 'run-1', NOW)
+
+
+def test_trusted_context_requires_aware_cutoff():
+    with pytest.raises(DomainError, match='invalid_datetime'):
+        TrustedContext(Principal('c', False), 'run-1', datetime(2026, 10, 31))
 
 
 @pytest.mark.parametrize('customer_id,is_staff', [('', False), (None, False), ('c', 1)])
@@ -153,3 +158,14 @@ def test_remaining_model_boundary_validation():
         PendingDelivery('d', 's', 'action', 'key', summary, 'pending', None)
     with pytest.raises(DomainError):
         GuardSnapshot('a3', NOW, ('ops',), ['wrong'], ())
+
+
+@pytest.mark.parametrize('value', [False, 12, [], ''])
+def test_optional_strings_validate_non_none_values(value):
+    from care_truc.models import HandoffSummary, PendingCancel, TurnResponse
+    with pytest.raises(DomainError, match='invalid_delivery_status'):
+        TurnResponse('m', 'hello', 'accept', None, (), (), (), 'template', value)
+    with pytest.raises(DomainError, match='invalid_contact_id'):
+        PendingCancel('c', 'p', 's', 'o', value, 0, 'm', NOW, 'pending')
+    with pytest.raises(DomainError, match='invalid_cancellation_state'):
+        HandoffSummary('h', 's', 'human', 'help', (), (), (), value, ())

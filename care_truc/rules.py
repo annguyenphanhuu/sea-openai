@@ -25,6 +25,13 @@ COIN_REQUEST = (
 POLICY_OR_HYPOTHESIS = (
     r'\b(chinh sach|dieu kien|bao nhieu|neu|gia su|muon hoi|muon biet)\b'
 )
+# Temporal/conditional scope spans omitted-subject coordination, even across a
+# comma. A new customer subject starts an independent assertion; negation keeps
+# its narrower predicate scope below.
+REQUEST_SCOPE_BOUNDARY = (
+    r'(?:[,;.!?]|\b(?:va|nhung|tuy nhien)\b)\s*'
+    r'(?=(?:(?:bay gio|hien tai)\s+)?toi\b)'
+)
 
 
 def _normalize(text: str) -> str:
@@ -58,10 +65,11 @@ def classify(text: str) -> IntentSignals:
         r'\b(tai sao|vi sao|chinh sach|bao nhieu|the nao|dieu kien|ly do|why)\b', active,
     ))
     coins = any(
-        re.search(COIN_REQUEST, clause)
-        and not re.search(POLICY_OR_HYPOTHESIS, clause)
-        and not re.search(HISTORICAL_WISH, clause)
-        for clause in positive
+        not re.search(POLICY_OR_HYPOTHESIS, scope)
+        and not re.search(HISTORICAL_WISH, scope)
+        and any(re.search(COIN_REQUEST, re.sub(r'\b(khong|chua|dung)\b.*', ' ', clause))
+                for clause in re.split(CLAUSE_BOUNDARY, scope))
+        for scope in re.split(REQUEST_SCOPE_BOUNDARY, own)
     )
     cancel = bool(re.search(
         r'\b(muon|yeu cau|hay|xin|cho toi)\b.{0,20}\bhuy\b|\bhuy don\b', active,
