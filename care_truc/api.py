@@ -18,7 +18,7 @@ SCHEMAS = {
     "open_chat": ({"order_id", "request_id"}, set()),
     "handle_message": ({"session_id", "message_id", "text"}, {"reply_to"}),
     "prepare_cancel": ({"session_id", "request_id"}, set()),
-    "confirm_cancel": ({"confirmation_id", "request_id"}, set()),
+    "confirm_cancel": ({"confirmation_id", "request_id", "reply_to", "confirmed"}, set()),
     "request_handoff": ({"session_id", "request_id"}, set()),
     "get_messages": ({"session_id"}, set()),
     "get_trace": ({"session_id"}, set()),
@@ -40,6 +40,10 @@ class CareApi:
             if not required <= payload.keys() or not payload.keys() <= required | optional:
                 raise CareError("invalid_payload", 400)
             for key, value in payload.items():
+                if key == "confirmed":
+                    if type(value) is not bool:
+                        raise CareError("invalid_payload", 400)
+                    continue
                 if key == "reply_to" and value is None:
                     continue
                 if not isinstance(value, str) or not value.strip() or len(value) > (4000 if key == "text" else 200):

@@ -61,7 +61,8 @@ def test_cancel_confirmation_and_expiry():
     first = policy.evaluate(state(), CustomerEvent('message','m','muốn hủy'), context())
     pending = first.state.pending
     assert pending is not None
-    event = CustomerEvent('confirm_cancel','confirm',confirmation_id=pending.confirmation_id)
+    first = replace(first, state=replace(first.state, version=pending.version))
+    event = CustomerEvent('confirm_cancel','confirm',confirmation_id=pending.confirmation_id, reply_to=pending.reply_to, confirmed=True)
     out = policy.evaluate(first.state, event, context())
     payload = json.loads(out.proposals[0].payload)
     assert (payload['amount_vnd'], payload['queue'], payload['needs_approval']) == (0,'cancel_review',True)

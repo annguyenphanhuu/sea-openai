@@ -16,7 +16,7 @@ def setup_turn(path):
     event = CustomerEvent("message", "m", "why")
     request = store.begin_request("s", "customer", event, fingerprint(event))
     outcome = PolicyOutcome(replace(state, turn_count=1,
-        pending=PendingCancellation("c", "m", NOW)), "ask_why", "explain")
+        pending=PendingCancellation("c", "m", NOW, "customer", "s", "o1", None, 1)), "ask_why", "explain")
     return store, request, outcome
 
 

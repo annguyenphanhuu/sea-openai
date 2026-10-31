@@ -91,7 +91,7 @@ def test_summary_contains_known_receipts_and_staff_decision(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         prompt = await h.handle_message(sid, 'cancel', 'hủy đơn', CUSTOMER)
-        action = await h.confirm_cancel(prompt.confirmation_id, 'confirm', CUSTOMER)
+        action = await h.confirm_cancel(prompt.confirmation_id, 'confirm', CUSTOMER, reply_to=h.session(sid).pending.reply_to, confirmed=True)
         gateway = ScriptedGateway()
         await EffectDispatcher(h, gateway, Gate()).drain_pending()
         result = await h.request_handoff(sid, 'human', CUSTOMER)

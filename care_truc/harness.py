@@ -196,17 +196,46 @@ class CareHarness:
         return await self._process_event(session_id, CustomerEvent("message", message_id, text, reply_to), ctx)
 
     @tracked
-    async def confirm_cancel(self, confirmation_id, request_id, ctx):
-        rows = self.store.db.execute("SELECT id FROM sessions").fetchall()
-        for row in rows:
-            state = self.session(row[0])
-            # Previously confirmed IDs remain retriable using the original event.
-            prior = self.store.find_request(state.session_id, ctx.principal_id, request_id)
-            matches = prior and json.loads(prior["payload"]).get("confirmation_id") == confirmation_id
-            if (state.pending and state.pending.confirmation_id == confirmation_id) or matches:
-                return await self._process_event(state.session_id,
-                    CustomerEvent("confirm_cancel", request_id, confirmation_id=confirmation_id), ctx)
-        raise CareError("not_found", 404)
+    async def confirm_cancel(self, confirmation_id, request_id, ctx, reply_to=None, confirmed=False):
+        event = CustomerEvent("confirm_cancel", request_id, reply_to=reply_to,
+                              confirmation_id=confirmation_id, confirmed=confirmed)
+        record = self.store.db.execute(
+            "SELECT * FROM cancellations WHERE id=? AND run_id=? AND principal_id=?",
+            (confirmation_id, self.run_id, ctx.principal_id)).fetchone()
+        if record is None:
+            legacy = self.store.db.execute(
+                "SELECT id FROM sessions WHERE run_id=? AND principal=? AND json_extract(data,'$.pending.confirmation_id')=?",
+                (self.run_id, ctx.principal_id, confirmation_id)).fetchone()
+            if legacy is None:
+                raise CareError("not_found", 404)
+            return await self._process_event(legacy["id"], event, ctx)
+        state = self.session(record["session_id"])
+        if state.principal_id != ctx.principal_id:
+            raise CareError("not_found", 404)
+        await self.authorize(ctx, state.order_id, state.principal_id)
+        record = self.store.db.execute(
+            "SELECT * FROM cancellations WHERE id=? AND run_id=? AND principal_id=?",
+            (confirmation_id, self.run_id, ctx.principal_id)).fetchone()
+        if record is None:
+            raise CareError("not_found", 404)
+        binding = json.loads(record["data"])
+        if (binding["principal_id"], binding["session_id"], binding["order_id"], binding["contact_id"]) != (
+                state.principal_id, state.session_id, state.order_id, state.contact_id):
+            raise CareError("not_found", 404)
+        prior = self.store.find_request(state.session_id, ctx.principal_id, request_id)
+        if prior:
+            if prior["fingerprint"] != fingerprint(event):
+                raise CareError("request_conflict")
+            if prior["phase"] == "committed":
+                return self.store.response(prior)
+        if record["status"] == "consumed" and confirmed is True and reply_to == json.loads(record["data"])["reply_to"]:
+            original = self.store.request(record["consumed_request"])
+            alias = self.store.begin_request(state.session_id, ctx.principal_id, event, fingerprint(event))
+            with self.store.transaction():
+                self.store.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
+                    (original["response"], original["context"], alias["id"]))
+            return self.store.response(original)
+        return await self._process_event(state.session_id, event, ctx)
 
     async def request_handoff(self, session_id, request_id, ctx):
         return await self._process_event(session_id, CustomerEvent("request_handoff", request_id), ctx)
@@ -254,6 +283,16 @@ class CareHarness:
             # Reload committed state and original payload when continuing an orphan.
             state = self.session(session_id)
             event = CustomerEvent(**json.loads(request["payload"]))
+            if event.kind == "confirm_cancel" and event.confirmed:
+                consumed = self.store.db.execute(
+                    "SELECT * FROM cancellations WHERE id=? AND run_id=? AND principal_id=? AND session_id=? AND status='consumed'",
+                    (event.confirmation_id, state.run_id, state.principal_id, state.session_id)).fetchone()
+                if consumed and event.reply_to == json.loads(consumed["data"])["reply_to"]:
+                    original = self.store.request(consumed["consumed_request"])
+                    with self.store.transaction():
+                        self.store.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
+                            (original["response"], original["context"], request["id"]))
+                    return self.store.response(original)
             snapshot = await self.snapshot(state, ctx)
             self.store.db.execute("UPDATE requests SET context=? WHERE id=?", (canonical(snapshot), request["id"]))
             input_hook = await self.hooks.run("on_input", {"kind": event.kind, "request_id": event.request_id})
@@ -266,6 +305,12 @@ class CareHarness:
                 (state.run_id, state.order_id)).fetchone()
             if reserved:
                 snapshot = replace(snapshot, ledger_pending=True)
+            if state.pending and (event.kind == "confirm_cancel" or event.reply_to):
+                lifecycle = self.store.db.execute(
+                    "SELECT status,data FROM cancellations WHERE id=? AND run_id=? AND principal_id=? AND session_id=?",
+                    (state.pending.confirmation_id, state.run_id, state.principal_id, state.session_id)).fetchone()
+                if lifecycle is None or lifecycle["status"] != "pending" or lifecycle["data"] != canonical(state.pending):
+                    state = replace(state, pending=None)
             outcome = self.policy.evaluate(state, event, snapshot)
             if snapshot.cutoff != datetime.min.replace(tzinfo=timezone.utc):
                 outcome = replace(outcome, state=replace(outcome.state, last_cutoff=snapshot.cutoff))
@@ -325,7 +370,7 @@ class CareHarness:
             result = TurnResult("pending_delivery" if proposals else "committed", session_id,
                 rendered.text, outcome.intent, outcome.codes + selection.codes + rendered.codes,
                 tuple(p.effect_id for p in proposals), pending.confirmation_id if pending else None, selection.source,
-                rendered.assessment_ref, (request["id"],), rendered.public_evidence)
+                rendered.assessment_ref, (request["id"],), rendered.public_evidence, request["id"] + ":response")
             trace = {"trace_id": uuid4().hex, "run_id": self.run_id, "session_id": session_id,
                 "request_id": request["id"], "phases": list(range(1, 11)), "policy_version": self.policy.version,
                 "template_version": self.renderer.version, "hook_version": self.hooks.version,

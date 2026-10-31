@@ -44,9 +44,9 @@ def test_confirm_and_handoff_share_request_namespace(tmp_path):
         sid=(await h.open_chat('o1','r',CUSTOMER)).session_id
         result=await api.handle('prepare_cancel',{'session_id':sid,'request_id':'cancel'},CUSTOMER)
         cid=result.body['confirmation_id']
-        one=await api.handle('confirm_cancel',{'confirmation_id':cid,'request_id':'yes'},CUSTOMER)
+        one=await api.handle('confirm_cancel',{'confirmation_id':cid,'request_id':'yes','reply_to':result.body['message_id'],'confirmed':True},CUSTOMER)
         assert one.body['status']=='pending_delivery'
-        assert one==await api.handle('confirm_cancel',{'confirmation_id':cid,'request_id':'yes'},CUSTOMER)
+        assert one==await api.handle('confirm_cancel',{'confirmation_id':cid,'request_id':'yes','reply_to':result.body['message_id'],'confirmed':True},CUSTOMER)
         conflict=await api.handle('request_handoff',{'session_id':sid,'request_id':'yes'},CUSTOMER)
         assert conflict.status==409
         h.store.close()

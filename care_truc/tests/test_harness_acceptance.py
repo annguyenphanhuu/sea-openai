@@ -78,7 +78,7 @@ def test_cancel_then_handoff_invalidates_unsent_action(tmp_path):
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         api=CareApi(runtime.harness); sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
         pending=await api.handle('prepare_cancel',{'session_id':sid,'request_id':'c'},CUSTOMER)
-        await api.handle('confirm_cancel',{'confirmation_id':pending.body['confirmation_id'],'request_id':'yes'},CUSTOMER)
+        await api.handle('confirm_cancel',{'confirmation_id':pending.body['confirmation_id'],'request_id':'yes','reply_to':pending.body['message_id'],'confirmed':True},CUSTOMER)
         await api.handle('request_handoff',{'session_id':sid,'request_id':'h'},CUSTOMER)
         await runtime.harness.drain_pending()
         assert [p.kind for p in ports['gateway'].submissions]==['handoff_request']

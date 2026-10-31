@@ -13,6 +13,11 @@ def save_proposal(store, proposal, request_id, state) -> None:
     payload = json.loads(proposal.payload)
     if proposal.kind == "action_request" and payload.get("order_id") != state.order_id:
         raise CareError("invalid_delivery_order")
+    if proposal.kind == "action_request" and payload.get("kind") == "cancel_request":
+        from .cancellation import validate_action
+        if proposal.key != payload.get("idempotency_key"):
+            raise CareError("cancel_confirmation_invalid")
+        validate_action(store, payload, request_id, state)
     existing = store.db.execute("SELECT * FROM pending_effects WHERE run_id=? AND effect_key=?",
                                 (state.run_id, proposal.key)).fetchone()
     if existing:
@@ -57,10 +62,10 @@ def revise_proposal(store, key, source_request, proposal) -> int:
     original = EffectProposal(**json.loads(row["proposal"]))
     old_payload = json.loads(original.payload)
     new_payload = json.loads(proposal.payload)
-    if ((original.kind == "action_request" and old_payload.get("kind") == "coins")
-            or (proposal.kind == "action_request" and new_payload.get("kind") == "coins")):
+    if ((original.kind == "action_request" and old_payload.get("kind") in ("coins", "cancel_request"))
+            or (proposal.kind == "action_request" and new_payload.get("kind") in ("coins", "cancel_request"))):
         # A coin reservation is immutable even before its first network attempt.
-        raise CareError("coins_revision_not_allowed")
+        raise CareError("coins_revision_not_allowed" if old_payload.get("kind") == "coins" or new_payload.get("kind") == "coins" else "cancel_revision_not_allowed")
     event = json.loads(request["payload"])
     if row["state"] != "blocked" or event["kind"] != "message":
         raise CareError("revision_not_allowed")

@@ -29,6 +29,8 @@ class ResponseRenderer:
 
     def render(self, outcome, context, phrase_id: str) -> RenderedResponse:
         text = CATALOG[phrase_id]
+        if any(code in outcome.codes for code in ("cancel_confirmation_expired", "cancel_confirmation_invalid")):
+            text = "Xác nhận hủy không còn hợp lệ. Nếu vẫn muốn hủy, bạn cần yêu cầu hủy và xác nhận lại lời nhắc mới."
         assessment = context.assessment
         reference = fingerprint(assessment) if assessment else None
         guard = context.guard

@@ -32,6 +32,8 @@ class MemoryStore:
                     raise ValueError("unsupported_schema")
             else:
                 db.executescript(Path(__file__).with_name("schema.sql").read_text())
+            from .cancellation import SCHEMA
+            db.executescript(SCHEMA)
             return cls(db)
         except BaseException:
             db.close()
@@ -124,6 +126,8 @@ class MemoryStore:
                 (canonical(state), state.version, state.session_id, expected_version)).rowcount
             if not changed:
                 raise CareError("state_conflict")
+            from .cancellation import commit_lifecycle
+            commit_lifecycle(self, current, state, outcome, request_id)
             self.db.execute("INSERT INTO evidence_bundles VALUES(?,?,?,?)",
                             (request_id, request_id, evidence, trace))
             opening = json.loads(request["payload"])["kind"] == "open_contact"

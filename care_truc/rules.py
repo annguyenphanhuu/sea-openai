@@ -83,3 +83,12 @@ def classify(text: str) -> IntentSignals:
     else:
         intent = 'off_topic'
     return IntentSignals(intent, abusive, coins, retract)
+
+
+def is_cancel_confirmation(text: str) -> bool:
+    """Only a complete current affirmative statement grants cancellation consent."""
+    return bool(re.fullmatch(
+        r'(?:(?:toi|minh)\s+)?(?:dong y|chap nhan|ok|vang|xac nhan)'
+        r'(?:\s+(?:huy(?:\s+don(?:\s+hang)?)?|yeu cau huy))?(?:\s+a)?',
+        _normalize(text).strip().rstrip('.!').strip(),
+    ))

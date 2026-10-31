@@ -14,16 +14,16 @@ from .helpers import SYSTEM, CUSTOMER, STAFF, NOW, Gate
 from .test_recovery import adapters
 
 
-def test_text_confirmation_replies_to_actual_assistant_message(tmp_path):
+def test_explicit_confirmation_replies_to_actual_assistant_message(tmp_path):
     async def check():
         runtime=await CareRuntime.start('run',adapters(),root=tmp_path,background=False)
         api=CareApi(runtime.harness)
         sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
-        await api.handle('prepare_cancel',{'session_id':sid,'request_id':'cancel'},CUSTOMER)
+        prepared=await api.handle('prepare_cancel',{'session_id':sid,'request_id':'cancel'},CUSTOMER)
         history=await api.handle('get_messages',{'session_id':sid},CUSTOMER)
         prompt=history.body['messages'][-1]['id']
-        result=await api.handle('handle_message',{'session_id':sid,'message_id':'confirm',
-            'text':'đồng ý','reply_to':prompt},CUSTOMER)
+        result=await api.handle('confirm_cancel',{'confirmation_id':prepared.body['confirmation_id'], 'request_id':'confirm',
+            'confirmed':True,'reply_to':prompt},CUSTOMER)
         assert result.body['status']=='pending_delivery'
         assert json.loads(runtime.store.effects()[0]['proposal'])['kind']=='action_request'
         await runtime.shutdown()
@@ -132,7 +132,7 @@ def test_why_uses_validated_reason_and_handoff_retains_need_and_actions(tmp_path
         assert 'hai kỳ cập nhật' in why.text
         await runtime.harness.handle_message(sid,'cancel','muốn hủy',CUSTOMER)
         cid=runtime.store.load_session(sid).pending.confirmation_id
-        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER)
+        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER, reply_to=runtime.harness.session(sid).pending.reply_to, confirmed=True)
         await runtime.harness.request_handoff(sid,'h',CUSTOMER)
         summary=json.loads((await runtime.harness.get_handoffs(STAFF))['handoffs'][0]['summary'])
         assert any('muốn hủy' in item['text'] for item in summary['customer_statements'])

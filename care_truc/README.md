@@ -104,3 +104,19 @@ current ETA. The committed session cutoff cannot move backwards.
 The integrated schema is the main harness schema. There is no migration from the
 superseded synchronous prototype database; existing prototype state must not be
 silently opened as harness state. Use a fresh run or design an explicit migration.
+
+Cancellation confirmation uses `confirm_cancel(confirmation_id, request_id, ctx,
+reply_to=None, confirmed=False)`. JSON callers must supply `confirmation_id`,
+`request_id`, `reply_to` (the prepare response's `message_id`), and the strict
+boolean `confirmed`. Only explicit `true` on this command authorizes the second
+step. Explicit acceptance text can also confirm when replying to the exact
+current prompt; unbound, quoted, or negated acceptance cannot authorize it. Confirmation expires
+at ten business minutes including the exact expiry instant. A fresh request is
+required after expiry, retraction, handoff, or lost legacy confirmation evidence.
+Consumed confirmation IDs replay the immutable original response, including
+with a new request ID. Current delivery receipts remain available through GET.
+
+The existing v1 store receives an additive `cancellations` lifecycle table on
+open. Embedded legacy pending confirmations without this evidence fail closed;
+there is no backfill of authorization or consumed tokens. No source DB or
+shared runtime schema is changed.

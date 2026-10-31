@@ -98,7 +98,7 @@ def test_effect_claim_receipt_restart_and_coin_uniqueness(tmp_path):
 
 def test_late_outbox_failure_rolls_back_all_turn_writes(tmp_path):
     store=setup(tmp_path/'care.sqlite')
-    pending=PendingCancellation('cancel','prompt',NOW)
+    pending=PendingCancellation('cancel','prompt',NOW,'customer','s','o1',None,1)
     turn(store,proposals=(effect(),),pending=pending)
     before=store.load_session('s'); events=store.events('s')
     handoff=EffectProposal('handoff','handoff','s','o1','handoff_request','{}','e')

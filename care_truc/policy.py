@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import timedelta
 from uuid import uuid4
+from secrets import token_urlsafe
 
 from contracts.params import max_turns
 from contracts.types import Action
@@ -36,20 +37,31 @@ class CarePolicy:
         if changed_mind:
             return PolicyOutcome(replace(new, pending=None, status="active"), intent,
                                  "changed_mind", invalidate_unsent=True)
-        if context.assessment is None and (intent == "want_cancel" or event.kind == "confirm_cancel"):
+        from .rules import is_cancel_confirmation
+        text_confirmation = (event.kind == "message" and event.reply_to
+                             and is_cancel_confirmation(event.text or ""))
+        if context.assessment is None and (intent == "want_cancel" or event.kind == "confirm_cancel" or text_confirmation):
             return self._handoff(new, intent, "required_assessment_unavailable")
-        if intent == "want_cancel":
-            pending = PendingCancellation(uuid4().hex, event.request_id,
-                                           context.cutoff + timedelta(minutes=10))
+        if intent == "want_cancel" and not text_confirmation:
+            pending = PendingCancellation(token_urlsafe(32), event.request_id,
+                context.cutoff + timedelta(minutes=10), state.principal_id, state.session_id,
+                state.order_id, state.contact_id, state.version + 1)
             return PolicyOutcome(replace(new, pending=pending, status="awaiting_cancel_confirmation"),
                                  intent, "confirm", invalidate_unsent=True)
-        if event.kind == "confirm_cancel" or (intent == "accept" and event.reply_to):
+        if event.kind == "confirm_cancel" or text_confirmation:
             pending = state.pending
-            valid = (pending and context.cutoff < pending.expires_at
-                     and ((event.kind == "confirm_cancel" and event.confirmation_id == pending.confirmation_id)
-                          or (event.kind == "message" and event.reply_to == pending.reply_to)))
+            explicit = ((event.kind == "confirm_cancel" and event.confirmed is True
+                         and pending and event.confirmation_id == pending.confirmation_id)
+                        or text_confirmation)
+            valid = (pending and explicit
+                     and event.reply_to == pending.reply_to
+                     and (pending.principal_id, pending.session_id, pending.order_id,
+                          pending.contact_id, pending.version) ==
+                         (state.principal_id, state.session_id, state.order_id,
+                          state.contact_id, state.version)
+                     and context.cutoff < pending.expires_at)
             if not valid:
-                return PolicyOutcome(new, intent, "clarify", ("cancel_confirmation_expired" if pending and context.cutoff >= pending.expires_at else "cancel_confirmation_invalid",))
+                return PolicyOutcome(replace(new, pending=None, status="active"), intent, "clarify", ("cancel_confirmation_expired" if pending and context.cutoff >= pending.expires_at else "cancel_confirmation_invalid",))
             action = Action(uuid4().hex, state.order_id, "cancel_request", 0, "a1",
                 context.cutoff, f"{state.run_id}:cancel:{pending.confirmation_id}", "", True,
                 "cancel_review", pending.confirmation_id)
