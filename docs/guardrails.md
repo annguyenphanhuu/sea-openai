@@ -1,7 +1,7 @@
 # Commit and PR guardrails
 
 The tooling from PR #1 is restored for review against current main. Team
-ownership and personal branches remain governed by AGENTS.md. These scripts do
+ownership and feature branches remain governed by AGENTS.md. These scripts do
 not enforce branch names, and local hooks are not installed by default.
 
 ## Manual checks (default)
@@ -31,7 +31,10 @@ Installation affects only the local clone. The installer sets local `core.hooksP
 the absolute `.githooks` path in the installing checkout and refuses to replace
 a different configured hooks directory. Keep that checkout available: linked
 worktrees share these hooks, including when their branch has older hook files.
-Use your personal branch (`huy`, `an-nguyen`, or `truc`) as required by AGENTS.md.
+Use a feature branch (`truc/<feature>`, `nguyen/<feature>`, or `huy/<feature>`) as required by AGENTS.md.
+Git cannot store both a flat branch such as `truc` and branches under `truc/`
+on the same remote. Coordinate with the owner to rename or remove the flat branch
+after its open work is integrated, before pushing a branch with that prefix.
 
 `pre-commit` checks the staged snapshot, rejecting private paths, unresolved
 conflict markers, and whitespace errors. Unstaged fixes do not fix staged errors;
@@ -65,7 +68,7 @@ Keep the local CodeGraph `.codegraph/` index untracked.
 After installing hooks, use ordinary Git commands:
 
 ```powershell
-git worktree add ../sea-openai-huy huy
+git worktree add -b huy/replay-api ../sea-openai-huy-replay-api main
 ```
 
 The `post-checkout` hook copies all ignored files from the installing checkout
