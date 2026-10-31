@@ -40,3 +40,33 @@ def test_coin_request_is_independent_of_generic_intent(text,coins):
 @pytest.mark.parametrize('text',['Tôi muốn hỏi có nhận xu được không?', 'Nhân viên bảo tôi muốn nhận xu'])
 def test_policy_or_reported_request_not_explicit(text):
     assert not classify(text).explicit_coins
+
+@pytest.mark.parametrize('text', [
+    'tôi chưa nhận được hàng và muốn gặp nhân viên',
+    'toi chua nhan duoc hang va muon gap nhan vien',
+    'Tôi không muốn hủy và tôi muốn gặp nhân viên',
+])
+def test_independent_human_request_survives_negated_other_predicate(text):
+    assert classify(text).intent == 'ask_human'
+
+
+@pytest.mark.parametrize('text', [
+    'Tôi không muốn gặp nhân viên',
+    'toi chua muon gap nhan vien',
+    'Tôi không muốn gặp và nói chuyện với nhân viên',
+])
+def test_negated_human_request_is_not_handoff(text):
+    assert classify(text).intent != 'ask_human'
+
+
+@pytest.mark.parametrize('text,explicit', [
+    ('tôi đã từng muốn nhận xu', False),
+    ('toi da tung muon nhan xu', False),
+    ('trước đây tôi muốn nhận xu', False),
+    ('Hôm qua tôi muốn nhận xu', False),
+    ('Tôi đã từng muốn nhận xu nhưng bây giờ tôi muốn nhận xu', True),
+    ('toi da tung muon nhan xu va toi muon nhan xu', True),
+    ('Tài xế nói tôi muốn nhận xu nhưng tôi không muốn nhận xu', False),
+])
+def test_only_present_independent_coin_request_is_explicit(text, explicit):
+    assert classify(text).explicit_coins is explicit
