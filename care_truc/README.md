@@ -4,7 +4,9 @@ Implemented output: in-process chat JSON responses, durable action requests and 
 Owner: Truc.
 Boundary: Rules first; LLM output is untrusted; no direct money effects or telephone calls.
 
-`OpenAIPhraseSelector` implements the optional asynchronous model adapter. Run the integrated launcher with `--llm` to enable it using the repository `.env` key. It uses `httpx` from the shared development requirements. The default `gpt-4o-mini` model can only choose an approved phrase ID through strict JSON Schema. Existing A1 validation rejects invalid output and falls back on timeout. It cannot generate facts or authorize effects. `OPENAI_MODEL` overrides the model. No key is exposed in runtime snapshots.
+`OpenAIPhraseSelector` implements the optional asynchronous model adapter. Run the integrated launcher with `--llm` to enable it using the repository `.env` key. It uses `httpx` from the shared development requirements. The default model is `gpt-5.4-mini`; `OPENAI_MODEL` overrides it. No key is exposed in runtime snapshots.
+
+Conversational turns use a structured natural reply template with server-selected fact placeholders and checked social language. The model receives the latest message and recent customer/assistant turns, with phone numbers, emails and key-shaped strings redacted. Code fills all factual blocks and rejects unknown, missing or duplicate placeholders and unapproved prose. Missing or stale ETA and location remain explicitly unknown. Transactional outcomes, including cancellation and coins, keep deterministic templates and do not call the model. Natural replies have an eight-second deadline; invalid output or timeout uses a question-specific fallback. Legacy phrase-ID selectors remain supported with their existing three-second deadline.
 
 ## Care harness
 

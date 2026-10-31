@@ -321,15 +321,29 @@ class CareHarness:
                     last_cutoff=outcome.state.last_cutoff), outcome.intent, "blocked", input_hook.codes)
             selection = PhraseSelection(outcome.phrase_id, "template")
             # Human/limit outcomes bypass the optional model entirely.
-            if outcome.phrase_id in ("explain", "clarify") and self.selector is not None:
-                history = [json.loads(item["content"]).get("text", "") for item in (await self.storage.events(session_id, deadline=self.clock.monotonic() + 2))
-                           if item["kind"] == "customer"][-4:]
-                model_context = build_model_context(outcome, snapshot, history)
+            if (outcome.phrase_id in ("explain", "clarify") and self.selector is not None
+                    and not any(code.startswith('cancel_confirmation_') for code in outcome.codes)):
+                events = await self.storage.events(session_id, deadline=self.clock.monotonic() + 2)
+                natural = getattr(self.selector, 'natural_replies', False) is True
+                if natural:
+                    from .natural import build_natural_context
+                    history = [{'role': 'user' if item['kind'] == 'customer' else 'assistant',
+                                'text': json.loads(item['content']).get('text', '')}
+                               for item in events if item['kind'] in ('customer', 'response')]
+                    model_context = build_natural_context(outcome, snapshot, history, event.text or '')
+                else:
+                    history = [json.loads(item['content']).get('text', '') for item in events
+                               if item['kind'] == 'customer'][-4:]
+                    model_context = build_model_context(outcome, snapshot, history)
                 before = await self.hooks.run("before_model", {"context": model_context.decode() if model_context else None,
                                                                "token": token})
                 hook_outcomes["before_model"] = {"action": before.action, "codes": before.codes}
                 if model_context and before.action == "continue" and (await self.storage.reserve_model(request["id"], deadline=self.clock.monotonic() + 2)):
-                    selection = await select_phrase(self.selector, model_context, allowed_ids(outcome), token, self.clock)
+                    if natural:
+                        from .natural import generate_reply
+                        selection = await generate_reply(self.selector, model_context, outcome.phrase_id, snapshot, self.clock)
+                    else:
+                        selection = await select_phrase(self.selector, model_context, allowed_ids(outcome), token, self.clock)
                     after = await self.hooks.run("after_model", {"selection": selection, "token": token})
                     hook_outcomes["after_model"] = {"action": after.action, "codes": after.codes}
                     if after.action != "continue":
@@ -337,7 +351,7 @@ class CareHarness:
             if ((await self.storage.get_boot_generation(deadline=self.clock.monotonic() + 2)) != token.boot_generation
                     or (await self.session(session_id)).version != token.state_version):
                 raise CareError("stale_callback")
-            rendered = self.renderer.render(outcome, snapshot, selection.phrase_id)
+            rendered = self.renderer.render(outcome, snapshot, selection.phrase_id, draft=selection.draft)
             if not self.guards.validate_output(rendered, outcome, snapshot).allowed:
                 raise ValueError("output_invariant")
             proposals = []
