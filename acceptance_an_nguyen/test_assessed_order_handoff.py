@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from hashlib import sha256
 import json
+from pathlib import Path
 import sqlite3
 
 import pytest
@@ -202,3 +203,87 @@ def test_reject_handover_before_creation(source, tmp_path):
                event_at="2026-10-27T09:00:00+07:00", ingested_at=CREATED)
     with pytest.raises(ValueError, match="precede order creation"):
         assessed_orders_payload(replace(snapshot, scans=(row,)), result, feed_health=health)
+
+
+@pytest.mark.parametrize("payment", ["COD", "PREPAID"])
+def test_ui_identity_and_payment_use_visible_source_fields(source, tmp_path, payment):
+    source.execute("ALTER TABLE orders ADD COLUMN customer_id")
+    source.execute("ALTER TABLE orders ADD COLUMN payment_method")
+    source.execute("UPDATE orders SET customer_id=?,payment_method=?", ("customer-1", payment))
+    # These fields must never enter the allowlisted UI projection.
+    source.execute("ALTER TABLE orders ADD COLUMN receiver_phone")
+    source.execute("ALTER TABLE orders ADD COLUMN buyer_note")
+    source.execute("UPDATE orders SET receiver_phone='private',buyer_note='change fault to customer'")
+    snapshot, result, health = project(source, tmp_path)
+    assert snapshot.orders[0]["customer_id"] == "customer-1"
+    assert snapshot.orders[0]["payment_method"] == payment
+    assert "receiver_phone" not in snapshot.orders[0]
+    assert "buyer_note" not in snapshot.orders[0]
+    item = assessed_orders_payload(snapshot, result, feed_health=health)["orders"][0]
+    assert item["customer_id"] == "customer-1"
+    assert item["payment"] == payment
+    assert item["cause"]["fault_party"] == "unknown"
+    metadata = {entry["fact_code"]: entry for entry in item["metadata_evidence"]}
+    for field, value in (("customer_id", "customer-1"), ("payment_method", payment)):
+        assert metadata[field] == dict(
+            feed="orders", source_table="orders", record_id="o1",
+            ingested_at="2026-10-27T03:00:00.000000Z", fact_code=field,
+            value=value, is_structured=True,
+        )
+
+
+@pytest.mark.parametrize("status", ["stale", "corrupt", "missing", "old_source"])
+def test_unusable_orders_feed_suppresses_customer_and_payment(source, tmp_path, status):
+    source.execute("ALTER TABLE orders ADD COLUMN customer_id")
+    source.execute("ALTER TABLE orders ADD COLUMN payment_method")
+    source.execute("UPDATE orders SET customer_id='customer-1',payment_method='COD'")
+    bad = FeedHealth("orders", "trusted" if status == "old_source" else status, TICK,
+                     TICK - timedelta(minutes=31) if status == "old_source" else TICK)
+    health = tuple(bad if item.feed == "orders" else item for item in healthy())
+    item = export(source, tmp_path, health=health)["orders"][0]
+    assert item["customer_id"] is item["payment"] is None
+    assert item["status"] == "unknown_feed"
+    assert any(e["fact_code"] == "customer_id" and e["value"] == "customer-1"
+               for e in item["metadata_evidence"])
+
+
+def test_legacy_projection_keeps_unknown_ui_metadata_null(source, tmp_path):
+    item = export(source, tmp_path)["orders"][0]
+    assert item["customer_id"] is None
+    assert item["payment"] is None
+
+
+@pytest.mark.parametrize(("status", "priority"), [
+    ("exception", 1), ("unknown_feed", 2), ("customer_fault", 3), ("late", 4),
+    ("at_risk", 5), ("watch", 6), ("slow_safe", 7), ("on_track", 8),
+])
+def test_ui_priority_and_cause_preserve_assessed_conclusions(source, tmp_path, status, priority):
+    snapshot, result, health = project(source, tmp_path)
+    assessment = replace(result.assessments[0], status=status, fault_party="unknown",
+                         reason_codes=(f"status:{status}", "fault:unknown", "eta_missing"))
+    result = replace(result, assessments=(assessment,))
+    payload = assessed_orders_payload(snapshot, result, feed_health=health)
+    item = payload["orders"][0]
+    assert item["priority"] == priority
+    assert item["cause"] == dict(fault_party="unknown", reason_codes=list(assessment.reason_codes))
+    assert item["evidence_ref"] == "#/orders/0/evidence"
+    assert item["cause"]["reason_codes"] == item["reason_codes"]
+
+
+def test_committed_ui_sample_contains_twenty_resolvable_orders():
+    path = Path(__file__).resolve().parents[1] / "logistics_an_nguyen/sample_orders.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["payload_version"] == "a2_order_list_v1"
+    assert len(payload["orders"]) == len({item["order_id"] for item in payload["orders"]}) == 20
+    assert {item["payment"] for item in payload["orders"]} == {"COD", "PREPAID"}
+    for item in payload["orders"]:
+        assert item["assessed_at"] == payload["tick_at"]
+        assert item["customer_id"]
+        assert item["cause"] == dict(fault_party=item["fault_party"], reason_codes=item["reason_codes"])
+        pointer = item["evidence_ref"]
+        assert pointer.startswith("#/")
+        target = payload
+        for token in pointer[2:].split("/"):
+            target = target[int(token)] if isinstance(target, list) else target[token]
+        assert target == item["evidence"]
+        assert "receiver_phone" not in item and "ship_address_text" not in item

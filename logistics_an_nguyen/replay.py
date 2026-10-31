@@ -45,8 +45,15 @@ class ReleaseReader:
         aware(tick_at, "tick_at")
         # Source timestamps have second precision and a uniform +07:00 offset.
         cutoff = tick_at.astimezone(VIETNAM).isoformat(timespec="seconds")
+        # Older/minimal projections omit UI metadata; preserve unknowns as NULL.
+        columns = {row["name"] for row in self.connection.execute("PRAGMA table_info(orders)")}
+        metadata = ", ".join(
+            field if field in columns else f"NULL AS {field}"
+            for field in ("customer_id", "payment_method")
+        )
         queries = (
             ("SELECT order_id, created_at, guaranteed_date, carrier_id, service_level, "
+             f"{metadata}, "
              "CASE WHEN cancelled_at <= ? THEN cancelled_at END AS cancelled_at "
              "FROM orders WHERE created_at <= ? ORDER BY order_id", (cutoff, cutoff)),
             ("SELECT event_id, order_id, status, location_type, location_id, event_at, "

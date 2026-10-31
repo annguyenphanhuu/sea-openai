@@ -3,6 +3,8 @@
 from datetime import date
 from typing import Iterable
 
+from contracts.types import STATUSES
+
 from .adapter import REQUIRED_FEEDS
 from .models import FeedHealth, TickResult, aware, parse_instant, utc_iso
 from .replay import ReplaySnapshot
@@ -12,11 +14,13 @@ from .service import assessment_payload, evidence_payload
 def assessed_orders_payload(
     snapshot: ReplaySnapshot, result: TickResult, *, feed_health: Iterable[FeedHealth],
 ) -> dict:
-    """Join one complete assessment tick to visible source dates and provenance.
+    """Join one complete assessment tick to visible order metadata and provenance.
 
     This is an internal export. HTTP callers still authorize ownership, redact
     evidence, and check A3 heartbeat/controls immediately before proactive contact.
-    Unusable feeds suppress display dates, while evidence retains observed facts.
+    Unusable feeds suppress source metadata, while evidence retains observed facts.
+    Priority follows STATUSES (1 is highest); cause only projects assessed facts.
+    Evidence references are JSON Pointers within this exact exported envelope.
     """
     tick_at = aware(snapshot.tick_at, "snapshot tick_at")
     health = {}
@@ -106,10 +110,27 @@ def assessed_orders_payload(
                 handed_over_at = utc_iso(event_at)
         if not (usable("orders") and usable("scan_events")):
             reasons.append("handed_over_at_feed_unavailable")
+        metadata = {}
+        for field, source_field in (("customer_id", "customer_id"), ("payment", "payment_method")):
+            value = orders[order_id].get(source_field)
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"{source_field} must be a nonempty string or null")
+                if field == "payment" and value not in ("COD", "PREPAID"):
+                    raise ValueError("payment_method must be COD, PREPAID or null")
+                metadata_evidence.append(dict(
+                    feed="orders", source_table="orders", record_id=order_id,
+                    ingested_at=created[order_id], fact_code=source_field,
+                    value=value, is_structured=True,
+                ))
+            metadata[field] = value if usable("orders") else None
         items.append(dict(
             assessment_payload(assessment), created_at=created_at,
             handed_over_at=handed_over_at, metadata_reason_codes=reasons,
             metadata_evidence=evidence_payload(tuple(metadata_evidence)),
+            **metadata, priority=STATUSES.index(assessment.status) + 1,
+            cause=dict(fault_party=assessment.fault_party, reason_codes=list(assessment.reason_codes)),
+            evidence_ref=f"#/orders/{len(items)}/evidence",
         ))
 
     feed_payloads = []
