@@ -19,6 +19,10 @@ npm run start -- --hostname 127.0.0.1
 
 Open http://127.0.0.1:3000. NEXT advances replay by 30 minutes and can create eligible local contacts. The list is the backend's priority queue of up to 30 orders plus the selected order. It is not the full assessment list. A3 controls are available under Giám sát dữ liệu. Cancellation requires a second confirmation and remains a review request.
 
+The console opens on Chăm sóc khách hàng. Select Đơn ưu tiên or Hội thoại in the left panel, search by order ID and use the page controls to browse eight items at a time. The conversation stays beside a compact order summary on desktop. On mobile, selecting a row opens the conversation directly; Danh sách returns to the same search and page. Information, evidence and technical records are expandable. Closed or transferred conversations explain why messaging is disabled.
+
+Phòng điều hành summarizes the latest runtime results and priority work. Phân tích logistics shows the selected order's dates, risk, confidence and evidence. Giám sát dữ liệu shows feed health and the A3 controls. Chạy tiếp +30 phút is a replay mutation; Tải lại only refreshes the current snapshot.
+
 To enable actual OpenAI calls, install the shared development requirements and add `--llm` to the Python command. The launcher reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` from the repository `.env`, preserving values already set in the environment. The default model is `gpt-5.4-mini`. The UI shows whether LLM is enabled and whether the latest returned turn used it. A1 asks OpenAI for concise Vietnamese conversational templates using recent chat context. Checked social language surrounds immutable fact placeholders filled by application code. ETA, location, greetings and thanks have distinct responses. Transactional outcomes use rules. Timeout or rejected output falls back to a response for the same question topic. A2 and A3 do not call the model. Do not add API credentials to frontend environment variables.
 
 `PIPELINE_URL` and optional `LIVE_PRESENTER_KEY` are server environment variables. They are never sent to the browser. This console is for localhost presenter use. The proxy rejects public Host headers and forwarded-host requests. Start Next on loopback and do not expose it through a tunnel or reverse proxy. This is not customer authentication.
@@ -32,4 +36,4 @@ npm run build
 npm run test:e2e
 ```
 
-The browser tests require an isolated, running release-fed backend. They mutate that runtime through chat, handoff and A3 controls. Use a fresh state path for each run. Set `PIPELINE_URL` in the test shell and `PLAYWRIGHT_CHANNEL=chrome` if Chromium is unavailable.
+The real integration browser tests require an isolated, running release-fed backend. They mutate that runtime through chat, handoff and A3 controls. Use a fresh state path for each run. The presentation tests intercept runtime snapshots to verify responsive geometry, navigation, pagination and closed-session behavior without creating operational records. Set `PIPELINE_URL` in the test shell and `PLAYWRIGHT_CHANNEL=chrome` if Chromium is unavailable.
