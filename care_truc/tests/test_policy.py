@@ -73,3 +73,25 @@ def test_cancel_confirmation_and_expiry():
     assert not wrong.proposals
     mind = policy.evaluate(first.state, CustomerEvent('message','new','tôi không muốn hủy'), context())
     assert mind.state.pending is None and mind.invalidate_unsent
+
+
+@pytest.mark.parametrize('eta', [None, NOW + timedelta(days=1)])
+def test_delivery_time_question_renders_only_assessed_eta(eta):
+    from care_truc.renderer import ResponseRenderer
+
+    ctx = context()
+    ctx = replace(ctx, assessment=replace(ctx.assessment, revised_eta=eta))
+    outcome = CarePolicy().evaluate(
+        state(), CustomerEvent('message', 'eta-question', 'Bao giờ tôi nhận được hàng?'), ctx,
+    )
+    assert outcome.intent == 'ask_why'
+    assert outcome.phrase_id == 'explain'
+    assert not outcome.proposals
+    reply = ResponseRenderer().render(outcome, ctx, outcome.phrase_id)
+    assert 'Bạn có thể nói rõ nhu cầu' not in reply.text
+    if eta is None:
+        assert 'ETA hiện chưa xác định.' in reply.text
+        assert 'ETA dự kiến:' not in reply.text
+    else:
+        assert 'ETA dự kiến: 01/11/2026 19:00 +0700' in reply.text
+        assert 'chưa phải cam kết mới' in reply.text

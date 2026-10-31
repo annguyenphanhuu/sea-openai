@@ -4,6 +4,8 @@ Implemented output: in-process chat JSON responses, durable action requests and 
 Owner: Truc.
 Boundary: Rules first; LLM output is untrusted; no direct money effects or telephone calls.
 
+`OpenAIPhraseSelector` implements the optional asynchronous model adapter. Run the integrated launcher with `--llm` to enable it using the repository `.env` key. It uses `httpx` from the shared development requirements. The default `gpt-4o-mini` model can only choose an approved phrase ID through strict JSON Schema. Existing A1 validation rejects invalid output and falls back on timeout. It cannot generate facts or authorize effects. `OPENAI_MODEL` overrides the model. No key is exposed in runtime snapshots.
+
 ## Care harness
 
 The framework-independent runtime lives in `lifecycle.py`, `harness.py` and

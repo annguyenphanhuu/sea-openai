@@ -40,13 +40,13 @@ class LocalHTTPServer(ThreadingHTTPServer):
 def create_server(*, core_path: Path, state_path: Path,
                   start_at: datetime | None = None, port: int = 8765,
                   host: str = "127.0.0.1", integrated: bool = False,
-                  ops_path: Path | None = None) -> LocalHTTPServer:
+                  ops_path: Path | None = None, selector=None) -> LocalHTTPServer:
     """Create an actual HTTP server; tests and CLI share the same request path."""
     from .presenter_auth import PresenterAuth
     presenter = PresenterAuth(host) if integrated else None
     if integrated:
         from .demo_flow import DemoFlow
-        demo = DemoFlow(core_path, state_path, start_at=start_at, ops_path=ops_path)
+        demo = DemoFlow(core_path, state_path, start_at=start_at, ops_path=ops_path, selector=selector)
     else:
         demo = A3Demo(core_path, state_path, start_at)
     directory = Path(__file__).resolve().parent / "ui_prototype"
@@ -190,6 +190,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument('--integrated', action='store_true', help='Run the real A3/A2/A1 web-chat demo')
+    parser.add_argument('--llm', action='store_true', help='Enable OpenAI approved-phrase selection in A1')
     parser.add_argument('--ops-path', type=Path)
     parser.add_argument("--core-path", type=Path,
                         default=release_dir() / "core_14d.sqlite")
@@ -198,6 +199,20 @@ def main() -> None:
     parser.add_argument("--start-at", type=datetime.fromisoformat,
                         help="Aware replay timestamp; integrated demo starts at 2026-10-24T14:00+07:00")
     args = parser.parse_args()
+    selector = None
+    if args.llm:
+        if not args.integrated:
+            parser.error('--llm requires --integrated')
+        env_path = project_root() / '.env'
+        if env_path.is_file():
+            for line in env_path.read_text(encoding='utf-8-sig').splitlines():
+                key, separator, value = line.partition('=')
+                if separator and key.strip() in ('OPENAI_API_KEY', 'OPENAI_MODEL'):
+                    os.environ.setdefault(key.strip(), value.strip().strip('\"\''))
+        from care_truc.openai_selector import selector_from_env
+        selector = selector_from_env()
+        if selector is None:
+            parser.error('OPENAI_API_KEY is required for --llm')
     if args.state_path is None:
         folder = 'integrated-demo' if args.integrated else 'a3-demo'
         args.state_path = project_root() / 'runs' / folder / 'state.sqlite'
@@ -211,7 +226,7 @@ def main() -> None:
     try:
         with create_server(core_path=args.core_path, state_path=args.state_path,
                            start_at=args.start_at, port=args.port, host=args.host,
-                           integrated=args.integrated, ops_path=args.ops_path) as server:
+                           integrated=args.integrated, ops_path=args.ops_path, selector=selector) as server:
             label = 'Integrated A3/A2/A1 demo' if args.integrated else 'A3 demo'
             print(f"{label}: http://{args.host}:{server.server_port}/", flush=True)
             print(f"Runtime: {args.state_path.resolve()}; NEXT advances exactly 30 minutes.", flush=True)
