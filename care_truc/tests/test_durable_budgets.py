@@ -9,7 +9,7 @@ from .test_memory import setup_turn
 
 def effect_turn(path):
     store, request, outcome = setup_turn(path)
-    proposal = EffectProposal("e", "run:coins:o1", "s", "o1", "action_request", "{}", request["id"])
+    proposal = EffectProposal("e", "run:coins:o1", "s", "o1", "action_request", canonical({"kind":"coins","order_id":"o1"}), request["id"])
     outcome = replace(outcome, proposals=(proposal,))
     store.commit_turn(request["id"], 0, outcome, TurnResult("pending_delivery", "s"), "{}", "{}")
     return store, proposal, request
@@ -58,9 +58,10 @@ def test_unsent_revision_append_only(tmp_path):
     store.set_effect("e", state="blocked")
     event = CustomerEvent("message", "new", "xin xu")
     req2 = store.begin_request("s", "customer", event, fingerprint(event))
-    assert store.revise_proposal(proposal.key, req2["id"], replace(proposal, payload='{"new":1}')) == 2
-    assert store.db.execute("SELECT count(*) FROM effect_proposals").fetchone()[0] == 2
-    assert store.claim_effect("e", 1, 1, 0) is None
+    with pytest.raises(CareError, match="coins_revision_not_allowed"):
+        store.revise_proposal(proposal.key, req2["id"], replace(proposal, payload=canonical({'kind':'coins','order_id':'o1','new':1})))
+    assert store.db.execute("SELECT count(*) FROM effect_proposals").fetchone()[0] == 1
+    assert store.effect("e")["state"] == "blocked"
     store.close()
 
 
@@ -68,7 +69,7 @@ def test_first_claim_freezes_payload(tmp_path):
     store, proposal, request = effect_turn(tmp_path / "care.sqlite")
     assert store.claim_effect("e", 1, 1, 0) is not None
     with pytest.raises(CareError, match="frozen"):
-        store.revise_proposal(proposal.key, request["id"], replace(proposal, payload='{"new":1}'))
+        store.revise_proposal(proposal.key, request["id"], replace(proposal, payload=canonical({'kind':'coins','order_id':'o1','new':1})))
     assert store.effect("e")["attempts"] == 1
     assert not store.db.in_transaction
     store.close()

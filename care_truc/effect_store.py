@@ -8,16 +8,45 @@ from .runtime_types import CareError, EffectProposal, canonical, fingerprint
 
 
 def save_proposal(store, proposal, request_id, state) -> None:
+    if proposal.order_id != state.order_id or proposal.session_id != state.session_id:
+        raise CareError("invalid_delivery_order")
+    payload = json.loads(proposal.payload)
+    if proposal.kind == "action_request" and payload.get("order_id") != state.order_id:
+        raise CareError("invalid_delivery_order")
+    if proposal.kind == "action_request" and payload.get("kind") == "cancel_request":
+        from .cancellation import validate_action
+        if proposal.key != payload.get("idempotency_key"):
+            raise CareError("cancel_confirmation_invalid")
+        validate_action(store, payload, request_id, state)
     existing = store.db.execute("SELECT * FROM pending_effects WHERE run_id=? AND effect_key=?",
                                 (state.run_id, proposal.key)).fetchone()
     if existing:
+        original = EffectProposal(**json.loads(existing["proposal"]))
+        owner = store.load_session(existing["session_id"])
+        if (original.order_id != state.order_id or owner.principal_id != state.principal_id
+                or original.kind != proposal.kind):
+            raise CareError("effect_binding_conflict")
         if existing["state"] == "blocked" and existing["attempts"] == 0:
             if proposal.kind == "handoff_request":
                 # A new explicit human request retries the same unsent handoff envelope.
                 store.set_effect(existing["id"], state="pending_delivery", next_at=0)
-            elif proposal.kind == "action_request" and json.loads(proposal.payload)["kind"] == "coins":
-                revise_proposal(store, proposal.key, request_id, proposal)
         return
+    if proposal.kind == "action_request" and payload.get("kind") == "coins":
+        reserved = store.db.execute(
+            "SELECT 1 FROM pending_effects WHERE run_id=? "
+            "AND json_extract(proposal,'$.order_id')=? "
+            "AND json_extract(proposal,'$.kind')='action_request' "
+            "AND json_extract(json_extract(proposal,'$.payload'),'$.kind')='coins'",
+            (state.run_id, state.order_id)).fetchone()
+        if reserved:
+            raise CareError("coins_already_reserved")
+    if proposal.kind == "handoff_request":
+        reserved = store.db.execute(
+            "SELECT 1 FROM pending_effects WHERE session_id=? "
+            "AND json_extract(proposal,'$.kind')='handoff_request'",
+            (state.session_id,)).fetchone()
+        if reserved:
+            raise CareError("handoff_already_reserved")
     store.db.execute("INSERT INTO pending_effects(id,run_id,effect_key,session_id,proposal,session_version) VALUES(?,?,?,?,?,?)",
         (proposal.effect_id, state.run_id, proposal.key, state.session_id, canonical(proposal), state.version))
     store.db.execute("INSERT INTO effect_proposals VALUES(?,1,?,?)",
@@ -28,8 +57,25 @@ def revise_proposal(store, key, source_request, proposal) -> int:
     request = store.request(source_request)
     row = store.db.execute("SELECT * FROM pending_effects WHERE run_id=? AND effect_key=?",
                             (request["run_id"], key)).fetchone()
+    if row is None:
+        raise CareError("effect_binding_conflict")
     if row["attempts"]:
         raise CareError("effect_payload_frozen")
+    original = EffectProposal(**json.loads(row["proposal"]))
+    old_payload = json.loads(original.payload)
+    new_payload = json.loads(proposal.payload)
+    if ((original.kind == "action_request" and old_payload.get("kind") in ("coins", "cancel_request"))
+            or (proposal.kind == "action_request" and new_payload.get("kind") in ("coins", "cancel_request"))):
+        # A coin reservation is immutable even before its first network attempt.
+        raise CareError("coins_revision_not_allowed" if old_payload.get("kind") == "coins" or new_payload.get("kind") == "coins" else "cancel_revision_not_allowed")
+    owner = store.load_session(original.session_id)
+    bindings = ("effect_id", "key", "session_id", "order_id", "kind", "evidence_ref")
+    if (any(getattr(proposal, field) != getattr(original, field) for field in bindings)
+            or request["session_id"] != original.session_id
+            or request["run_id"] != owner.run_id
+            or request["principal"] != owner.principal_id
+            or new_payload.get("order_id") != original.order_id):
+        raise CareError("effect_binding_conflict")
     event = json.loads(request["payload"])
     if row["state"] != "blocked" or event["kind"] != "message":
         raise CareError("revision_not_allowed")
@@ -49,6 +95,10 @@ def claim_effect(store, effect_id, expected_version, revision, now):
     if (row["revision"] != revision or state.version != expected_version
             or row["state"] not in ("pending_delivery", "retry_wait")
             or row["attempts"] >= 3 or row["next_at"] > now):
+        return None
+    from .cancellation import lacks_cancellation_evidence
+    if lacks_cancellation_evidence(store, row):
+        store.set_effect(effect_id, state="needs_reconciliation" if row["attempts"] else "blocked")
         return None
     store.db.execute("UPDATE pending_effects SET state='in_flight',attempts=attempts+1,session_version=? WHERE id=?",
                       (state.version, effect_id))
@@ -88,9 +138,10 @@ def record_receipt(store, receipt) -> bool:
     store.set_effect(receipt.effect_id, state="delivered", outcome=receipt.outcome, lookups=0, manual=0)
     if proposal.kind == "handoff_request" and receipt.outcome in ("accepted", "awaiting_approval", "succeeded"):
         state = store.load_session(proposal.session_id)
-        state = replace(state, status="transferred", version=state.version + 1)
-        store.db.execute("UPDATE sessions SET data=?,version=? WHERE id=?",
-                         (canonical(state), state.version, state.session_id))
+        if state.status == "handoff_pending":
+            state = replace(state, status="transferred", version=state.version + 1)
+            store.db.execute("UPDATE sessions SET data=?,version=? WHERE id=?",
+                             (canonical(state), state.version, state.session_id))
     store._event(proposal.session_id, f"receipt:{receipt.effect_id}:{receipt.revision}",
                  "receipt", canonical({"effect_id": receipt.effect_id, "outcome": receipt.outcome}))
     return True

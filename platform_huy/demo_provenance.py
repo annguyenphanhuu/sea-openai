@@ -181,7 +181,9 @@ class DemoEvidence:
             pending = session.get('pending')
             if (not pending or action.get('confirmation_id') != pending['confirmation_id']
                     or now >= _instant(pending['expires_at'])
-                    or not ((event['kind'] == 'confirm_cancel' and event.get('confirmation_id') == pending['confirmation_id'])
+                    or not ((event['kind'] == 'confirm_cancel' and event.get('confirmed') is True
+                                 and event.get('reply_to') == pending['reply_to']
+                                 and event.get('confirmation_id') == pending['confirmation_id'])
                             or (event['kind'] == 'message' and signals(event.get('text') or '')[0] == 'accept' and event.get('reply_to') == pending['reply_to']))):
                 raise ValueError('cancel_confirmation_invalid')
             prior = care_store.db.execute("SELECT content FROM events WHERE id=? AND session_id=? AND kind='response'", (pending['reply_to'], state.session_id)).fetchone()

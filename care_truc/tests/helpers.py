@@ -10,6 +10,7 @@ from care_truc.runtime_types import (CareError, ContextSnapshot, FeedSnapshot,
 
 NOW = datetime(2026, 10, 31, 12, tzinfo=timezone.utc)
 CUSTOMER = TrustedRequestContext("customer")
+SYSTEM = TrustedRequestContext("customer", frozenset({"care_contact"}))
 STAFF = TrustedRequestContext("staff", frozenset({"care_trace", "care_handoffs"}))
 
 
@@ -19,7 +20,7 @@ def context(order_id="o1", **changes):
     guard = GuardSnapshot("a3", NOW, (FeedSnapshot("ops", "trusted", NOW),),
                           ("ops",), True, True)
     return replace(ContextSnapshot("customer", order_id, NOW, assessment, guard,
-                                   1_000_000, False, False, True), **changes)
+                                   1_000_000, False, False, True, False), **changes)
 
 
 class FakeClock:
@@ -68,6 +69,8 @@ class ContextAdapter:
 
 
 class ScriptedGateway:
+    # Test-only simulated platform acceptance capability.
+    atomic_final_validation = True
     supports_deadlines = True
     idempotent = True
     def __init__(self):

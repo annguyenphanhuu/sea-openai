@@ -65,7 +65,11 @@ def test_actual_tick_automatic_contacts_timings_and_five_customer_turns(tmp_path
         assert stopped['auto_contact']['opened'] == 0
         assert len(stopped['contacts']) == contacts
         assert stopped['guard_alive'] is False
-        answered = flow.request('chat-say', {'session_id': session, 'text': 'Tại sao đơn hàng trễ?', 'request_id': 'while-killed'})
+        # The original session was transferred by the explicit human request.
+        # Keep the killed-guard reply check on an active customer session.
+        active_session = next(row['session_id'] for row in stopped['active_chats']
+                              if row['status'] == 'active' and row['session_id'] != session)
+        answered = flow.request('chat-say', {'session_id': active_session, 'text': 'Tại sao đơn hàng trễ?', 'request_id': 'while-killed'})
         assert answered['reply']
         assert len(answered['ledger']) == 1
         assert len(answered['contacts']) == contacts

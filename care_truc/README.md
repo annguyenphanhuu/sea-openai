@@ -1,6 +1,6 @@
 # Customer care, A1, UI, and APIs
 Input: A2 assessed-order lists with shipping dates, ETA and delay evidence, plus A3 gates and customer turns.
-Output: Customer care, web voice, management/customer/shop UI and HTTP APIs, action requests, and handoffs.
+Implemented output: in-process chat JSON responses, durable action requests and handoffs. Web voice and HTTP mounting remain external integration work.
 Owner: Truc.
 Boundary: Rules first; LLM output is untrusted; no direct money effects or telephone calls.
 
@@ -68,8 +68,118 @@ python scripts/guardrails.py --all --tests
 The root pytest configuration discovers acceptance folders only, so the explicit
 harness command is required. Tests use isolated SQLite, fake operational time,
 fixed authenticated context and scripted gateways under `care_truc/tests/`.
-They do not read or generate replay world data. Passing these tests does not prove
-HTTP integration, real A3/A2/executor/provider delivery or production readiness.
+They do not read or generate replay world data. The separate
+`acceptance_huy/test_e2e_flow.py`, `test_e2e_proof.py` and
+`test_integration_tick.py` exercise the release-fed local integration described
+below. Neither suite establishes external provider delivery or production readiness.
 Retention is run-scoped; a production retention policy remains separate work.
 `CareHarness.resolve(ref, server_ctx)` supplies durable decision evidence to the platform under the explicit `care_evidence` server permission and ownership authorization. It is not a customer API operation.
-Verified during implementation: harness tests and repository acceptance tests pass; import contracts, diff check and full repository guardrails pass. All network/context/clock adapters in these runs are the labeled test fixtures, with actual SQLite and OS locks. Provider, HTTP, A3/A2/executor integration remains separate.
+See [VERIFICATION.md](VERIFICATION.md) for current commands, results and deployment scope.
+
+
+## Integrated business policy
+
+The only production entry point is `CareRuntime` / `CareHarness`; the earlier
+synchronous `CareService` and session/outbox store have been replaced.
+`CarePolicy` uses `rules.classify`, and `ResponseRenderer` uses the reviewed
+`rendering.render_facts` through a conversion of the server guard snapshot.
+
+Internal `open_contact(task, ctx)` requires the server-issued `care_contact`
+permission, with `ctx.principal_id` bound to the customer owning the order.
+The customer API cannot invoke this operation. The context provider still checks
+ownership; a staff permission does not authorize customer message impersonation.
+Invalid proactive context is rejected before creating a session. Contact keys bind
+the entire normalized task. Customer open request IDs bind the order within the
+run and principal. Committed retries replay before reading business context.
+
+New requests after `handoff_pending`, `transferred`, or `completed` return a state
+conflict. Old requests still replay their immutable response. Internal
+`retry_handoff(session_id, ctx)` requires `care_handoff_retry`, rechecks the latest
+gate and reuses only a blocked, never-submitted handoff envelope. It does not
+reopen customer automation. Timeouts retain reconciliation.
+
+Turn responses include the assessment fingerprint, safe public evidence, and
+references resolvable through the permission-gated durable bundle resolver. Facts
+use the server replay cutoff; source timestamps and ETAs are normalized to UTC,
+while customer dates are rendered in Vietnam time. Stale data never supplies a
+current ETA. The committed session cutoff cannot move backwards.
+
+Authenticated human requests and mandatory turn/abuse escalation do not depend
+on valid business facts. Rejected assessment/evidence timestamps or cutoff values
+are discarded as a whole snapshot for these handoffs; the audit records the
+validation code, with no rejected facts or business time. Identity/ownership
+binding errors remain errors. The same rule permits dispatch and internal retry
+of an existing handoff without weakening the platform gate or receipt checks.
+
+The integrated schema is the main harness schema. There is no migration from the
+superseded synchronous prototype database; existing prototype state must not be
+silently opened as harness state. Use a fresh run or design an explicit migration.
+
+Cancellation confirmation uses `confirm_cancel(confirmation_id, request_id, ctx,
+reply_to=None, confirmed=False)`. JSON callers must supply `confirmation_id`,
+`request_id`, `reply_to` (the prepare response's `message_id`), and the strict
+boolean `confirmed`. Only explicit `true` on this command authorizes the second
+step. Explicit acceptance text can also confirm when replying to the exact
+current prompt; unbound, quoted, or negated acceptance cannot authorize it. Confirmation expires
+at ten business minutes including the exact expiry instant. A fresh request is
+required after expiry, retraction, handoff, or lost legacy confirmation evidence.
+Consumed confirmation IDs replay the immutable original response, including
+with a new request ID. Current delivery receipts remain available through GET.
+
+The existing v1 store receives an additive `cancellations` lifecycle table on
+open. Embedded legacy pending confirmations without this evidence fail closed;
+there is no backfill of authorization or consumed tokens. No source DB or
+shared runtime schema is changed.
+
+## Labeled adapter demo
+
+Run `python -m care_truc.demo`. This is an **adapter demo: algorithm fixtures
+only**, using one `CareRuntime`/`CareHarness`/`CareApi`, temporary SQLite and
+explicitly injected memory context, gateway, gate, clock and hostile selector.
+The temporary directory is deleted on exit. No source databases or world data
+are accessed, modified or generated. Receipt `succeeded` values are simulated
+algorithm outcomes, never evidence of real contact, money or cancellation.
+
+The flow checks proactive contact, ask-why, explicit coin request, receipt polling,
+separate explicit cancellation confirmation and human handoff, selector fallback,
+blocked guard, resolvable durable evidence and immutable POST replay. GET returns
+current `effects` and separate `system_events`; render those separately from
+conversation `messages`. `message_id` identifies the reply used as `reply_to`.
+
+For real adapters, inject `context_provider`, `gateway`, `gate`, optional `selector`
+and `clock` into `await CareRuntime.start(run_id, adapters, root=Path('runs'))`.
+Shutdown on the same event loop. There are no fixture defaults in production.
+`ContextSnapshot.ledger_pending` must be explicitly `False` for coin eligibility;
+`None` is unknown and blocks it. `ledger_granted=False`, successful actual contact,
+resolvable evidence, valid trusted facts and all other policy conditions remain
+required. Gateway `atomic_final_validation` must be exactly `True`: this is a
+platform guarantee of atomic latest permission/control/D4 validation at acceptance,
+not permission for a caller to set a flag to bypass a missing implementation.
+
+The standalone algorithm demo remains separate from
+`platform_huy.demo_flow.DemoFlow`. The latter replays the existing release inputs
+through A3, A2 and A1, writes actual local web-inbox contacts and staff handoffs,
+and uses `SqliteEffectGateway`/`execute_action` for durable local coin ledgers and
+cancellation review requests. Source databases stay read-only; runtime state is
+separate. These receipts describe local SQLite effects, not commercial payouts
+or contact delivery through an external provider.
+
+Both local gateways now declare `atomic_final_validation` after final authority
+and dispatch checks. Care provenance stays locked through financial acceptance;
+the executor owns its own atomic permission, guard, eligibility, amount and
+once-per-order ledger checks. Demo contact checks run under both write locks
+without an await before inbox acceptance. This guarantee requires the existing
+single event-loop thread, care OS ownership lock and one trusted runtime writer.
+It does not establish a distributed transaction or support arbitrary competing
+platform processes. A deployment with multiple runtime writers needs a reviewed
+executor-owned provenance acceptance seam before using this attestation.
+
+The presenter HTTP adapter has separate authentication tests; those do not mount
+the proposed customer CareApi routes or establish customer network authentication.
+External delivery and voice provider/session negotiation remain unintegrated.
+
+API payloads use `handle_message(session_id, message_id, text, reply_to?)` and
+`confirm_cancel(confirmation_id, request_id, reply_to, confirmed)`; JSON confirmed
+must be a boolean and authorization requires explicit `true`. Customer JSON
+cannot provide channel, amount, source, permissions or cutoff. See
+[VERIFICATION.md](VERIFICATION.md) for repeatable checks and integration limits.

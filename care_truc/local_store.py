@@ -150,3 +150,43 @@ class LocalCareStore:
     @local_operation
     async def close(self, *, deadline: float) -> None:
         return self.local.close()
+
+    @local_operation
+    async def has_open_session(self, open_key: str, *, deadline: float) -> bool:
+        return self.local.has_open_session(open_key)
+
+    @local_operation
+    async def cancellation_record(self, confirmation_id: str, run_id: str, principal_id: str, *, session_id: str | None=None, deadline: float) -> dict | None:
+        return self.local.cancellation_record(confirmation_id, run_id, principal_id, session_id=session_id)
+
+    @local_operation
+    async def legacy_confirmation_session(self, confirmation_id: str, run_id: str, principal_id: str, *, deadline: float) -> str:
+        return self.local.legacy_confirmation_session(confirmation_id, run_id, principal_id)
+
+    @local_operation
+    async def replay_cancellation_alias(self, state: SessionState, event: CustomerEvent, *, deadline: float) -> TurnResult | None:
+        return self.local.replay_cancellation_alias(state, event)
+
+    @local_operation
+    async def coins_reserved(self, run_id: str, order_id: str, *, deadline: float) -> bool:
+        return self.local.coins_reserved(run_id, order_id)
+
+    @local_operation
+    async def session_receipts(self, session_id: str, *, deadline: float) -> list[dict]:
+        return self.local.session_receipts(session_id)
+
+    @local_operation
+    async def handoff_effect(self, run_id: str, session_id: str, *, deadline: float) -> dict | None:
+        return self.local.handoff_effect(run_id, session_id)
+
+    @local_operation
+    async def requeue_handoff(self, state: SessionState, row: dict, *, deadline: float) -> int:
+        return self.local.requeue_handoff(state, row)
+
+    @local_operation
+    async def quarantine_legacy_cancellations(self, *, deadline: float) -> None:
+        return self.local.quarantine_legacy_cancellations()
+
+    @local_operation
+    async def lacks_cancellation_evidence(self, row: dict, *, deadline: float) -> bool:
+        return self.local.lacks_cancellation_evidence(row)

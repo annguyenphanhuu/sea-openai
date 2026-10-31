@@ -79,7 +79,7 @@ def test_effect_claim_lookup_budget_and_receipt_are_atomic(tmp_path):
     async def scenario():
         raw = MemoryStore.open(tmp_path / "care.sqlite")
         store = LocalCareStore(raw, monotonic=lambda: 0)
-        state = await store.create_session(SessionState("s", "r", "p", "o"), "open", deadline=2)
+        state = await store.create_session(SessionState("s", "r", "p", "o", status="handoff_pending"), "open", deadline=2)
         event = CustomerEvent("message", "m", "hello")
         request = await store.begin_request("s", "p", event, fingerprint(event), deadline=2)
         token = await store.reserve_processing(request["id"], 0, 0, deadline=2)
@@ -194,4 +194,50 @@ def test_stale_boot_attempt_cannot_commit(tmp_path):
         recovered = await store.load_session(rows[0]["session_id"], deadline=2)
         assert (recovered.principal_id, recovered.channel) == ("p", "web_voice")
         raw.close()
+    asyncio.run(scenario())
+
+
+def test_business_flow_through_injected_port_has_no_raw_storage_access(tmp_path):
+    from care_truc.api import CareApi
+    from care_truc.dispatcher import EffectDispatcher
+    from care_truc.harness import CareHarness
+    from care_truc.storage_port import CareStore
+    from care_truc.tests.helpers import ContextAdapter, CUSTOMER, FakeClock, Gate, ScriptedGateway
+
+    async def scenario():
+        raw = MemoryStore.open(tmp_path / "care.sqlite")
+        clock = FakeClock()
+        local = LocalCareStore(raw, monotonic=clock.monotonic)
+
+        class PortOnly:
+            def __getattr__(self, name):
+                if name not in CareStore.__dict__:
+                    raise AssertionError(f"orchestration bypassed storage port: {name}")
+                return getattr(local, name)
+
+        h = CareHarness("run", PortOnly(), ContextAdapter(), clock)
+        api = CareApi(h)
+        gateway = ScriptedGateway()
+        gateway.outcome = "succeeded"
+        h.dispatcher = EffectDispatcher(h, gateway, Gate())
+        try:
+            sid = (await h.open_chat("o1", "open", CUSTOMER)).session_id
+            prompt = await api.handle("prepare_cancel", {"session_id": sid, "request_id": "prepare"}, CUSTOMER)
+            payload = {"confirmation_id": prompt.body["confirmation_id"], "request_id": "confirm",
+                       "reply_to": prompt.body["message_id"], "confirmed": True}
+            confirmed = await api.handle("confirm_cancel", payload, CUSTOMER)
+            assert confirmed.status == 200 and len(confirmed.body["effect_ids"]) == 1
+            await h.drain_pending()
+            alias = await api.handle("confirm_cancel", dict(payload, request_id="alias"), CUSTOMER)
+            assert alias == confirmed
+            handoff = await h.request_handoff(sid, "human", CUSTOMER)
+            assert len(handoff.effect_ids) == 1
+            await h.drain_pending()
+            history = await api.handle("get_messages", {"session_id": sid}, CUSTOMER)
+            assert history.status == 200
+            assert history.body["status"] == "transferred"
+            assert len(history.body["system_events"]) == 2
+            assert all(effect["outcome"] == "succeeded" for effect in history.body["effects"])
+        finally:
+            await local.close(deadline=clock.monotonic() + 2)
     asyncio.run(scenario())
