@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS sessions(id TEXT PRIMARY KEY, principal TEXT NOT NULL, contact_key TEXT UNIQUE, body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS requests(principal TEXT NOT NULL, session TEXT NOT NULL REFERENCES sessions(id), request TEXT NOT NULL, hash TEXT NOT NULL, response TEXT NOT NULL, PRIMARY KEY(principal,session,request));
+CREATE TABLE IF NOT EXISTS messages(id TEXT PRIMARY KEY, session TEXT NOT NULL REFERENCES sessions(id), body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY, session TEXT NOT NULL REFERENCES sessions(id), body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS cancellations(id TEXT PRIMARY KEY, session TEXT NOT NULL REFERENCES sessions(id), body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS handoffs(session TEXT PRIMARY KEY REFERENCES sessions(id), body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS deliveries(id TEXT PRIMARY KEY, session TEXT NOT NULL REFERENCES sessions(id), key TEXT NOT NULL UNIQUE, coin_scope TEXT UNIQUE, handoff_scope TEXT UNIQUE, body TEXT NOT NULL, status TEXT NOT NULL, lease_until TEXT);
+CREATE TABLE IF NOT EXISTS receipts(key TEXT PRIMARY KEY REFERENCES deliveries(key), revision INTEGER NOT NULL, body TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS system_events(session TEXT NOT NULL REFERENCES sessions(id), key TEXT NOT NULL, revision INTEGER NOT NULL, status TEXT NOT NULL, UNIQUE(key,revision,status));

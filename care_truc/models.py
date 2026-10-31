@@ -4,6 +4,8 @@ TrustedContext is constructed by server code only, never from a client payload.
 Its source records server provenance; system contexts additionally require staff.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 import re
@@ -389,6 +391,9 @@ class History:
     session: Session
     responses: tuple[TurnResponse, ...] = ()
     receipts: tuple[Receipt, ...] = ()
+    messages: tuple[StoredMessage, ...] = ()
+    events: tuple[SystemEvent, ...] = ()
+    deliveries: tuple[DeliveryState, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.session, Session):
@@ -406,6 +411,8 @@ class Mutation:
     deliveries: tuple[PendingDelivery, ...] = ()
     pending_cancel: PendingCancel | None = None
     handoff: HandoffSummary | None = None
+    messages: tuple[StoredMessage, ...] = ()
+    evidence: tuple[StoredEvidence, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.session, Session) or not isinstance(self.response, TurnResponse):
@@ -416,6 +423,10 @@ class Mutation:
             raise DomainError('invalid_pending_cancel')
         if self.handoff is not None and not isinstance(self.handoff, HandoffSummary):
             raise DomainError('invalid_handoff')
+        if not isinstance(self.messages, tuple) or any(not isinstance(item, StoredMessage) for item in self.messages):
+            raise DomainError('invalid_messages')
+        if not isinstance(self.evidence, tuple) or any(not isinstance(item, StoredEvidence) for item in self.evidence):
+            raise DomainError('invalid_evidence')
 
 
 @dataclass(frozen=True, slots=True)
@@ -428,3 +439,38 @@ class ApiResponse:
             raise DomainError('invalid_http_status')
         if not isinstance(self.body, dict):
             raise DomainError('invalid_response_body')
+
+@dataclass(frozen=True, slots=True)
+class StoredMessage:
+    id: str
+    role: Literal['customer', 'assistant']
+    text: str
+    created_at: datetime
+
+    def __post_init__(self) -> None:
+        _text(self.id, 'message_id')
+        _choice(self.role, ('customer', 'assistant'), 'message_role')
+        _text(self.text, 'text')
+        _time(self, 'created_at')
+
+
+@dataclass(frozen=True, slots=True)
+class StoredEvidence:
+    id: str
+    public_text: str
+    trace: str
+
+
+@dataclass(frozen=True, slots=True)
+class SystemEvent:
+    delivery_key: str
+    revision: int
+    status: str
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryState:
+    id: str
+    kind: DeliveryKind
+    key: str
+    status: str
