@@ -1,6 +1,0 @@
-{
-    "exit_code":  1,
-    "command":  "python -s -m pytest -q -p no:cacheprovider --basetemp=.scratch/runs/task-01/baseline-tmp",
-    "started_utc":  "2026-10-31T04:30:21.4654552Z",
-    "finished_utc":  "2026-10-31T04:30:28.9723342Z"
-}
