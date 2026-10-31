@@ -5,6 +5,11 @@ const paths = { next: "/api/next", kill: "/api/a3/kill", revive: "/api/a3/revive
 
 function localRequest(request: Request) {
     const host = request.headers.get("host") || "";
+    const publicHost = process.env.FRONTEND_HOST;
+    if (publicHost && host.toLowerCase() === publicHost.toLowerCase()) {
+        const forwardedHost = request.headers.get("x-forwarded-host");
+        return !forwardedHost || forwardedHost.toLowerCase() === publicHost.toLowerCase();
+    }
     return /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host)
         && (!request.headers.has("x-forwarded-host") || request.headers.get("x-forwarded-host") === host)
         && !request.headers.has("forwarded");
