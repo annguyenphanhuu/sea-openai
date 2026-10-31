@@ -20,8 +20,6 @@ class PresenterAuth:
             self._key = configured.encode('utf-8') if configured.strip() else None
         except UnicodeEncodeError:
             raise ValueError('LIVE_PRESENTER_KEY must be valid UTF-8') from None
-        if self._key is None and host.casefold() not in ('127.0.0.1', 'localhost', '::1'):
-            raise ValueError('LIVE_PRESENTER_KEY is required for a non-loopback host')
 
     @property
     def required(self) -> bool:

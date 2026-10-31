@@ -215,7 +215,8 @@ def main() -> None:
         selector = selector_from_env()
         if selector is None:
             parser.error('OPENAI_API_KEY is required for --llm')
-        reviewer = reviewer_from_env()
+        if os.environ.get('SEA_LLM_REVIEWS') == '1':
+            reviewer = reviewer_from_env()
     if args.state_path is None:
         folder = 'integrated-demo' if args.integrated else 'a3-demo'
         args.state_path = project_root() / 'runs' / folder / 'state.sqlite'

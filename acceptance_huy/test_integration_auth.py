@@ -5,6 +5,8 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import json
 
+import pytest
+
 from platform_huy.serve_ui import create_server
 
 
@@ -38,6 +40,31 @@ def test_presenter_key_protects_http_state_and_next(tmp_path, monkeypatch):
         assert state['contacts'] == []
         assert state['ledger'] == []
         assert request('/api/records?table=ledger_new')[0] == 401
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+@pytest.mark.parametrize('key', [None, '', '   '])
+def test_public_demo_without_presenter_key_allows_state_and_next(tmp_path, monkeypatch, key):
+    if key is None:
+        monkeypatch.delenv('LIVE_PRESENTER_KEY', raising=False)
+    else:
+        monkeypatch.setenv('LIVE_PRESENTER_KEY', key)
+    core = Path(__file__).resolve().parents[1] / 'data/release_main/core_14d.sqlite'
+    server = create_server(core_path=core, state_path=tmp_path / 'state.sqlite',
+                           host='0.0.0.0', integrated=True, port=0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f'http://127.0.0.1:{server.server_port}'
+    try:
+        with urlopen(base + '/api/demo/state', timeout=30) as response:
+            assert response.status == 200
+            assert json.load(response)['now'] == '2026-10-24T14:00:00+07:00'
+        with urlopen(Request(base + '/api/next', data=b'{}'), timeout=30) as response:
+            assert response.status == 200
+            assert json.load(response)['now'] == '2026-10-24T14:30:00+07:00'
     finally:
         server.shutdown()
         server.server_close()

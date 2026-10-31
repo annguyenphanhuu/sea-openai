@@ -283,13 +283,18 @@ def test_model_audits_are_authenticated_persisted_and_separate_from_contracts(tm
         restarted.close()
 
 
-def test_cli_enables_all_three_agents_with_explicit_llm_flag(tmp_path, monkeypatch):
+@pytest.mark.parametrize('reviews', [None, '0', 'true', '1'])
+def test_cli_llm_keeps_a1_enabled_and_reviews_require_explicit_opt_in(tmp_path, monkeypatch, reviews):
     import sys
     from platform_huy import serve_ui
     monkeypatch.setattr(serve_ui, 'project_root', lambda: tmp_path)
     (tmp_path / '.env').write_text('OPENAI_API_KEY=test-secret\nOPENAI_MODEL=test-model\n', encoding='utf-8')
     for name in ('OPENAI_API_KEY', 'OPENAI_MODEL', 'OPENAI_REVIEW_MODEL'):
         monkeypatch.delenv(name, raising=False)
+    if reviews is None:
+        monkeypatch.delenv('SEA_LLM_REVIEWS', raising=False)
+    else:
+        monkeypatch.setenv('SEA_LLM_REVIEWS', reviews)
     monkeypatch.setattr(sys, 'argv', ['server', '--integrated', '--llm'])
     received = {}
     class Server:
@@ -302,4 +307,8 @@ def test_cli_enables_all_three_agents_with_explicit_llm_flag(tmp_path, monkeypat
         return Server()
     monkeypatch.setattr(serve_ui, 'create_server', create)
     serve_ui.main()
-    assert received['selector'].model == received['reviewer'].model == 'test-model'
+    assert received['selector'].model == 'test-model'
+    if reviews == '1':
+        assert received['reviewer'].model == 'test-model'
+    else:
+        assert received['reviewer'] is None
