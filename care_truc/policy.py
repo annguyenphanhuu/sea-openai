@@ -45,6 +45,8 @@ class CarePolicy:
             intent = "want_cancel"
         new = replace(state, turn_count=state.turn_count + 1,
                       abusive_turn_count=state.abusive_turn_count + int(abuse))
+        if state.status in ("transferred", "completed"):
+            return PolicyOutcome(new, intent, "handoff" if state.status == "transferred" else "clarify")
         if intent == "ask_human" or new.turn_count >= max_turns or new.abusive_turn_count >= 3:
             new = replace(new, status="handoff_pending", pending=None)
             key = f"{state.run_id}:handoff:{state.session_id}"
@@ -56,6 +58,8 @@ class CarePolicy:
         if changed_mind:
             return PolicyOutcome(replace(new, pending=None, status="active"), intent,
                                  "changed_mind", invalidate_unsent=True)
+        if context.assessment is None and (intent == "want_cancel" or event.kind == "confirm_cancel"):
+            return PolicyOutcome(new, intent, "clarify", ("context_unavailable",))
         if intent == "want_cancel":
             pending = PendingCancellation(uuid4().hex, event.request_id,
                                            context.cutoff + timedelta(minutes=10))

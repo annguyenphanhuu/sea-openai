@@ -71,3 +71,5 @@ fixed authenticated context and scripted gateways under `care_truc/tests/`.
 They do not read or generate replay world data. Passing these tests does not prove
 HTTP integration, real A3/A2/executor/provider delivery or production readiness.
 Retention is run-scoped; a production retention policy remains separate work.
+`CareHarness.resolve(ref, server_ctx)` supplies durable decision evidence to the platform under the explicit `care_evidence` server permission and ownership authorization. It is not a customer API operation.
+Verified during implementation: harness tests and repository acceptance tests pass; import contracts, diff check and full repository guardrails pass. All network/context/clock adapters in these runs are the labeled test fixtures, with actual SQLite and OS locks. Provider, HTTP, A3/A2/executor integration remains separate.

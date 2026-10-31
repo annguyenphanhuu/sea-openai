@@ -3,6 +3,7 @@
 import asyncio
 import copy
 from dataclasses import replace
+from datetime import datetime, timezone
 import json
 import sqlite3
 from uuid import uuid4
@@ -56,7 +57,9 @@ class CareHarness:
                 raise CareError("context_cutoff_invalid", 503)
             return snapshot
         except (TimeoutError, OSError):
-            return ContextSnapshot(state.principal_id, state.order_id, self.clock.utcnow(), None, None)
+            # A sentinel marks absent business time; operational UTC cannot grant business rights.
+            return ContextSnapshot(state.principal_id, state.order_id,
+                                   datetime.min.replace(tzinfo=timezone.utc), None, None)
 
     async def open_chat(self, order_id, request_id, ctx):
         CustomerEvent("request_handoff", request_id)
@@ -114,6 +117,7 @@ class CareHarness:
         return await self._process_event(session_id, CustomerEvent("request_handoff", request_id), ctx)
 
     async def _process_event(self, session_id, event, ctx):
+        started_at = self.clock.monotonic()
         if not self.accepting:
             raise CareError("not_ready", 503)
         state = self.store.load_session(session_id)
@@ -180,6 +184,10 @@ class CareHarness:
                 raise ValueError("output_invariant")
             proposals = []
             for proposal in outcome.proposals:
+                decision = self.guards.validate_dispatch(proposal, snapshot)
+                if not decision.allowed:
+                    outcome = replace(outcome, codes=outcome.codes + decision.codes, phrase_id="blocked")
+                    continue
                 payload = json.loads(proposal.payload)
                 if proposal.kind == "action_request":
                     payload["evidence_ref"] = request["id"]
@@ -187,6 +195,9 @@ class CareHarness:
                     payload["summary"] = self.renderer.render_handoff(outcome.state, snapshot)
                 proposals.append(replace(proposal, payload=canonical(payload), evidence_ref=request["id"]))
             outcome = replace(outcome, proposals=tuple(proposals))
+            if outcome.phrase_id == "blocked":
+                selection = PhraseSelection("blocked", "template")
+                rendered = self.renderer.render(outcome, snapshot, "blocked")
             pending = outcome.state.pending
             result = TurnResult("pending_delivery" if proposals else "committed", session_id,
                 rendered.text, outcome.intent, outcome.codes + selection.codes,
@@ -195,9 +206,12 @@ class CareHarness:
                 "request_id": request["id"], "phases": list(range(1, 11)), "policy_version": self.policy.version,
                 "template_version": self.renderer.version, "hook_version": self.hooks.version,
                 "assessment_ref": rendered.assessment_ref, "codes": result.codes, "source": result.source,
-                "effect_ids": result.effect_ids}
+                "effect_ids": result.effect_ids, "elapsed_runtime_s": self.clock.monotonic() - started_at,
+                "hook_outcomes": {"on_input": input_hook.action}}
+            bundle = {"snapshot": snapshot, "session": state, "event": event,
+                      "decision_codes": outcome.codes, "proposals": outcome.proposals}
             return self.store.commit_turn(request["id"], state.version, outcome, result,
-                                           canonical(snapshot), canonical(trace))
+                                           canonical(bundle), canonical(trace))
         except (sqlite3.DatabaseError, OSError):
             if request:
                 try:
@@ -260,3 +274,13 @@ class CareHarness:
                 "status": state.status, "delivery_status": row["state"],
                 "summary": json.loads(proposal["payload"]).get("summary")})
         return {"handoffs": result}
+
+    async def resolve(self, ref: str, server_ctx: TrustedRequestContext) -> str:
+        if not server_ctx or "care_evidence" not in server_ctx.staff_permissions:
+            raise CareError("forbidden", 403)
+        row = self.store.db.execute("SELECT e.data,r.session_id FROM evidence_bundles e JOIN requests r ON e.request_id=r.id WHERE e.ref=?", (ref,)).fetchone()
+        if row is None:
+            raise CareError("not_found", 404)
+        state = self.store.load_session(row["session_id"])
+        await self.authorize(server_ctx, state.order_id, state.principal_id)
+        return row["data"]

@@ -113,7 +113,7 @@ class MemoryStore:
             self._event(state.session_id, request_id + ":customer", "customer", request["payload"])
             self._event(state.session_id, request_id + ":response", "response", canonical(response))
             if outcome.invalidate_unsent:
-                self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait')", (state.session_id,))
+                self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait') AND json_extract(proposal,'$.kind')!='handoff_request'", (state.session_id,))
             for proposal in outcome.proposals:
                 self._save_proposal(proposal, request_id, state)
             self.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
