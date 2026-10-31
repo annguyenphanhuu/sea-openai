@@ -34,7 +34,11 @@ class MemoryStore:
                 db.executescript(Path(__file__).with_name("schema.sql").read_text())
             from .cancellation import SCHEMA
             db.executescript(SCHEMA)
-            return cls(db)
+            store = cls(db)
+            from .cancellation import quarantine_legacy_cancellations
+            with store.transaction():
+                quarantine_legacy_cancellations(store)
+            return store
         except BaseException:
             db.close()
             raise

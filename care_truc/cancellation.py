@@ -47,3 +47,32 @@ def validate_action(store, payload, request_id, state):
             or payload.get('needs_approval') is not True
             or payload.get('idempotency_key') != f"{state.run_id}:cancel:{row['id']}"):
         raise CareError('cancel_confirmation_invalid')
+
+
+def lacks_cancellation_evidence(store, effect) -> bool:
+    """Old cancellation proposals cannot manufacture a second-confirmation grant."""
+    proposal = json.loads(effect['proposal'])
+    payload = json.loads(proposal['payload'])
+    if proposal['kind'] != 'action_request' or payload.get('kind') != 'cancel_request':
+        return False
+    record = store.db.execute('SELECT * FROM cancellations WHERE id=?',
+                              (payload.get('confirmation_id'),)).fetchone()
+    if record is None or record['status'] != 'consumed':
+        return True
+    state = store.load_session(effect['session_id'])
+    data = json.loads(record['data'])
+    source = store.db.execute('SELECT request_id FROM effect_proposals WHERE effect_id=? AND revision=?',
+                             (effect['id'], effect['revision'])).fetchone()
+    return (source is None or source['request_id'] != record['consumed_request']
+        or (record['run_id'], record['principal_id'], record['session_id'], data['order_id'], data['contact_id']) !=
+           (effect['run_id'], state.principal_id, state.session_id, state.order_id, state.contact_id)
+        or proposal['order_id'] != state.order_id or payload.get('order_id') != state.order_id
+        or proposal['key'] != f"{state.run_id}:cancel:{record['id']}"
+        or payload.get('idempotency_key') != proposal['key'])
+
+
+def quarantine_legacy_cancellations(store) -> None:
+    """Never send unproven unsent effects; preserve uncertain remote outcomes."""
+    for effect in store.db.execute("SELECT * FROM pending_effects WHERE state IN ('pending_delivery','retry_wait')").fetchall():
+        if lacks_cancellation_evidence(store, effect):
+            store.set_effect(effect['id'], state='needs_reconciliation' if effect['attempts'] else 'blocked')

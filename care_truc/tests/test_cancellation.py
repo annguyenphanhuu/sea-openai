@@ -246,3 +246,84 @@ def test_confirmation_still_obeys_human_and_abuse_priority(text, reason):
         confirmation_id=pending.confirmation_id, reply_to=pending.reply_to, confirmed=True), context())
     assert reason in result.codes and result.state.status == 'handoff_pending'
     assert result.state.pending is None and [p.kind for p in result.proposals] == ['handoff_request']
+
+
+@pytest.mark.parametrize('legacy_state', ['pending_delivery', 'retry_wait'])
+def test_legacy_unsent_cancellation_is_quarantined_on_upgrade(tmp_path, legacy_state):
+    async def check():
+        import json
+        from care_truc.dispatcher import EffectDispatcher
+        from .helpers import Gate, ScriptedGateway
+        from .test_dispatch_races import pending
+        h = harness(tmp_path)
+        sid, eid = await pending(h)
+        # Persist the pre-Task8 schema and consent-free event, rather than using
+        # the current insertion path to authorize a legacy pending effect.
+        request = h.store.db.execute("SELECT * FROM requests WHERE client_id='confirm'").fetchone()
+        payload = json.loads(request['payload'])
+        payload.pop('confirmed')
+        payload.pop('reply_to')
+        h.store.db.execute('UPDATE requests SET payload=? WHERE id=?', (json.dumps(payload), request['id']))
+        h.store.set_effect(eid, state=legacy_state)
+        h.store.db.execute('DROP TABLE cancellations')
+        h.store.close()
+        h = harness(tmp_path)
+        gateway = ScriptedGateway()
+        await EffectDispatcher(h, gateway, Gate()).drain_pending()
+        assert gateway.submissions == []
+        assert h.store.effect(eid)['state'] == 'blocked'
+        assert h.store.effect(eid)['attempts'] == 0
+        h.store.close()
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize('legacy_state', ['in_flight', 'needs_reconciliation', 'retry_wait'])
+def test_legacy_attempted_cancellation_keeps_receipt_reconciliation(tmp_path, legacy_state):
+    async def check():
+        from care_truc.dispatcher import EffectDispatcher
+        from .helpers import Gate, ScriptedGateway
+        from .test_dispatch_races import pending
+        h = harness(tmp_path)
+        sid, eid = await pending(h)
+        gateway = ScriptedGateway()
+        gateway.submit_error = TimeoutError()
+        await EffectDispatcher(h, gateway, Gate()).drain_pending()
+        assert h.store.effect(eid)['attempts'] == 1
+        h.store.set_effect(eid, state=legacy_state)
+        h.store.db.execute('DROP TABLE cancellations')
+        h.store.close()
+        h = harness(tmp_path)
+        assert h.store.effect(eid)['attempts'] == 1
+        await EffectDispatcher(h, gateway, Gate()).drain_pending()
+        assert len(gateway.submissions) == 1
+        assert len(gateway.lookups) == 1
+        assert h.store.effect(eid)['state'] == 'delivered'
+        assert h.store.effect(eid)['outcome'] == 'accepted'
+        h.store.close()
+    asyncio.run(check())
+
+
+def test_legacy_uncertain_cancellation_never_resubmits_after_absent_lookup(tmp_path):
+    async def check():
+        from care_truc.dispatcher import EffectDispatcher
+        from .helpers import Gate, ScriptedGateway
+        from .test_dispatch_races import pending
+        h = harness(tmp_path)
+        sid, eid = await pending(h)
+        gateway = ScriptedGateway()
+        gateway.submit_error = TimeoutError()
+        await EffectDispatcher(h, gateway, Gate()).drain_pending()
+        gateway.receipts.clear()
+        h.store.db.execute('DROP TABLE cancellations')
+        h.store.close()
+        h = harness(tmp_path)
+        dispatcher = EffectDispatcher(h, gateway, Gate())
+        for seconds in (0, 1, 5, 20):
+            h.clock.advance(seconds)
+            await dispatcher.drain_pending()
+        assert len(gateway.submissions) == 1 and len(gateway.lookups) == 3
+        row = h.store.effect(eid)
+        assert row['attempts'] == 1 and row['outcome'] == 'unknown'
+        assert row['state'] == 'needs_reconciliation' and row['manual'] == 1
+        h.store.close()
+    asyncio.run(check())

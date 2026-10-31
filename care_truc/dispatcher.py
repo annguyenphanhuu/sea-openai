@@ -3,6 +3,7 @@
 import asyncio
 import json
 
+from .cancellation import lacks_cancellation_evidence, quarantine_legacy_cancellations
 from .hooks import bounded
 from .harness import tracked
 from .runtime_types import (CareError, DrainReport, EffectProposal, TrustedRequestContext)
@@ -26,6 +27,8 @@ class EffectDispatcher:
         started = examined = 0
         end = self.clock.monotonic() + min(2, max(0, start_budget_s))
         async with self.drain_lock:
+            with self.store.transaction():
+                quarantine_legacy_cancellations(self.store)
             rows = self.store.effects()
             start = self.cursor % len(rows) if rows else 0
             for offset in range(len(rows)):
@@ -121,5 +124,7 @@ class EffectDispatcher:
             return
         if count >= 3 or row["attempts"] >= 3:
             self.store.set_effect(effect_id, state="needs_reconciliation", manual=1)
+        elif lacks_cancellation_evidence(self.store, row):
+            self.store.set_effect(effect_id, state="needs_reconciliation")
         elif row["state"] != "delivered" and getattr(self.gateway, "idempotent", False):
             self.store.set_effect(effect_id, state="retry_wait")

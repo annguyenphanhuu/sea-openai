@@ -86,6 +86,10 @@ def claim_effect(store, effect_id, expected_version, revision, now):
             or row["state"] not in ("pending_delivery", "retry_wait")
             or row["attempts"] >= 3 or row["next_at"] > now):
         return None
+    from .cancellation import lacks_cancellation_evidence
+    if lacks_cancellation_evidence(store, row):
+        store.set_effect(effect_id, state="needs_reconciliation" if row["attempts"] else "blocked")
+        return None
     store.db.execute("UPDATE pending_effects SET state='in_flight',attempts=attempts+1,session_version=? WHERE id=?",
                       (state.version, effect_id))
     store.db.execute("INSERT INTO effect_attempts(id,effect_id,revision,kind,started_at,deadline) VALUES(?,?,?,'submit',?,?)",
