@@ -4,10 +4,12 @@ import json
 from pathlib import Path
 import sqlite3
 import threading
+import time
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import pytest
+import httpx
 
 from platform_huy.serve_ui import create_server
 
@@ -17,10 +19,11 @@ while not (ROOT / 'data/release_main/core_14d.sqlite').exists() and ROOT.parent 
 
 
 @pytest.fixture
-def running(tmp_path, monkeypatch):
+def running(tmp_path, monkeypatch, request):
     monkeypatch.setenv('LIVE_PRESENTER_KEY', 'route-v4-test-key')
     server = create_server(core_path=ROOT / 'data/release_main/core_14d.sqlite',
-        state_path=tmp_path / 'original/platform.sqlite', integrated=True, port=0)
+        state_path=tmp_path / 'original/platform.sqlite', integrated=True, port=0,
+        selector=getattr(request, 'param', None))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
@@ -213,3 +216,90 @@ def test_failed_reset_keeps_existing_runtime_usable(running, monkeypatch):
     assert flow.state_path == old_path and flow.run_id == old_run
     code, killed = post('/api/a3/kill')
     assert code == 200 and killed['guard_alive'] is False
+
+
+class UnavailableSelector:
+    supports_deadlines = True
+    natural_replies = True
+
+    def __init__(self, outcome):
+        self.outcome = outcome
+        self.calls = 0
+
+    async def select(self, context, *, deadline):
+        self.calls += 1
+        if self.outcome == 'timeout':
+            raise TimeoutError('TEST ONLY: model deadline exceeded')
+        return b'' if self.outcome == 'empty' else b'{"template":"invented unapproved claim"}'
+
+
+@pytest.mark.parametrize('running', [UnavailableSelector('empty'), UnavailableSelector('timeout'),
+                                    UnavailableSelector('rejected')], indirect=True)
+def test_model_failure_nonseed_want_more_verify_and_actual_grant(running):
+    server, post = running
+    code, tick = post('/api/next')
+    assert code == 200
+    session = next(row['session_id'] for row in tick['active_chats']
+                   if row['order_id'] == '2610197T6ZKT73')
+    code, fallback = post('/api/chat/say', {
+        'session_id': session, 'text': 'tại sao trễ', 'request_id': 'model-failure'})
+    assert code == 200 and fallback['inside']['intent'] == 'ask_why'
+    assert server.coordinator.selector.calls == 1
+    assert any(code in fallback['turn_result']['codes'] for code in ('model_timeout', 'model_output_rejected'))
+    code, pending = post('/api/chat/say', {
+        'session_id': session, 'text': 'đền thêm', 'request_id': 'pending-evidence'})
+    assert code == 200 and pending['inside']['intent'] == 'want_more'
+    assert pending['reply'] == 'Đơn trễ 2 ngày , mình đang kiểm tra lại để đền bù , vài phút nữa bạn hỏi lại giúp'
+    assert pending['pending_verification']['order']['order_id'] == '2610197T6ZKT73'
+    assert pending['pending_verification']['requires_verification'] is True
+    assert pending['pending_verification']['evidence_ready'] is False
+    assert pending['ledger_total'] == 0 and pending['outbox_total'] == 0
+    assert server.coordinator.selector.calls == 1
+    code, verified = post('/api/orders/verify', {
+        'order_id': '2610197T6ZKT73', 'responsibility': 'carrier', 'force_majeure': 'absent',
+        'reason': 'TEST ONLY: simulated staff review after model failure on non-seed order',
+        'evidence_refs': pending['pending_verification']['evidence_refs']})
+    assert code == 200 and verified['pending_verification']['evidence_ready'] is True
+    code, granted = post('/api/chat/say', {
+        'session_id': session, 'text': 'đền đi', 'request_id': 'actual-grant'})
+    assert code == 200 and granted['ledger_total'] == 1
+    assert granted['ledger'][0]['order_id'] == '2610197T6ZKT73'
+    assert granted['ledger'][0]['amount_xu'] == 34000
+    assert granted['ledger'][0]['idempotency_key'] == 'xu:2610197T6ZKT73'
+    assert granted['reply'].endswith('Mình đã tặng bạn 34.000 xu vào ví để xin lỗi')
+
+
+@pytest.mark.parametrize('natural', [False, True])
+def test_selector_uses_approved_low_reasoning_and_300_token_budget(natural):
+    from care_truc.openai_selector import OpenAIPhraseSelector
+    captured = []
+
+    def respond(request):
+        captured.append(json.loads(request.content))
+        assert request.url.path == '/v1/chat/completions'
+        content = {'segments': ['Chào bạn!']} if natural else {'phrase_id': 'clarify'}
+        return httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
+            'message': {'content': json.dumps(content)}}]})
+
+    selector = OpenAIPhraseSelector('test-only-key', transport=httpx.MockTransport(respond))
+    context = {'mode': 'grounded_reply', 'topic': 'greeting', 'slots': {}} if natural else {'allowed_ids': ['clarify']}
+    asyncio.run(selector.select(json.dumps(context).encode(), deadline=time.monotonic() + 10))
+    assert captured[0]['max_completion_tokens'] == 300
+    assert captured[0]['reasoning_effort'] == 'low'
+
+
+def test_nonreasoning_fallback_omits_unsupported_reasoning_parameter():
+    from care_truc.openai_selector import OpenAIPhraseSelector
+    captured = []
+
+    def respond(request):
+        captured.append(json.loads(request.content))
+        return httpx.Response(200, json={'choices': [{'finish_reason': 'stop',
+            'message': {'content': '{"phrase_id":"clarify"}'}}]})
+
+    selector = OpenAIPhraseSelector('test-only-key', model='gpt-4.1-mini',
+                                  transport=httpx.MockTransport(respond))
+    asyncio.run(selector.select(b'{"allowed_ids":["clarify"]}', deadline=time.monotonic() + 10))
+    assert captured[0]['model'] == 'gpt-4.1-mini'
+    assert captured[0]['max_completion_tokens'] == 300
+    assert 'reasoning_effort' not in captured[0]

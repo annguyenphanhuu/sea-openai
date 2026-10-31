@@ -53,8 +53,11 @@ class OpenAIPhraseSelector:
                     "phrase_id": {"type": "string", "enum": allowed}},
                     "required": ["phrase_id"], "additionalProperties": False},
             }},
-            "max_completion_tokens": 64,
+            "max_completion_tokens": 300,
         }
+        # The approved GPT-4.1 fallback has no reasoning-effort parameter.
+        if self.model.startswith('gpt-5'):
+            payload['reasoning_effort'] = 'low'
         if natural:
             from .natural import SOCIAL_SENTENCES
             if not isinstance(data.get('slots'), dict) or not isinstance(data.get('topic'), str):
@@ -89,7 +92,6 @@ class OpenAIPhraseSelector:
                 'schema': {'type': 'object', 'properties': {
                     'segments': {'type': 'array', 'items': {'type': 'string', 'enum': segment_options}}},
                     'required': ['segments'], 'additionalProperties': False}}}
-            payload['max_completion_tokens'] = 300
         async with asyncio.timeout(remaining):
             async with httpx.AsyncClient(transport=self._transport, timeout=remaining,
                                          follow_redirects=False, trust_env=False) as client:
