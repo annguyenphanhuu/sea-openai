@@ -52,7 +52,10 @@ class Guardrails:
         from .phrases import allowed_ids
         if rendered.phrase_id not in allowed_ids(outcome):
             return GuardDecision(False, ("output_rejected",))
-        expected = ResponseRenderer().render(outcome, snapshot, rendered.phrase_id)
+        try:
+            expected = ResponseRenderer().render(outcome, snapshot, rendered.phrase_id, draft=rendered.draft)
+        except (ValueError, KeyError):
+            return GuardDecision(False, ('output_rejected',))
         return GuardDecision(rendered == expected, () if rendered == expected else ("output_rejected",))
 
     def validate_dispatch(self, proposal, snapshot) -> GuardDecision:
