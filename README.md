@@ -30,4 +30,6 @@ Python packages; they do not install or replace the Python interpreter.
 
 Place source files under `data/release_main/` and `data/tiny/`; data is gitignored and must be shared separately. Open source databases read-only. Runtime state belongs in `runs/`.
 
+Huy owns data validation/A3 and shared execution safeguards. An Nguyen owns A2 and supplies assessed-order lists, dates, ETA, and delay evidence. Truc owns A1, all UI, and HTTP APIs.
+
 The release dataset supports initial development. Tiny lacks promised dates and ops telemetry; it cannot validate the full workflow. A2 logic and a static UI prototype are available; the integrated agents, API server, and action executor are not implemented yet. See the [prototype limitations](platform_huy/ui_prototype/README.md).
