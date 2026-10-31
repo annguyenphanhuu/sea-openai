@@ -30,3 +30,7 @@ Tệp này lưu chỉ dẫn trên đĩa cho phiên sau đọc; không chứng mi
 ## Pending decision
 
 - Fixed benefit key after a blocked attempt: audit denial and permit reconsideration before first grant, or permanently lock even a denied key. Asked Huy; Task 6 must not choose silently.
+
+## Financial retry policy confirmed
+
+Huy explicitly chose success-only reservation of xu:{order_id} and voucher:{order_id}. Denied attempts retain audit evidence but do not lock the canonical key. After verification, the same key is eligible for a new full evaluation; successful keys always replay their original receipt. This resolves the pending decision above. Task 6 may proceed under this policy.
