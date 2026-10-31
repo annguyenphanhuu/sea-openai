@@ -19,7 +19,7 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 | Danh sách ngày đặt/bàn giao cho Trúc | Đã có `assessed_orders_payload` và file `*.orders.json`, kèm bằng chứng as-of và health |
 | Kiểm thử biên và lỗi A2 | Đã có trong `acceptance_an_nguyen/` |
 | Adapter đọc DB release | Đã nối schema `release_main`, đọc as-of và chỉ đọc |
-| Baseline ETA/xác suất | Đã có survival model và kiểm tra offline 3 tick; chưa hiệu chỉnh hoặc xác nhận chất lượng toàn tập |
+| Baseline ETA/xác suất | Đã có survival model và CLI kiểm định cửa sổ cố định; chưa hiệu chỉnh hoặc xác nhận chất lượng toàn tập |
 | Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy phụ trách kiểm định/A3/state; Trúc phụ trách A1/UI/HTTP/auth; An bàn giao danh sách assessment |
 
 ## Python API
@@ -321,7 +321,82 @@ Chạy thực tế tại `2026-10-28T12:00:00+07:00`: 11.008 đơn nhìn thấy,
 là `unknown_feed`, đúng cơ chế chặn; các số trên không phải điểm chất lượng
 dự báo và không chứng minh forecast chính xác.
 
-## Kiểm tra offline ban đầu ngày 31/10/2026
+## Công cụ kiểm định ETA với cửa sổ theo dõi cố định
+
+```powershell
+.venv/Scripts/python.exe -m logistics_an_nguyen.validation --tick 2026-10-25T12:00:00+07:00 --tick 2026-10-26T12:00:00+07:00 --tick 2026-10-27T12:00:00+07:00 --followup-hours 72 --observed-through 2026-10-30T12:00:00+07:00 --output runs/a2-validation/20261031-72h
+```
+
+`--tick` lặp được, bắt buộc có timezone và không trùng instant. Mỗi tick dùng
+outcome cutoff đúng `tick + followup_hours`; cửa sổ mặc định là 72 giờ, phải là
+số nguyên dương. `--observed-through` là mốc quan sát do người chạy khai báo,
+không phải giờ máy hoặc bằng chứng feed đầy đủ. Lệnh từ chối tick có cửa sổ
+vượt mốc này; không âm thầm rút ngắn thời gian theo dõi. Người chạy cần chọn mốc
+nằm trong phạm vi dữ liệu có sẵn. Dù được khai báo, thiếu outcome vẫn là unknown.
+
+`--core` cho phép dùng bản core as-of có cùng schema. Công cụ từ chối đường dẫn
+truth/heldout, mở SQLite read-only và so SHA-256 trước/sau. Mọi forecast được
+đóng băng trước khi đọc bất kỳ snapshot outcome nào; outcome không đi ngược
+vào model. Tất cả snapshot vẫn theo availability/ingestion của `ReleaseReader`.
+Chưa có A3 cũng chạy được kiểm định candidate forecast offline: không tạo health,
+không cho quyền liên hệ, không đổi thuật toán hoặc xuất production assessment.
+
+Kết quả là `<output>/report.json`, ghi qua file tạm rồi replace; output phải
+nằm trong `runs/`. Chạy lại cùng đầu vào tạo cùng báo cáo. Report giữ SHA-256
+nguồn và SHA-256 các prediction scalar đã đóng băng để đối chiếu replay.
+Python API `logistics_an_nguyen.validation.validate_release(core_path, ticks=...,
+followup_hours=..., observed_through=...)` trả dict và không ghi output.
+
+| Phần báo cáo | Cách đọc |
+| --- | --- |
+| `summary`, `ticks`, `groups` | Toàn bộ lượt quan sát, từng tick và từng nhóm `(carrier_id, service_level, stage)` tại thời điểm dự báo |
+| `active_observations`, `forecast_count`, `forecast_coverage` | Đơn active gồm cả trường hợp không đủ lịch sử để có forecast; mẫu số không chỉ là đơn có dự báo |
+| `distinct_orders`, `distinct_forecast_orders` | Số đơn duy nhất; một đơn xuất hiện qua nhiều tick tạo nhiều lượt quan sát có tương quan |
+| `outcome_counts` | Giao được quan sát, chưa có outcome, terminal trước delivery, hoặc delivery thực tế đã xảy ra trước tick nhưng chưa thấy lúc dự báo |
+| `eta_scored`, `eta_mae_hours`, `eta_bias_hours` | Chỉ chấm forecast có ETA và delivery sau tick trong cửa sổ; bias = ETA trừ thực tế, âm nghĩa dự báo quá sớm |
+| `risk_exclusion_counts` | Đã trễ tại tick, deadline ngoài cửa sổ, terminal trước delivery hoặc delivery đã xảy ra trước tick |
+| `risk_known_labels`, `risk_unknown_labels` | Nhãn đủ điều kiện đã biết và chưa biết; không gán thiếu delivery thành đúng hạn/trễ |
+| `lateness_brier_complete_case`, `always_on_time_brier_complete_case` | Bình phương sai số xác suất và baseline luôn dự báo không trễ, cùng tập nhãn được chấm; thấp hơn tốt hơn |
+| `*_brier_lower_bound`, `*_brier_upper_bound` | Cận tốt/xấu nhất trên tập risk không terminal khi nhãn chưa biết có thể là 0 hoặc 1; không phải khoảng tin cậy hoặc ước lượng đã hiệu chỉnh censoring |
+| `calibration_bins` | Năm khoảng xác suất rộng 0,2; cận dưới đóng, cận trên mở, khoảng cuối gồm 1. Báo số nhãn biết/chưa biết, xác suất trung bình và tỷ lệ trễ chỉ trên nhãn biết |
+
+Để tránh chọn riêng những ca giao sớm dễ chấm, risk chỉ được chấm nếu deadline
+đã kết thúc trong cửa sổ theo dõi, kể cả ca đã giao đúng hạn nhưng deadline còn
+ở tương lai. Giao đúng 00:00 ngày sau ngày cam kết được tính trễ. Đơn chưa giao
+vẫn được tính vào độ phủ và nhóm outcome chưa biết. Đơn có terminal trước
+delivery được loại riêng khỏi risk, không biến thành nhãn “không trễ”.
+
+Đánh giá đồng cửa sổ giúp giảm khác biệt thời gian theo dõi, **không loại bỏ
+selection bias/censoring**. MAE và calibration vẫn chỉ phản ánh các delivery
+đã quan sát; nhóm nhỏ có thể rất nhiễu. Không chọn model/tham số hoặc quyết định
+tự động liên hệ chỉ từ báo cáo này. Các cận của model và baseline không được
+so chéo như thể cùng một cách gán nhãn chưa biết.
+
+Lần chạy 31/10/2026 với lệnh trên: 10.604 lượt active, 8.497 lượt có forecast
+(80,13%); 4.987 ETA được chấm, MAE gộp 16,55 giờ. Có 3.015 forecast chưa thấy
+delivery và 493 terminal trước delivery. Report có 44 nhóm. SHA-256 nguồn không đổi.
+
+| Tick 12:00 giờ VN | Cutoff sau 72 giờ | ETA được chấm | MAE ETA (giờ) | Risk biết/chưa biết nhãn | Brier model / luôn không trễ |
+| --- | --- | --- | --- | --- | --- |
+| 25/10 | 28/10 12:00 | 1.334 | 11,70 | 705 / 43 | 0,0600 / 0,0170 |
+| 26/10 | 29/10 12:00 | 1.842 | 15,53 | 864 / 55 | 0,1113 / 0,0602 |
+| 27/10 | 30/10 12:00 | 1.811 | 21,16 | 950 / 81 | 0,1571 / 0,1421 |
+
+Brier gộp trên 2.519 nhãn biết là 0,1142, baseline là 0,0790; còn 179 nhãn
+chưa biết trong tập risk không terminal đủ thời hạn. Cận model 0,1111–0,1497
+và baseline 0,0738–0,1401 còn chồng nhau, nên không suy kết luận toàn tập chỉ từ
+complete-case score. Chưa xác nhận mô hình đủ chất lượng để dùng tự động.
+
+Test: `.venv/Scripts/python.exe -m pytest -q acceptance_huy/test_forecast_validation.py`.
+Ma trận case platform chờ interface thật nằm trong
+`../.scratch/specs/a2-platform-acceptance.md`; không phải các test tích hợp đã chạy.
+
+## Kiểm tra offline ban đầu ngày 31/10/2026 (cách cũ)
+
+Lần thử dưới đây dùng một cutoff chung nên thời gian theo dõi giữa các tick khác
+nhau; giữ để đối chiếu lịch sử. Dùng CLI cửa sổ cố định bên trên cho các lần chạy
+mới. Tập risk ở cách mới còn yêu cầu deadline đã kết thúc trong cửa sổ, nên không
+so trực tiếp Brier của hai cách như cùng một tập nhãn.
 
 Đóng băng forecast ở 12:00 giờ Việt Nam ngày 25, 26, 27/10 trước khi đọc
 outcome as-of 28/10/2026 12:00. Chỉ dùng `release_main/core_14d.sqlite`; không
