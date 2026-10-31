@@ -12,20 +12,20 @@ def public_reason(assessment) -> str:
     reasons = set(assessment.reason_codes)
     facts = {item["fact_code"]: item["value"] for item in assessment.evidence if item["is_structured"]}
     if "status:watch" in reasons and type(facts.get("stationary_ticks")) is int and facts["stationary_ticks"] >= 2:
-        return "Đơn đứng yên qua ít nhất hai kỳ cập nhật theo bằng chứng có cấu trúc."
+        return "Qua ít nhất hai kỳ cập nhật, đơn vẫn chưa có tiến triển vận chuyển được ghi nhận."
     if "status:exception" in reasons:
         labels = {"lost": "thất lạc", "damaged": "hư hỏng", "return_failed": "hoàn trả không thành công"}
         if facts.get("logistics_stage") in labels:
-            return "Nguồn có cấu trúc ghi nhận kiện hàng " + labels[facts["logistics_stage"]] + "."
+            return "Thông tin vận chuyển ghi nhận kiện hàng " + labels[facts["logistics_stage"]] + "."
     if "guaranteed_day_exceeded" in reasons and assessment.late_days > 0:
-        return "Đơn đã qua ngày cam kết; chưa có kết luận thêm về nguyên nhân cụ thể."
+        return "Hiện mình chưa có thông tin xác nhận vì sao đơn bị trễ, nên chưa thể nói chính xác nguyên nhân với bạn."
     if "eta_missing" in reasons:
-        return "Nguồn đánh giá chưa có ETA được xác nhận."
-    return "Chưa có bằng chứng được xác nhận về nguyên nhân cụ thể."
+        return "Hiện mình chưa có thời gian giao dự kiến đã được xác nhận để báo bạn."
+    return "Hiện mình chưa có đủ thông tin để nói chính xác nguyên nhân với bạn."
 
 
 class ResponseRenderer:
-    version = "3"
+    version = "4"
 
     def render(self, outcome, context, phrase_id: str, *, draft=None) -> RenderedResponse:
         text = CATALOG[phrase_id]
@@ -44,6 +44,17 @@ class ResponseRenderer:
             text += " " + facts.text
             if assessment and Guardrails().validate_context(context).allowed:
                 text += " " + public_reason(assessment)
+        if phrase_id == 'opening' and Guardrails().validate_context(context).allowed:
+            from .natural import fact_slots
+            from .rendering import STATUS
+            introduction = 'Chào bạn, mình muốn cập nhật về đơn hàng của bạn.'
+            if assessment.status == 'late':
+                introduction += ' Mình xin lỗi bạn vì phải chờ thêm.'
+            status = 'Đơn hàng ' + STATUS.get(assessment.status, 'chưa xác định tình trạng') + '.'
+            promised = 'Ngày giao cam kết: ' + assessment.guaranteed_date.strftime('%d/%m/%Y') + '.'
+            text = (introduction + '\n\n' + status + ' ' + promised + ' '
+                    + fact_slots(context, 'eta')['eta']
+                    + '\n\nBạn muốn mình giải thích tình trạng đơn hay tìm hiểu điều kiện hỗ trợ?')
         if draft is not None:
             from .natural import render_template
             if (outcome.phrase_id not in ('explain', 'clarify') or outcome.proposals
