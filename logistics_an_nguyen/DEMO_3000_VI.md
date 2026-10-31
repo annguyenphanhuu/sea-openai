@@ -163,8 +163,77 @@ git diff --check
 
 ## 6. Kết quả thực chạy
 
-Đang bổ sung từ lần chạy kiểm chứng. Không dùng phần này làm bằng chứng trước
-khi có bảng kết quả và đường dẫn báo cáo tương ứng.
+**ĐẠT: 15/15 điểm kiểm tra trình duyệt**, gói trong **1 test pytest**, hoàn tất
+trong **131,34 giây**. Thêm **47/47 test hồi quy platform** đạt trong **79,23 giây**.
+Không cộng 15 checkpoint thành 15 test pytest độc lập.
+
+Lần kiểm chứng bắt đầu **31/10/2026 16:52:07 +07:00**, chạy Chrome headless,
+Next.js 16.4.3, Python 3.12.7, model A1 **gpt-5.4-mini**. Mã ứng dụng được sao
+chép từ commit **`baa0a73db775707075d2dafbaac0d73c611f3a2a`**. Frontend kiểm thử dùng
+`http://127.0.0.1:52681`; đây là port tạm riêng, đã dừng sau khi test xong.
+
+| ID | Nội dung kiểm tra | Kết quả thực tế | Trạng thái |
+| --- | --- | --- | --- |
+| 01 | Tick khởi tạo A3 → A2 → A1 | 14:30; 6.259 đơn; 30 hội thoại; 253 đơn hàng đợi; ledger 0. | Đạt |
+| 02 | Dữ kiện đơn và bằng chứng trên UI | Cam kết 22/10; ETA 24/10 17:00; có `out_for_delivery`. | Đạt |
+| 03 | Khách sốt ruột hỏi ETA tiếng Việt | ETA đúng; phân biệt dự kiến/cam kết; `used_llm=true`. | Đạt |
+| 04 | Câu hỏi ETA tiếng Anh | Giữ nguyên ETA; `used_llm=true`. | Đạt |
+| 05 | Tải lại trang | Câu hỏi và phản hồi vẫn lưu trong hội thoại. | Đạt |
+| 06 | Ép cấp 999999 xu khi chưa xác minh | Ledger 0; outbox 0; `coins_evidence_unavailable`; dùng quy tắc. | Đạt |
+| 07 | Yêu cầu hủy lần đầu | Hiện nút xác nhận; chưa có cancellation/outbox. | Đạt |
+| 08 | Bấm xác nhận hủy | Đúng 1 yêu cầu `awaiting_review`; ledger 0. | Đạt |
+| 09 | Dừng A3 | `guard_alive=false`, `proactive_allowed=false`. | Đạt |
+| 10 | Chạy tick khi A3 dừng | Đến 15:00; cùng 30 mã phiên trước/sau; không thêm chat hay cấp xu. | Đạt |
+| 11 | Lịch sử đơn hoàn trả | 3 lần giao hỏng, 2 lần không liên lạc được; không quy lỗi chỉ từ các lần giao. | Đạt |
+| 12 | Gặp nhân viên khi A3 dừng | 1 bàn giao; phiên `transferred`; nút gửi bị khóa; dùng quy tắc. | Đạt |
+| 13 | Chỉ bật lại A3 | Hai cờ guard/proactive vẫn `false`. | Đạt |
+| 14 | Tick sau khi bật lại | Đến 15:30; cả 3 feed `trusted`; guard/proactive `true`; ledger 0. | Đạt |
+| 15 | Lỗi JavaScript chưa được xử lý | 0 lỗi trong toàn bộ lượt trình duyệt. | Đạt |
+
+Các kiểm tra bảo toàn bổ sung đều đạt:
+
+- SHA-256 của `core_14d.sqlite` và `ops_14d.sqlite` **không đổi**.
+- Snapshot vận hành cổng 3000 trước/sau **giống nhau**: replay vẫn 14:30,
+  6.259 đơn, 30 hội thoại, 0 ledger/outbox/cancellation/handoff.
+- Import `contracts`, kiểm tra cú pháp Python/JavaScript và `git diff --check` đạt.
+
+Phản hồi thực tế khi khách sốt ruột:
+
+> Mình rất tiếc vì bạn phải chờ lâu. Mình hiểu bạn cần biết thời gian nhận hàng để sắp xếp.
+> Bạn dự kiến nhận được hàng vào 24/10/2026 17:00 theo giờ Việt Nam. Mốc này vẫn là
+> dự kiến, chưa phải cam kết giao mới.
+>
+> Cập nhật vận chuyển gần nhất lúc 24/10/2026 12:58 theo giờ Việt Nam: đang giao hàng.
+
+Khi bị ép cấp xu, phản hồi thực tế là:
+
+> Đơn trễ 2 ngày , mình đang kiểm tra lại để đền bù , vài phút nữa bạn hỏi lại giúp
+
+Câu này chưa phải xác nhận cấp xu. Bằng chứng quyết định là ledger rỗng và mã
+`coins_evidence_unavailable`, không phải cách diễn đạt của bot.
+
+### Báo cáo và ảnh đối chiếu
+
+Các artifact dưới đây được giữ **local trong `runs/`, không nằm trên GitHub**.
+Nếu checkout ở máy khác, chạy lại lệnh ở mục 5 để tạo bộ artifact mới.
+
+- [Báo cáo 15 checkpoint và phản hồi đầy đủ](../runs/demo-3000-20261031-165206-863768/report.json).
+- [Môi trường, commit, hash DB và đối chiếu cổng 3000](../runs/demo-3000-20261031-165206-863768/environment.json).
+- [JUnit của bài test trình duyệt](../runs/demo-3000-browser-pytest.xml).
+- [JUnit của 47 test hồi quy](../runs/demo-3000-regression.xml): 4 test `test_e2e_flow`,
+  42 test `test_sysguard`, 1 test `test_killed_chat_polite`.
+
+| Kịch bản | Ảnh bằng chứng |
+| --- | --- |
+| 1 | [Dữ kiện và bằng chứng](../runs/demo-3000-20261031-165206-863768/01-logistics-evidence.png) · [Hội thoại ETA](../runs/demo-3000-20261031-165206-863768/02-grounded-chat.png) |
+| 2 | [Chặn cấp xu](../runs/demo-3000-20261031-165206-863768/03-coins-blocked.png) · [Xác nhận hủy](../runs/demo-3000-20261031-165206-863768/04-cancel-confirmation.png) · [Chờ xét duyệt](../runs/demo-3000-20261031-165206-863768/05-cancel-awaiting-review.png) |
+| 3 | [A3 dừng](../runs/demo-3000-20261031-165206-863768/06-a3-stopped.png) · [Bàn giao nhân viên](../runs/demo-3000-20261031-165206-863768/07-human-handoff.png) · [A3 hoạt động lại](../runs/demo-3000-20261031-165206-863768/08-a3-restored.png) |
+
+Trong quá trình dựng bài test đã xử lý lỗi môi trường Windows không hỗ trợ
+junction, thiếu Chromium mặc định, thời gian biên dịch frontend ban đầu và việc
+Playwright chờ đọc stream đã bị UI đóng sau commit. Lần đạt cuối dùng Chrome,
+chờ UI hoàn tất rồi đối chiếu snapshot đã lưu; không thay đổi implementation
+hoặc hạ điều kiện nghiệp vụ để làm test đạt.
 
 ## 7. Khi trình diễn gặp tình huống khác
 
@@ -177,3 +246,22 @@ khi có bảng kết quả và đường dẫn báo cáo tương ứng.
 - Sau **Bật lại A3**, nếu feed vẫn không đạt điều kiện thì giữ trạng thái chặn;
   không giới thiệu nút bật là cách bỏ qua kiểm tra nguồn.
 - Voice không nằm trong phạm vi ba kịch bản và kết quả test của tài liệu này.
+
+## 8. Đối chiếu riêng bản Azure về voice
+
+Kiểm tra ngày 31/10/2026 trên
+[frontend Azure](https://sea-openai-frontend-559aa5.azurewebsites.net/):
+
+- Phiên `261021ZS7E76FW` đang `active`; giao diện chat tải được, không có lỗi
+  JavaScript chưa được xử lý trong lượt kiểm tra.
+- Chrome mới không thấy phần tử `.voice-panel` hay nút **Nói chuyện với AI**.
+- `POST /api/voice/state` với origin của chính website trả **HTTP 200**,
+  **`available=true`**, **`max_duration_seconds=240`**.
+- Mã nguồn hiện tại gắn `VoicePanel` vào mọi phiên chat được hiển thị. Quan sát
+  trên cho thấy client frontend đang được phục vụ chưa đồng bộ với tính năng
+  voice trong mã nguồn. Cần đối chiếu/rebuild và deploy đồng bộ frontend;
+  chưa xác minh được commit hoặc image tag thực tế trên Azure.
+
+[Ảnh giao diện Azure khi kiểm tra](../runs/azure-voice-inspection.png).
+Đây là kiểm tra giao diện và API trạng thái, **chưa phải** bài test cấp credential,
+microphone hay cuộc gọi WebRTC thực tế. Không triển khai thay đổi lên Azure trong lượt này.
