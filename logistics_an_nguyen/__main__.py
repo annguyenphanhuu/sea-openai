@@ -12,6 +12,7 @@ from .models import FeedHealth, parse_instant, utc_iso
 from .replay import ReleaseReader
 from .progress import ProgressTracker
 from .service import assessment_payload, evaluate_tick
+from .handoff import assessed_orders_payload
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,12 +57,19 @@ def main() -> None:
     tracker = ProgressTracker(json.loads(progress_path.read_text(encoding="utf-8")) if progress_path.exists() else None)
     orders = tracker.apply(orders, tick_at=tick_at, feed_health=health)
     result = evaluate_tick(orders, tick_at=tick_at, feed_health=health)
+    order_list = assessed_orders_payload(snapshot, result, feed_health=health)
     output.mkdir(parents=True, exist_ok=True)
     stamp = utc_iso(tick_at).replace(":", "").replace("-", "")
     assessments_path = output / f"{stamp}.jsonl"
+    order_list_path = output / f"{stamp}.orders.json"
     with assessments_path.open("w", encoding="utf-8") as stream:
         for assessment in result.assessments:
             stream.write(json.dumps(assessment_payload(assessment), ensure_ascii=False, allow_nan=False) + "\n")
+    order_list_temporary = order_list_path.with_suffix(".json.tmp")
+    order_list_temporary.write_text(
+        json.dumps(order_list, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8",
+    )
+    order_list_temporary.replace(order_list_path)
     summary = {
         "tick_at": utc_iso(tick_at), "visible_orders": len(snapshot.orders),
         "assessed_orders": len(orders), "cancelled_orders_excluded": len(snapshot.orders) - len(orders),
@@ -72,6 +80,7 @@ def main() -> None:
         "health_feeds_present": sorted(h.feed for h in health), "required_feeds": REQUIRED_FEEDS,
         "forecast_note": "Uncalibrated visible-history baseline; no truth/heldout data used.",
         "assessments_file": str(assessments_path),
+        "order_list_file": str(order_list_path),
     }
     (output / f"{stamp}.summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
