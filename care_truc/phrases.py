@@ -10,8 +10,15 @@ CATALOG = {
     "handoff": "Mình đã ghi nhận nhu cầu gặp nhân viên. Hiện chưa có xác nhận chuyển thành công.",
     "changed_mind": "Mình đã ghi nhận thay đổi. Yêu cầu đã bắt đầu gửi vẫn có thể đang chờ kết quả.",
     "ineligible": "Hiện chưa đủ điều kiện hoặc thông tin để tạo yêu cầu xu.",
+    "checking_evidence": "Mình đang kiểm tra lại để đền bù , vài phút nữa bạn hỏi lại giúp",
+    "handoff_succeeded": "Mình đã chuyển cho nhân viên , bạn sẽ được liên hệ sớm",
     "blocked": "Hiện chưa thể xử lý yêu cầu này.",
 }
+
+
+def checking_evidence_reply(late_days: int) -> str:
+    """Use the assessed calendar-day count in the integrated route projection."""
+    return f"Đơn trễ {late_days} ngày , mình đang kiểm tra lại để đền bù , vài phút nữa bạn hỏi lại giúp"
 
 
 def allowed_ids(outcome) -> tuple[str, ...]:

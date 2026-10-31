@@ -81,6 +81,10 @@ def create_server(*, core_path: Path, state_path: Path,
             self.wfile.write(payload)
 
         def _api(self, action: str, payload: dict | None = None) -> None:
+            if action == 'reset' and (presenter is None or not presenter.required
+                                      or not presenter.authorized(self.headers)):
+                self._json(401, {'error': 'Presenter key required'})
+                return
             if (presenter is not None and not presenter.authorized(self.headers)
                     and not (action == 'orders' and self._orders_cookie_authorized())):
                 self._json(401, {'error': 'Presenter key required'})
@@ -165,7 +169,7 @@ def create_server(*, core_path: Path, state_path: Path,
                       "/api/next": "next", "/api/a3/proactive-check": "proactive-check"}
             if integrated:
                 routes.update({'/api/chat/open': 'chat-open', '/api/chat/say': 'chat-say',
-                               '/api/orders/verify': 'verify-order'})
+                               '/api/orders/verify': 'verify-order', '/api/reset': 'reset'})
             action = routes.get(urlsplit(self.path).path)
             if action is None:
                 self._json(404, {"error": "Unknown API route", "proactive_allowed": False})

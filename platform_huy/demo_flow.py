@@ -44,7 +44,7 @@ _CUSTOMER_FAULT_CANDIDATE = '2610181FZM7I7I'
 def _customer_reply(text, codes, effect_ids):
     """Present a denied benefit politely without changing its durable decision."""
     if 'coins_actions_blocked' in codes and not effect_ids:
-        return 'Dạ, hiện hệ thống đang tạm dừng ưu đãi. Anh/chị vui lòng thử lại sau nhé.'
+        return 'Hệ thống đang tạm dừng ưu đãi để kiểm tra , mình vẫn hỗ trợ thông tin đơn'
     return text
 
 
@@ -252,6 +252,8 @@ class DemoFlow:
             raise ValueError('Runtime must be outside data directories')
         self.start_at = start_at
         self.closed = False
+        self._resetting = False
+        self._runtime_root = self.state_path.parent
         self._snapshot_lock = Lock()
         self._next_finished = Condition(self._snapshot_lock)
         self._status_snapshot = {}
@@ -275,7 +277,8 @@ class DemoFlow:
         self.loop.close()
 
     async def _start(self):
-        self.lock = asyncio.Lock()
+        if not hasattr(self, 'lock'):
+            self.lock = asyncio.Lock()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = connect_state(self.state_path)
         self.reader = ReleaseReader(self.core_path)
@@ -570,8 +573,9 @@ class DemoFlow:
             # result, so reloads/retries retain the audited denial and no effect.
             for message in chat['messages']:
                 if message['kind'] == 'response':
-                    message['text'] = _customer_reply(message['text'],
-                        message.get('codes') or (), message.get('effect_ids') or ())
+                    message['text'] = self._reply_text(message['text'],
+                        message.get('codes') or (), message.get('effect_ids') or (), state,
+                        message.get('intent'))
             chat.update(session_id=session_id, order_id=state.order_id, opened_by=state.opened_by,
                         pending=asdict(state.pending) if state.pending else None, turn_count=state.turn_count)
         controls = dict(self.conn.execute("SELECT control_key,value_json FROM controls WHERE scope='global'"))
@@ -637,6 +641,80 @@ class DemoFlow:
             'inbox': self._rows('demo_inbox'), 'gateway_errors': self.gateway_errors,
             'mode': 'local_integrated_web_inbox', 'actions': []}
 
+    def _reply_text(self, text, codes, effect_ids, state, intent=None):
+        """Project only this response's verified effects into customer wording."""
+        from care_truc.phrases import CATALOG, checking_evidence_reply
+        text = _customer_reply(text, codes, effect_ids)
+        if text == CATALOG['checking_evidence']:
+            assessment = self.assessments.get(state.order_id)
+            if assessment is not None:
+                text = checking_evidence_reply(assessment.late_days)
+        for effect_id in effect_ids:
+            effect = self.care.store.effect(effect_id)
+            if (effect is None or effect['session_id'] != state.session_id
+                    or effect['run_id'] != self.run_id or effect['outcome'] != 'succeeded'):
+                continue
+            proposal = json.loads(effect['proposal'])
+            if proposal['order_id'] != state.order_id:
+                continue
+            receipts = self.care.store.db.execute(
+                'SELECT data FROM receipts WHERE effect_id=? ORDER BY revision DESC', (effect_id,))
+            receipt = next((json.loads(row[0]) for row in receipts
+                if json.loads(row[0]).get('outcome') == 'succeeded'), None)
+            if (receipt is None or receipt.get('authoritative') is not True
+                    or receipt['key'] != proposal['key']
+                    or receipt['payload_hash'] != fingerprint(proposal['payload'])):
+                continue
+            if proposal['kind'] == 'handoff_request':
+                if self.conn.execute('SELECT 1 FROM demo_handoffs WHERE effect_id=? AND session_id=?',
+                                     (effect_id, state.session_id)).fetchone():
+                    text = CATALOG['handoff_succeeded']
+                continue
+            action = json.loads(proposal['payload'])
+            if proposal['kind'] != 'action_request' or action.get('kind') != 'coins':
+                continue
+            row = self.conn.execute(
+                "SELECT l.amount_xu FROM ledger_new l JOIN action_receipts r ON r.action_id=l.action_id "
+                "JOIN outbox o ON o.action_id=l.action_id WHERE l.action_id=? AND l.order_id=? "
+                "AND r.decision_code='succeeded' AND o.status='succeeded' AND o.kind='coins' "
+                "AND l.amount_xu=o.amount_vnd", (receipt['remote_ref'], state.order_id)).fetchone()
+            if row is not None and receipt['remote_ref'] == action['action_id']:
+                amount = format(row[0], ',').replace(',', '.')
+                text += f' Mình đã tặng bạn {amount} xu vào ví để xin lỗi'
+        return text
+
+    async def _reset(self):
+        """Start a separate runtime; preserve every previous database for audit."""
+        previous = self.__dict__.copy()
+        self.state_path = self._runtime_root / ('reset-' + uuid4().hex) / 'platform.sqlite'
+        try:
+            await self._start()
+        except BaseException:
+            # Initialization must not strand a working presenter runtime.
+            if self.care is not previous['care']:
+                await self.care.shutdown()
+            if self.reader is not previous['reader']:
+                self.reader.close()
+            if self.conn is not previous['conn']:
+                self.conn.close()
+            self.__dict__.update(previous)
+            raise
+        await previous['care'].shutdown()
+        previous['reader'].close()
+        previous['conn'].close()
+        with self._snapshot_lock:
+            self._tick_started = None
+            self._tick_progress = {'busy': False, 'current_phase': None, 'status': 'idle',
+                'run_id': None, 'from_at': None, 'to_at': None, 'elapsed_seconds': 0,
+                'phase_trace': [], 'timings': [], 'committed_phases': []}
+
+    async def _reserved_reset(self, payload):
+        try:
+            return await self._request('reset', payload)
+        finally:
+            with self._snapshot_lock:
+                self._resetting = False
+
     async def _request(self, action, payload):
         async with self.lock:
             if not isinstance(payload, dict):
@@ -655,6 +733,8 @@ class DemoFlow:
                 return json.loads(saved[0])
             elif action == 'next':
                 await self._next()
+            elif action == 'reset':
+                await self._reset()
             elif action == 'kill':
                 sysguard.kill(self.conn)
             elif action == 'revive':
@@ -665,8 +745,20 @@ class DemoFlow:
             elif action == 'chat-say':
                 state = self.care.store.load_session(payload['session_id'])
                 ctx = TrustedRequestContext(self._principal(self._inspect(state.order_id)))
+                request_id = payload.get('request_id') or uuid4().hex
+                reply_to = payload.get('reply_to')
+                if reply_to is None:
+                    # A retry must reuse its original binding even after pending
+                    # was consumed; a new turn binds only the current prompt.
+                    prior = self.care.store.find_request(state.session_id, ctx.principal_id, request_id)
+                    if prior is not None:
+                        reply_to = json.loads(prior['payload']).get('reply_to')
+                    elif state.pending is not None:
+                        from care_truc.rules import is_cancel_confirmation
+                        if is_cancel_confirmation(payload['text']):
+                            reply_to = state.pending.reply_to
                 result = await self.care.harness.handle_message(state.session_id,
-                    payload.get('request_id') or uuid4().hex, payload['text'], ctx, payload.get('reply_to'))
+                    request_id, payload['text'], ctx, reply_to)
                 await self.care.harness.drain_pending()
                 self.selected_order_id = state.order_id
                 self.proof_cache.clear()
@@ -695,7 +787,9 @@ class DemoFlow:
                 raise ValueError('Unknown integrated demo operation')
             view = await self._view(payload)
             if result:
-                result = replace(result, text=_customer_reply(result.text, result.codes, result.effect_ids))
+                state = self.care.store.load_session(result.session_id)
+                result = replace(result, text=self._reply_text(result.text, result.codes,
+                    result.effect_ids, state, result.intent))
                 view['turn_result'] = asdict(result)
                 effects = [self.care.store.effect(effect_id) for effect_id in result.effect_ids]
                 blocked = bool(result.codes) or any(row is not None and row['state'] == 'blocked' for row in effects)
@@ -721,6 +815,12 @@ class DemoFlow:
             raise CareError('invalid_payload', 400)
         with self._snapshot_lock:
             busy = self._tick_progress['busy']
+            if self._resetting:
+                raise CareError('reset_in_progress', 409)
+            if action == 'reset':
+                if busy:
+                    raise CareError('next_in_progress', 409)
+                self._resetting = True
             if action == 'next':
                 if busy and reject_overlapping_next:
                     raise CareError('next_in_progress', 409)
@@ -735,7 +835,8 @@ class DemoFlow:
                     'elapsed_seconds': 0, 'phase_trace': [], 'timings': [], 'committed_phases': []}
         if action == 'status' and (busy or not payload):
             return self._cached_status()
-        operation = self._reserved_next(payload) if action == 'next' else self._request(action, payload)
+        operation = (self._reserved_next(payload) if action == 'next' else
+                     self._reserved_reset(payload) if action == 'reset' else self._request(action, payload))
         # A caller timeout does not cancel the coroutine or release the NEXT reservation.
         return asyncio.run_coroutine_threadsafe(operation, self.loop).result(timeout=120)
 
