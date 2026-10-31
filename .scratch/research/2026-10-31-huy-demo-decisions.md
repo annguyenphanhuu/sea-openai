@@ -34,3 +34,11 @@ Tệp này lưu chỉ dẫn trên đĩa cho phiên sau đọc; không chứng mi
 ## Financial retry policy confirmed
 
 Huy explicitly chose success-only reservation of xu:{order_id} and voucher:{order_id}. Denied attempts retain audit evidence but do not lock the canonical key. After verification, the same key is eligible for a new full evaluation; successful keys always replay their original receipt. This resolves the pending decision above. Task 6 may proceed under this policy.
+
+## SQLite-only Space runtime confirmed
+
+Huy explicitly removed MongoDB from the project. Revert merge PR #8 with `git revert -m 1 76abd17`; verify the repository tests in an environment without PyMongo. Keep existing local audit logs untracked when reverting the PR's unrelated log-removal changes.
+
+StateStore has only a SQLite implementation; do not implement MongoStateStore or add a remote persistence backend. Runtime state lives on the Space's local disk. Returning to the baseline after a Space restart is acceptable for this demo; persistence across Space restarts is not a requirement. This does not weaken transactions, retry protection or receipts within an active run and does not permit changing source databases.
+
+Huy clarified that step 2 (the revert and tests) and step 5 (remove MongoStateStore entirely) refer to his message, not a plan file. No plan path is missing or required. The canonical lunch decision record is [decisions-lunch.md](../plans/decisions-lunch.md). Do not replace Task 2 or Task 5 of the separate nine-task platform plan, which concern the reader and provenance respectively.

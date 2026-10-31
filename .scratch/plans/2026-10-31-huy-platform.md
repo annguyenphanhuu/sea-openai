@@ -17,6 +17,7 @@
 ## Global Constraints
 
 - Runtime nằm trong `runs/<run_id>/state.sqlite`.
+- Khi triển khai Space, runtime nằm trên đĩa local của Space. StateStore chỉ có SQLite; không triển khai MongoStateStore. Restart Space về baseline được chấp nhận, không yêu cầu persistence qua restart Space. Giữ giao dịch và idempotency trong từng run; không sửa DB nguồn.
 - Tất cả datetime aware; state/wire UTC `YYYY-MM-DDTHH:MM:SS.ffffffZ`; guaranteed_date giữ ngày VN.
 - Coins 5% giá trị items, floor1.000, min10.000/max1.000.000, None/0→10.000; voucher cố định10.000 VND.
 - Hai khoản cùng điều kiện: trễ >=2 ngày lịch VN, khách tự yêu cầu TEXT trong chat A1 mở, không lỗi khách/không bất khả kháng.
