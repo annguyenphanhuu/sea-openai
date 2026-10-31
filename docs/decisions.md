@@ -1,5 +1,12 @@
 # Quyết định D1–D5
 
+## Restore PR #1 tooling — 2026-10-31
+
+- Restore the original guardrail scripts, optional hooks, PR template, GitHub Actions checks, and isolated tooling tests on a new branch for review against current main.
+- Preserve the current team ownership, personal-branch policy, and D1–D5 decisions. Do not restore task-branch name enforcement.
+- Hooks remain uninstalled in this checkout. AGENTS.md still requires explicit authorization before installing them; manual checks and CI work without local hooks.
+- Ignored-file copying runs only after optional hook installation, or when its script is explicitly invoked. See [guardrails.md](guardrails.md) for setup and limitations.
+
 Huy chốt các quyết định này ngày 31/10/2026; chúng thay thế các mặc định trước đây. Xem mục 6 của [team_plan.md](team_plan.md). Đây là đặc tả, chưa phải logic agent đã triển khai.
 
 ## D1 — Ngày cam kết
