@@ -55,16 +55,38 @@ def claim_effect(store, effect_id, expected_version, revision, now):
 
 def record_receipt(store, receipt) -> bool:
     row = store.effect(receipt.effect_id)
+    if row is None or not row["attempts"]:
+        raise CareError("receipt_binding_invalid")
     proposal = EffectProposal(**json.loads(row["proposal"]))
     if (not receipt.authoritative or receipt.key != proposal.key
             or receipt.payload_hash != fingerprint(proposal.payload)):
         raise CareError("receipt_binding_invalid")
-    if store.db.execute("SELECT 1 FROM receipts WHERE effect_id=? AND revision=?",
-                        (receipt.effect_id, receipt.revision)).fetchone():
-        return False
+    previous = store.db.execute("SELECT revision,data FROM receipts WHERE effect_id=? ORDER BY revision DESC LIMIT 1",
+                                (receipt.effect_id,)).fetchone()
+    if previous:
+        if receipt.revision < previous[0]:
+            return False
+        if receipt.revision == previous[0]:
+            if canonical(receipt) != previous[1]:
+                raise CareError("receipt_revision_conflict")
+            return False
+        previous_outcome = json.loads(previous[1])["outcome"]
+        rank = {"unknown": 0, "accepted": 1, "awaiting_approval": 2, "succeeded": 3, "rejected": 3}
+        if (previous_outcome in ("succeeded", "rejected") and receipt.outcome != previous_outcome
+                or rank.get(receipt.outcome, -1) < rank[previous_outcome]):
+            raise CareError("receipt_terminal_conflict")
+    if (type(receipt.revision) is not int or receipt.revision < 1
+            or receipt.outcome not in ("unknown", "accepted", "awaiting_approval", "succeeded", "rejected")
+            or not receipt.remote_ref):
+        raise CareError("receipt_schema_invalid")
     store.db.execute("INSERT INTO receipts VALUES(?,?,?)",
                       (receipt.effect_id, receipt.revision, canonical(receipt)))
-    store.set_effect(receipt.effect_id, state="delivered", outcome=receipt.outcome, lookups=0)
+    store.set_effect(receipt.effect_id, state="delivered", outcome=receipt.outcome, lookups=0, manual=0)
+    if proposal.kind == "handoff_request" and receipt.outcome in ("accepted", "awaiting_approval", "succeeded"):
+        state = store.load_session(proposal.session_id)
+        state = replace(state, status="transferred", version=state.version + 1)
+        store.db.execute("UPDATE sessions SET data=?,version=? WHERE id=?",
+                         (canonical(state), state.version, state.session_id))
     store._event(proposal.session_id, f"receipt:{receipt.effect_id}:{receipt.revision}",
                  "receipt", canonical({"effect_id": receipt.effect_id, "outcome": receipt.outcome}))
     return True
