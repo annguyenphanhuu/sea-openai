@@ -70,7 +70,7 @@ def test_handoff_survives_rejected_business_context(tmp_path, defect, code, trig
         h = harness(tmp_path)
         try:
             sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
-            state = replace(h.session(sid), last_cutoff=NOW if known_time else None,
+            state = replace((await h.session(sid)), last_cutoff=NOW if known_time else None,
                 turn_count=7 if trigger == 'turn' else 0,
                 abusive_turn_count=2 if trigger == 'abuse' else 0)
             h.store.db.execute('UPDATE sessions SET data=? WHERE id=?', (canonical(state), sid))
@@ -81,8 +81,8 @@ def test_handoff_survives_rejected_business_context(tmp_path, defect, code, trig
                 text = 'đồ ngu' if trigger == 'abuse' else 'cho tôi xu' if trigger == 'turn' else 'tôi muốn gặp nhân viên'
                 result = await h.handle_message(sid, 'human', text, CUSTOMER)
             assert reason in result.codes and code in result.codes
-            assert h.session(sid).status == 'handoff_pending'
-            assert h.session(sid).last_cutoff == state.last_cutoff
+            assert (await h.session(sid)).status == 'handoff_pending'
+            assert (await h.session(sid)).last_cutoff == state.last_cutoff
             proposal = json.loads(h.store.effect(result.effect_ids[0])['proposal'])
             assert proposal['kind'] == 'handoff_request'
             summary = json.loads(json.loads(proposal['payload'])['summary'])
@@ -145,7 +145,7 @@ def test_existing_handoff_dispatch_and_retry_with_invalid_context(tmp_path, defe
             await h.drain_pending()
             assert h.store.effect(eid)['proposal'] == before
             assert len(gateway.submissions) == 1
-            assert h.session(sid).status == 'transferred'
+            assert (await h.session(sid)).status == 'transferred'
             assert (await h.get_trace(sid, STAFF))['runtime_events']
         finally:
             h.store.close()

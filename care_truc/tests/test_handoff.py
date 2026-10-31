@@ -14,7 +14,7 @@ def test_contextual_summary_and_missing_needed_data(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'cancel', 'hủy đơn', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         result = await h.request_handoff(sid, 'human', CUSTOMER)
         row = h.store.effect(result.effect_ids[0])
         summary = json.loads(json.loads(row['proposal'])['payload'])['summary']
@@ -31,9 +31,9 @@ def test_contextual_summary_and_missing_needed_data(tmp_path):
         other = (await h.open_chat('o1', 'other', CUSTOMER)).session_id
         h.context_provider.snapshot = replace(h.context_provider.snapshot, assessment=None)
         await h.handle_message(other, 'eta', 'bao giờ giao', CUSTOMER)
-        assert h.session(other).status == 'active'
+        assert (await h.session(other)).status == 'active'
         await h.handle_message(other, 'cancel', 'hủy đơn', CUSTOMER)
-        assert h.session(other).status == 'handoff_pending'
+        assert (await h.session(other)).status == 'handoff_pending'
         h.store.close()
     asyncio.run(check())
 
@@ -46,24 +46,24 @@ def test_internal_retry_only_unsent_same_envelope_fresh_gate(tmp_path):
         gate = Gate(); gate.allowed = False
         gateway = ScriptedGateway(); h.dispatcher = EffectDispatcher(h, gateway, gate)
         await h.drain_pending()
-        before = dict(h.store.effect(eid)); version = h.session(sid).version
+        before = dict(h.store.effect(eid)); version = (await h.session(sid)).version
         with pytest.raises(CareError, match='forbidden'):
             await h.retry_handoff(sid, CUSTOMER)
         assert await h.retry_handoff(sid, RETRY) == 'blocked'
         gate.allowed = True
         assert await h.retry_handoff(sid, RETRY) == 'pending_delivery'
         assert h.store.effect(eid)['proposal'] == before['proposal']
-        assert h.session(sid).version == version
+        assert (await h.session(sid)).version == version
         assert len(h.store.effects()) == 1
         with pytest.raises(CareError, match='session_state_conflict'):
             await h.request_handoff(sid, 'new', CUSTOMER)
         gateway.submit_error = TimeoutError()
         await h.drain_pending()
-        assert h.session(sid).status == 'handoff_pending'
+        assert (await h.session(sid)).status == 'handoff_pending'
         with pytest.raises(CareError, match='handoff_retry_not_allowed'):
             await h.retry_handoff(sid, RETRY)
         await h.drain_pending()
-        assert h.session(sid).status == 'transferred'
+        assert (await h.session(sid)).status == 'transferred'
         assert len(gateway.submissions) == 1
         assert await h.request_handoff(sid, 'human', CUSTOMER) == original
         h.store.close()
@@ -74,7 +74,7 @@ def test_limit_reasons_are_structured(tmp_path, trigger, reason):
     async def check():
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
-        state = h.session(sid)
+        state = (await h.session(sid))
         state = replace(state, turn_count=7 if trigger == 'turn' else 0,
                         abusive_turn_count=2 if trigger == 'abuse' else 0)
         from care_truc.runtime_types import canonical
@@ -91,7 +91,7 @@ def test_summary_contains_known_receipts_and_staff_decision(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         prompt = await h.handle_message(sid, 'cancel', 'hủy đơn', CUSTOMER)
-        action = await h.confirm_cancel(prompt.confirmation_id, 'confirm', CUSTOMER, reply_to=h.session(sid).pending.reply_to, confirmed=True)
+        action = await h.confirm_cancel(prompt.confirmation_id, 'confirm', CUSTOMER, reply_to=(await h.session(sid)).pending.reply_to, confirmed=True)
         gateway = ScriptedGateway()
         await EffectDispatcher(h, gateway, Gate()).drain_pending()
         result = await h.request_handoff(sid, 'human', CUSTOMER)
@@ -170,7 +170,7 @@ def test_late_retry_cannot_resurrect_effect_from_other_connection(tmp_path, acce
         if not accepted:
             gateway.release.set()
             await dispatch
-        assert other.session(sid).status == 'transferred'
+        assert (await other.session(sid)).status == 'transferred'
         assert len(gateway.submissions) == 1
         other.store.close()
         h.store.close()

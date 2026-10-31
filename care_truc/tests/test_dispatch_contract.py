@@ -67,7 +67,7 @@ def test_receipt_must_belong_to_requested_effect(tmp_path, route):
         async def lookup(key, *, deadline):
             return wrong
         if route == "lookup":
-            assert h.store.claim_effect(eid, h.session(sid2).version, 1, 0) is not None
+            assert h.store.claim_effect(eid, (await h.session(sid2)).version, 1, 0) is not None
             gateway.lookup = lookup
             await dispatcher.reconcile(eid)
             assert h.store.effect(eid)['lookups'] == 1
@@ -78,7 +78,7 @@ def test_receipt_must_belong_to_requested_effect(tmp_path, route):
             await dispatcher.drain_pending()
             assert h.store.effect(eid)['state'] == 'needs_reconciliation'
         assert h.store.effect(eid)['outcome'] == 'unknown'
-        assert h.session(sid2).status == 'handoff_pending'
+        assert (await h.session(sid2)).status == 'handoff_pending'
         h.store.close()
     asyncio.run(check())
 
@@ -121,7 +121,7 @@ def test_restart_delivery_uses_original_key_and_immutable_response(tmp_path, poi
         assert len(ports['gateway'].submissions) == 1
         assert ports['gateway'].submissions[0].key == row['effect_key']
         assert again.store.effect(row['id'])['outcome'] == 'accepted'
-        assert again.harness.session(sid).status == 'transferred'
+        assert (await again.harness.session(sid)).status == 'transferred'
         assert await again.harness.request_handoff(sid, 'human', CUSTOMER) == result
         assert sum(e['kind'] == 'receipt' for e in again.store.events(sid)) == 1
         await again.shutdown()
@@ -135,11 +135,11 @@ def test_later_handoff_receipt_cannot_reopen_completed_session(tmp_path):
         result = await h.request_handoff(sid, 'human', CUSTOMER)
         gateway = ScriptedGateway()
         await EffectDispatcher(h, gateway, Gate()).drain_pending()
-        state = replace(h.session(sid), status='completed')
+        state = replace((await h.session(sid)), status='completed')
         h.store.db.execute('UPDATE sessions SET data=? WHERE id=?', (canonical(state), sid))
         receipt = gateway.receipts[h.store.effect(result.effect_ids[0])['effect_key']]
         assert h.store.record_receipt(replace(receipt, revision=2, outcome='succeeded'))
-        assert h.session(sid).status == 'completed'
-        assert h.session(sid).version == state.version
+        assert (await h.session(sid)).status == 'completed'
+        assert (await h.session(sid)).version == state.version
         h.store.close()
     asyncio.run(check())

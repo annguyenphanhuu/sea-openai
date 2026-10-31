@@ -13,7 +13,7 @@ def test_explicit_consent_and_reply_are_required(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         prompt = await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         for request, consent, reply in [('no', False, pending.reply_to), ('wrong', True, 'wrong')]:
             result = await h.confirm_cancel(pending.confirmation_id, request, CUSTOMER,
                                             reply_to=reply, confirmed=consent)
@@ -28,7 +28,7 @@ def test_consumed_id_replays_original_response_after_restart_and_terminal(tmp_pa
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         first = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER,
                                       reply_to=pending.reply_to, confirmed=True)
         from care_truc.dispatcher import EffectDispatcher
@@ -55,7 +55,7 @@ def test_unbound_accept_never_authorizes_cancellation(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        reply = h.session(sid).pending.reply_to
+        reply = (await h.session(sid)).pending.reply_to
         result = await h.handle_message(sid, 'yes', 'đồng ý', CUSTOMER)
         assert not result.effect_ids
         h.store.close()
@@ -67,13 +67,13 @@ def test_expiry_is_business_time_and_never_renews(tmp_path, minutes):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         assert pending.expires_at == NOW + timedelta(minutes=10)
         h.context_provider.snapshot = replace(h.context_provider.snapshot, cutoff=NOW + timedelta(minutes=minutes))
         result = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER,
                                       reply_to=pending.reply_to, confirmed=True)
         assert 'cancel_confirmation_expired' in result.codes
-        assert not result.effect_ids and h.session(sid).pending is None
+        assert not result.effect_ids and (await h.session(sid)).pending is None
         assert h.store.db.execute('SELECT status FROM cancellations').fetchone()[0] == 'expired'
         assert 'xác nhận' in result.text
         h.store.close()
@@ -86,7 +86,7 @@ def test_old_confirmation_cannot_enqueue_after_invalidation(tmp_path, change):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        old = h.session(sid).pending
+        old = (await h.session(sid)).pending
         if change == 'handoff':
             await h.request_handoff(sid, 'new', CUSTOMER)
             with pytest.raises(CareError, match='session_state_conflict'):
@@ -106,14 +106,14 @@ def test_lost_lifecycle_fails_closed_and_requires_new_prompt(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        old = h.session(sid).pending
+        old = (await h.session(sid)).pending
         # Emulate an older v1 database with an embedded pending but no lifecycle table.
         h.store.db.execute('DROP TABLE cancellations')
         h.store.close()
         h = harness(tmp_path)
         result = await h.confirm_cancel(old.confirmation_id, 'yes', CUSTOMER, reply_to=old.reply_to, confirmed=True)
         assert 'cancel_confirmation_invalid' in result.codes
-        assert not result.effect_ids and h.session(sid).pending is None
+        assert not result.effect_ids and (await h.session(sid)).pending is None
         assert h.store.db.execute('SELECT count(*) FROM cancellations').fetchone()[0] == 0
         fresh = await h.handle_message(sid, 'again', 'muốn hủy', CUSTOMER)
         assert fresh.confirmation_id != old.confirmation_id
@@ -128,10 +128,10 @@ def test_confirm_is_turn_eight_and_cannot_bypass_handoff(tmp_path):
         for i in range(6):
             await h.handle_message(sid, f'm{i}', 'xin chào', CUSTOMER)
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         result = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER, reply_to=pending.reply_to, confirmed=True)
         assert 'turn_limit' in result.codes
-        assert h.session(sid).turn_count == 8 and h.session(sid).status == 'handoff_pending'
+        assert (await h.session(sid)).turn_count == 8 and (await h.session(sid)).status == 'handoff_pending'
         assert all(':cancel:' not in e['effect_key'] for e in h.store.effects())
         h.store.close()
     asyncio.run(check())
@@ -144,7 +144,7 @@ def test_consumed_alias_id_conflicts_on_changed_payload_and_scope(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         first = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER, reply_to=pending.reply_to, confirmed=True)
         assert first == await h.confirm_cancel(pending.confirmation_id, 'alias', CUSTOMER, reply_to=pending.reply_to, confirmed=True)
         with pytest.raises(CareError, match='request_conflict'):
@@ -164,7 +164,7 @@ def test_corrupt_binding_cannot_authorize_action(tmp_path, field, value):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         data = json.loads(h.store.db.execute('SELECT data FROM sessions WHERE id=?', (sid,)).fetchone()[0])
         data['pending'][field] = value
         h.store.db.execute('UPDATE sessions SET data=? WHERE id=?', (json.dumps(data), sid))
@@ -181,7 +181,7 @@ def test_cancellation_revision_is_forbidden_even_before_send(tmp_path):
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
-        pending = h.session(sid).pending
+        pending = (await h.session(sid)).pending
         result = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER, reply_to=pending.reply_to, confirmed=True)
         row = h.store.effect(result.effect_ids[0])
         proposal = EffectProposal(**json.loads(row['proposal']))

@@ -6,6 +6,7 @@ import json
 import sqlite3
 
 from .runtime_types import CareError, CustomerEvent, TrustedRequestContext, canonical
+from .storage_port import StorageError
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,7 +54,7 @@ class CareApi:
                     raise CareError("invalid_payload", 400)
             # Public customer operations never inherit staff read capabilities.
             if "session_id" in payload and operation != "get_trace":
-                state = self.harness.session(payload["session_id"])
+                state = await self.harness.session(payload["session_id"])
                 if state.principal_id != ctx.principal_id:
                     raise CareError("not_found", 404)
             if operation == "prepare_cancel":
@@ -71,5 +72,5 @@ class CareApi:
             return ApiResponse(error.status, {"error": error.code})
         except ValueError:
             return ApiResponse(400, {"error": "invalid_payload"})
-        except (sqlite3.DatabaseError, OSError):
+        except (StorageError, sqlite3.DatabaseError, OSError):
             return ApiResponse(503, {"error": "service_error"})

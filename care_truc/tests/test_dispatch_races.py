@@ -10,7 +10,7 @@ async def pending(h):
     sid=(await h.open_chat('o1','open',CUSTOMER)).session_id
     await h.handle_message(sid,'want','muốn hủy',CUSTOMER)
     confirmation=h.store.load_session(sid).pending.confirmation_id
-    result=await h.confirm_cancel(confirmation,'confirm',CUSTOMER, reply_to=h.session(sid).pending.reply_to, confirmed=True)
+    result=await h.confirm_cancel(confirmation,'confirm',CUSTOMER, reply_to=(await h.session(sid)).pending.reply_to, confirmed=True)
     return sid,result.effect_ids[0]
 
 

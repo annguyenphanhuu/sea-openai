@@ -132,7 +132,7 @@ def test_why_uses_validated_reason_and_handoff_retains_need_and_actions(tmp_path
         assert 'hai kỳ cập nhật' in why.text
         await runtime.harness.handle_message(sid,'cancel','muốn hủy',CUSTOMER)
         cid=runtime.store.load_session(sid).pending.confirmation_id
-        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER, reply_to=runtime.harness.session(sid).pending.reply_to, confirmed=True)
+        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER, reply_to=(await runtime.harness.session(sid)).pending.reply_to, confirmed=True)
         await runtime.harness.request_handoff(sid,'h',CUSTOMER)
         summary=json.loads((await runtime.harness.get_handoffs(STAFF))['handoffs'][0]['summary'])
         assert any('muốn hủy' in item['text'] for item in summary['customer_statements'])

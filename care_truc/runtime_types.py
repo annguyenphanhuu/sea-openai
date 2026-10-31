@@ -183,6 +183,7 @@ class AttemptToken:
     request_id: str
     state_version: int
     boot_generation: int
+    processing_attempt: int = 0
 
 
 @dataclass(frozen=True, slots=True)
