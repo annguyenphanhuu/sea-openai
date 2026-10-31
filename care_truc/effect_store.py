@@ -12,7 +12,11 @@ def save_proposal(store, proposal, request_id, state) -> None:
                                 (state.run_id, proposal.key)).fetchone()
     if existing:
         if existing["state"] == "blocked" and existing["attempts"] == 0:
-            revise_proposal(store, proposal.key, request_id, proposal)
+            if proposal.kind == "handoff_request":
+                # A new explicit human request retries the same unsent handoff envelope.
+                store.set_effect(existing["id"], state="pending_delivery", next_at=0)
+            elif proposal.kind == "action_request" and json.loads(proposal.payload)["kind"] == "coins":
+                revise_proposal(store, proposal.key, request_id, proposal)
         return
     store.db.execute("INSERT INTO pending_effects(id,run_id,effect_key,session_id,proposal,session_version) VALUES(?,?,?,?,?,?)",
         (proposal.effect_id, state.run_id, proposal.key, state.session_id, canonical(proposal), state.version))

@@ -4,6 +4,7 @@ import asyncio
 import copy
 from dataclasses import replace
 from datetime import datetime, timezone
+from functools import wraps
 import json
 import sqlite3
 from uuid import uuid4
@@ -16,6 +17,25 @@ from .renderer import ResponseRenderer
 from .runtime_types import (CareError, ContextSnapshot, CustomerEvent, EffectProposal,
     PhraseSelection, PolicyOutcome, SessionState, TrustedRequestContext, TurnResult,
     canonical, fingerprint)
+
+
+def tracked(method):
+    @wraps(method)
+    async def call(self, *args, **kwargs):
+        owner = getattr(self, "harness", self)
+        if not owner.accepting:
+            raise CareError("not_ready", 503)
+        task = asyncio.current_task()
+        owner.active_tasks[task] = owner.active_tasks.get(task, 0) + 1
+        try:
+            return await method(self, *args, **kwargs)
+        finally:
+            remaining = owner.active_tasks[task] - 1
+            if remaining:
+                owner.active_tasks[task] = remaining
+            else:
+                del owner.active_tasks[task]
+    return call
 
 
 class CareHarness:
@@ -31,11 +51,20 @@ class CareHarness:
         self.guards = Guardrails()
         self.locks = {}
         self.owners = {}
+        self.active_tasks = {}
+        self.observer_codes = set()
         self.accepting = True
         self.dispatcher = None
 
     def lock(self, session_id):
         return self.locks.setdefault(session_id, asyncio.Lock())
+
+    def record_observation(self, session_id, phase, result, reference):
+        self.observer_codes.update(result.codes)
+        try:
+            self.store.record_hook_event(session_id, phase, result, reference)
+        except sqlite3.DatabaseError:
+            self.observer_codes.add("hook_audit_unavailable")
 
     async def authorize(self, ctx, order_id, principal_id=None):
         if not isinstance(ctx, TrustedRequestContext) or not ctx.principal_id:
@@ -55,12 +84,18 @@ class CareHarness:
                 raise CareError("context_binding_invalid", 503)
             if snapshot.cutoff.tzinfo is None:
                 raise CareError("context_cutoff_invalid", 503)
+            if state.opened_by == "a1":
+                sent_here = any(row["session_id"] == state.session_id and row["outcome"] == "succeeded"
+                    and json.loads(row["proposal"])["kind"] == "contact_send"
+                    for row in self.store.effects())
+                snapshot = replace(snapshot, contact_sent=snapshot.contact_sent and sent_here)
             return snapshot
         except (TimeoutError, OSError):
             # A sentinel marks absent business time; operational UTC cannot grant business rights.
             return ContextSnapshot(state.principal_id, state.order_id,
                                    datetime.min.replace(tzinfo=timezone.utc), None, None)
 
+    @tracked
     async def open_chat(self, order_id, request_id, ctx):
         CustomerEvent("request_handoff", request_id)
         if not self.accepting:
@@ -70,6 +105,7 @@ class CareHarness:
         state = self.store.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id, order_id), key)
         return TurnResult("opened", state.session_id)
 
+    @tracked
     async def open_contact(self, task, ctx):
         if not self.accepting:
             raise CareError("not_ready", 503)
@@ -84,23 +120,37 @@ class CareHarness:
         if (snapshot.assessment is None or task.assessment_at != snapshot.assessment.assessed_at
                 or task.created_at.tzinfo is None or task.created_at > snapshot.cutoff):
             decision = replace(decision, allowed=False, codes=("contact_context_invalid",))
-        event = CustomerEvent("message", "contact:" + task.contact_id, "contact opening")
+        event = CustomerEvent("open_contact", "contact:" + task.contact_id, canonical(task))
         request = self.store.begin_request(state.session_id, state.principal_id, event, fingerprint(task))
         if request["phase"] == "committed":
             return self.store.response(request)
+        if request["phase"] == "failed_terminal":
+            raise CareError(request["error"])
+        if not self.store.reserve_processing(request["id"], self.store.boot_generation,
+                                             self.clock.utcnow().timestamp()):
+            return TurnResult("processing", state.session_id)
+        outcome = PolicyOutcome(state, "off_topic", "opening" if decision.allowed else "blocked", decision.codes)
+        rendered = self.renderer.render(outcome, snapshot, outcome.phrase_id)
+        if not self.guards.validate_output(rendered, outcome, snapshot).allowed:
+            raise CareError("opening_output_invalid", 503)
         proposal = EffectProposal(task.idempotency_key, task.idempotency_key, state.session_id,
-            state.order_id, "contact_send", canonical(task), request["id"])
+            state.order_id, "contact_send", canonical({"contact": task, "text": rendered.text}), request["id"])
         result = TurnResult("pending_delivery" if decision.allowed else "blocked", state.session_id,
-                            codes=decision.codes, effect_ids=(proposal.effect_id,) if decision.allowed else ())
-        outcome = PolicyOutcome(state, "off_topic", "clarify", decision.codes,
-                                (proposal,) if decision.allowed else ())
-        self.store.commit_turn(request["id"], state.version, outcome, result,
-                               canonical(snapshot), canonical({"opening": True}))
+                            text=rendered.text, codes=decision.codes,
+                            effect_ids=(proposal.effect_id,) if decision.allowed else ())
+        outcome = replace(outcome, proposals=(proposal,) if decision.allowed else ())
+        try:
+            self.store.commit_turn(request["id"], state.version, outcome, result,
+                                   canonical(snapshot), canonical({"opening": True}))
+        except (sqlite3.DatabaseError, OSError):
+            self.store.retry_request(request["id"], self.clock.utcnow().timestamp())
+            raise CareError("service_error", 503) from None
         return result
 
     async def handle_message(self, session_id, message_id, text, ctx, reply_to=None):
         return await self._process_event(session_id, CustomerEvent("message", message_id, text, reply_to), ctx)
 
+    @tracked
     async def confirm_cancel(self, confirmation_id, request_id, ctx):
         rows = self.store.db.execute("SELECT id FROM sessions").fetchall()
         for row in rows:
@@ -116,6 +166,7 @@ class CareHarness:
     async def request_handoff(self, session_id, request_id, ctx):
         return await self._process_event(session_id, CustomerEvent("request_handoff", request_id), ctx)
 
+    @tracked
     async def _process_event(self, session_id, event, ctx):
         started_at = self.clock.monotonic()
         if not self.accepting:
@@ -159,7 +210,11 @@ class CareHarness:
             snapshot = await self.snapshot(state, ctx)
             self.store.db.execute("UPDATE requests SET context=? WHERE id=?", (canonical(snapshot), request["id"]))
             input_hook = await self.hooks.run("on_input", {"kind": event.kind, "request_id": event.request_id})
+            hook_outcomes = {"on_input": {"action": input_hook.action, "codes": input_hook.codes}}
             outcome = self.policy.evaluate(state, event, snapshot)
+            if outcome.state.pending is not None and outcome.state.pending != state.pending:
+                outcome = replace(outcome, state=replace(outcome.state,
+                    pending=replace(outcome.state.pending, reply_to=request["id"] + ":response")))
             if input_hook.action == "veto":
                 outcome = PolicyOutcome(replace(state, turn_count=state.turn_count + 1),
                                         outcome.intent, "blocked", input_hook.codes)
@@ -171,9 +226,11 @@ class CareHarness:
                 model_context = build_model_context(outcome, snapshot, history)
                 before = await self.hooks.run("before_model", {"context": model_context.decode() if model_context else None,
                                                                "token": token})
+                hook_outcomes["before_model"] = {"action": before.action, "codes": before.codes}
                 if model_context and before.action == "continue" and self.store.reserve_model(request["id"]):
                     selection = await select_phrase(self.selector, model_context, allowed_ids(outcome), token, self.clock)
                     after = await self.hooks.run("after_model", {"selection": selection, "token": token})
+                    hook_outcomes["after_model"] = {"action": after.action, "codes": after.codes}
                     if after.action != "continue":
                         selection = PhraseSelection(outcome.phrase_id, "template", after.codes)
             if (self.store.boot_generation != token.boot_generation
@@ -192,7 +249,11 @@ class CareHarness:
                 if proposal.kind == "action_request":
                     payload["evidence_ref"] = request["id"]
                 if proposal.kind == "handoff_request":
-                    payload["summary"] = self.renderer.render_handoff(outcome.state, snapshot)
+                    history = [json.loads(item["content"]) for item in self.store.events(session_id)
+                               if item["kind"] == "customer"]
+                    effects = [dict(row) for row in self.store.effects() if row["session_id"] == session_id]
+                    payload["summary"] = self.renderer.render_handoff(outcome.state, snapshot, event=event,
+                        history=history, effects=effects, previous_pending=state.pending)
                 proposals.append(replace(proposal, payload=canonical(payload), evidence_ref=request["id"]))
             outcome = replace(outcome, proposals=tuple(proposals))
             if outcome.phrase_id == "blocked":
@@ -207,7 +268,7 @@ class CareHarness:
                 "template_version": self.renderer.version, "hook_version": self.hooks.version,
                 "assessment_ref": rendered.assessment_ref, "codes": result.codes, "source": result.source,
                 "effect_ids": result.effect_ids, "elapsed_runtime_s": self.clock.monotonic() - started_at,
-                "hook_outcomes": {"on_input": input_hook.action}}
+                "hook_outcomes": hook_outcomes}
             bundle = {"snapshot": snapshot, "session": state, "event": event,
                       "decision_codes": outcome.codes, "proposals": outcome.proposals}
             return self.store.commit_turn(request["id"], state.version, outcome, result,
@@ -224,18 +285,21 @@ class CareHarness:
         except Exception:
             if request:
                 self.store.fail_request(request["id"], "policy_invariant_failed")
-            await self.hooks.run("on_error", {"phase": "turn", "code": "policy_invariant_failed"})
+            observed = await self.hooks.run("on_error", {"phase": "turn", "code": "policy_invariant_failed"})
+            self.record_observation(session_id, "on_error", observed, request["id"] if request else "")
             raise CareError("policy_invariant_failed", 503) from None
         finally:
             if request:
                 self.owners.pop(request["id"], None)
             lock.release()
 
+    @tracked
     async def drain_pending(self):
         if self.dispatcher is None:
             raise CareError("dispatcher_unavailable", 503)
         return await self.dispatcher.drain_pending()
 
+    @tracked
     async def get_messages(self, session_id, ctx):
         state = self.store.load_session(session_id)
         await self.authorize(ctx, state.order_id, state.principal_id)
@@ -252,14 +316,18 @@ class CareHarness:
                    for row in self.store.effects() if row["session_id"] == session_id]
         return {"messages": messages, "effects": effects, "status": state.status}
 
+    @tracked
     async def get_trace(self, session_id, ctx):
         if not ctx or "care_trace" not in ctx.staff_permissions:
             raise CareError("forbidden", 403)
         state = self.store.load_session(session_id)
         await self.authorize(ctx, state.order_id, state.principal_id)
         rows = self.store.db.execute("SELECT trace FROM evidence_bundles e JOIN requests r ON e.request_id=r.id WHERE r.session_id=? ORDER BY r.rowid", (session_id,))
-        return {"decisions": [json.loads(row[0]) for row in rows]}
+        return {"decisions": [json.loads(row[0]) for row in rows], "runtime_events": [
+            json.loads(event["content"]) for event in self.store.events(session_id)
+            if event["kind"] == "runtime_hook"]}
 
+    @tracked
     async def get_handoffs(self, ctx):
         if not ctx or "care_handoffs" not in ctx.staff_permissions:
             raise CareError("forbidden", 403)
@@ -275,6 +343,7 @@ class CareHarness:
                 "summary": json.loads(proposal["payload"]).get("summary")})
         return {"handoffs": result}
 
+    @tracked
     async def resolve(self, ref: str, server_ctx: TrustedRequestContext) -> str:
         if not server_ctx or "care_evidence" not in server_ctx.staff_permissions:
             raise CareError("forbidden", 403)

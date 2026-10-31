@@ -110,7 +110,9 @@ class MemoryStore:
                 raise CareError("state_conflict")
             self.db.execute("INSERT INTO evidence_bundles VALUES(?,?,?,?)",
                             (request_id, request_id, evidence, trace))
-            self._event(state.session_id, request_id + ":customer", "customer", request["payload"])
+            opening = json.loads(request["payload"])["kind"] == "open_contact"
+            self._event(state.session_id, request_id + ":customer", "opening" if opening else "customer",
+                        request["payload"], "staff" if opening else "customer")
             self._event(state.session_id, request_id + ":response", "response", canonical(response))
             if outcome.invalidate_unsent:
                 self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait') AND json_extract(proposal,'$.kind')!='handoff_request'", (state.session_id,))
@@ -188,6 +190,12 @@ class MemoryStore:
 
     def events(self, session_id: str) -> list[dict]:
         return [dict(row) for row in self.db.execute("SELECT * FROM events WHERE session_id=? ORDER BY sequence", (session_id,))]
+
+    def record_hook_event(self, session_id, phase, result, reference):
+        with self.transaction():
+            self._event(session_id, uuid4().hex, "runtime_hook", canonical({
+                "phase": phase, "action": result.action, "codes": result.codes,
+                "reference": reference}), "staff")
 
     @staticmethod
     def response(row) -> TurnResult:

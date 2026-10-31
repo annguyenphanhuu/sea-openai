@@ -1,6 +1,7 @@
 """Run ownership, recovery, bounded shutdown and content-free health."""
 
 import asyncio
+from datetime import datetime
 from pathlib import Path
 import re
 import sqlite3
@@ -12,6 +13,7 @@ from .ports import SystemClock
 from .process_lock import RunLock
 from .runtime_types import CareError, CustomerEvent, Health, TrustedRequestContext
 from .store import MemoryStore
+from contracts.types import ContactTask
 
 
 class CareRuntime:
@@ -61,7 +63,14 @@ class CareRuntime:
                 continue
             event = CustomerEvent(**json.loads(row["payload"]))
             try:
-                await self.harness._process_event(row["session_id"], event, TrustedRequestContext(row["principal"]))
+                ctx = TrustedRequestContext(row["principal"])
+                if event.kind == "open_contact":
+                    data = json.loads(event.text)
+                    for name in ("assessment_at", "created_at"):
+                        data[name] = datetime.fromisoformat(data[name])
+                    await self.harness.open_contact(ContactTask(**data), ctx)
+                else:
+                    await self.harness._process_event(row["session_id"], event, ctx)
             except CareError:
                 # A failed request remains durable; no startup reset or invented success.
                 continue
@@ -80,6 +89,7 @@ class CareRuntime:
         if self.closed or not self.ready:
             return Health("not_ready", ("not_ready",))
         codes = list(self.codes)
+        codes.extend(sorted(self.harness.observer_codes))
         if self.harness.selector is None:
             codes.append("model_unavailable")
         if self.dispatcher.gateway is None:
@@ -100,7 +110,7 @@ class CareRuntime:
         self.ready = False
         self.harness.accepting = False
         self.dispatcher.stopping = True
-        tasks = {task for task in self.harness.owners.values() if not task.done()}
+        tasks = {task for task in self.harness.active_tasks if not task.done()}
         if self.worker and not self.worker.done():
             tasks.add(self.worker)
         try:

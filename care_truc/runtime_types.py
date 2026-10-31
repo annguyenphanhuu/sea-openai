@@ -34,14 +34,14 @@ class TrustedRequestContext:
 
 @dataclass(frozen=True, slots=True)
 class CustomerEvent:
-    kind: Literal["message", "confirm_cancel", "request_handoff", "prepare_cancel"]
+    kind: Literal["message", "confirm_cancel", "request_handoff", "prepare_cancel", "open_contact"]
     request_id: str
     text: str | None = None
     reply_to: str | None = None
     confirmation_id: str | None = None
 
     def __post_init__(self) -> None:
-        if self.kind not in ("message", "confirm_cancel", "request_handoff", "prepare_cancel"):
+        if self.kind not in ("message", "confirm_cancel", "request_handoff", "prepare_cancel", "open_contact"):
             raise ValueError("invalid_event")
         if not isinstance(self.request_id, str) or not 1 <= len(self.request_id) <= 200:
             raise ValueError("invalid_request_id")

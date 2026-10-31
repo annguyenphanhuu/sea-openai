@@ -1,6 +1,7 @@
 """Approved phrase catalog. Models choose IDs, never facts or promises."""
 
 CATALOG = {
+    "opening": "Mình xin lỗi vì sự bất tiện với đơn hàng của bạn.",
     "explain": "Mình ghi nhận tình trạng đơn hàng.",
     "explain_alt": "Mình xin thông tin về đơn hàng như sau.",
     "clarify": "Bạn có thể nói rõ nhu cầu hoặc yêu cầu gặp nhân viên.",
