@@ -1,5 +1,7 @@
 # Thiết kế platform Huy, bản đầu — 31/10/2026
 
+> **Quyết định lưu trữ mới nhất:** StateStore chỉ dùng SQLite trên đĩa local của Space; không MongoDB/MongoStateStore. Chấp nhận restart Space về baseline, không yêu cầu lưu runtime qua restart Space. Các bảo đảm giao dịch, chống retry/cấp trùng và phục hồi trên cùng tệp state còn tồn tại vẫn giữ nguyên; DB nguồn luôn bất biến.
+
 > **Reviewed for implementation planning; implementation not started.** [Independent review — final approval](2026-10-31-huy-demo-spec-review.md#re-review-of-revised-spec--2026-10-31). Huy đã chọn Next tick thủ công +30 phút, chat phản hồi ngay (wall time chỉ audit), human verification có bằng chứng/audit cho positive demo. Coins và voucher10.000 VND là issuance SQLite nội bộ, độc lập once/kind/order, cùng eligibility; redemption/expiry ngoài scope. Review xác nhận đủ cơ sở lập kế hoạch, không chứng nhận runtime hoặc demo end-to-end.
 
 Trạng thái: **đặc tả demo nội bộ để review và lập kế hoạch; chưa triển khai**. Bốn phần: replay/A3/tick, issuance coins+voucher/cancel, tín hiệu lịch sử trả hàng, kiểm chứng độc lập. Không tạo provider, queue server, HTTP server hay classifier mới. Mục tiêu là nền Python/SQLite ghép A2 hiện có và A1 của Trúc trong hackathon 7 giờ; local entitlement không cộng ví Shopee thật, không có voucher code dùng ngoài hệ thống.
