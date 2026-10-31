@@ -1,4 +1,4 @@
-"""Serve the A3 demo and illustrative order UI; loopback by default."""
+"""Serve the A3 prototype or integrated A3/A2/A1 local operator demo."""
 
 import argparse
 from datetime import datetime
@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from socketserver import TCPServer
 import sqlite3
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .a3_demo import A3Demo, project_root, release_dir
 
@@ -25,12 +25,27 @@ class LocalHTTPServer(ThreadingHTTPServer):
         self.server_name = "localhost"
         self.server_port = self.server_address[1]
 
+    def server_close(self) -> None:
+        try:
+            super().server_close()
+        finally:
+            coordinator = getattr(self, 'coordinator', None)
+            if coordinator is not None:
+                coordinator.close()
+
 
 def create_server(*, core_path: Path, state_path: Path,
                   start_at: datetime | None = None, port: int = 8765,
-                  host: str = "127.0.0.1") -> LocalHTTPServer:
+                  host: str = "127.0.0.1", integrated: bool = False,
+                  ops_path: Path | None = None) -> LocalHTTPServer:
     """Create an actual HTTP server; tests and CLI share the same request path."""
-    demo = A3Demo(core_path, state_path, start_at)
+    from .presenter_auth import PresenterAuth
+    presenter = PresenterAuth(host) if integrated else None
+    if integrated:
+        from .demo_flow import DemoFlow
+        demo = DemoFlow(core_path, state_path, start_at=start_at, ops_path=ops_path)
+    else:
+        demo = A3Demo(core_path, state_path, start_at)
     directory = Path(__file__).resolve().parent / "ui_prototype"
 
     class Handler(SimpleHTTPRequestHandler):
@@ -44,22 +59,55 @@ def create_server(*, core_path: Path, state_path: Path,
             self.end_headers()
             self.wfile.write(payload)
 
-        def _api(self, action: str) -> None:
+        def _api(self, action: str, payload: dict | None = None) -> None:
+            if presenter is not None and not presenter.authorized(self.headers):
+                self._json(401, {'error': 'Presenter key required'})
+                return
             try:
-                self._json(200, demo.request(action))
+                result = demo.request(action, payload) if integrated else demo.request(action)
+                self._json(200, result)
             except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                 # Failure responses cannot authorize even a stale browser client.
                 self._json(503, {"error": "A3 demo unavailable; proactive drafting is blocked",
                                  "guard_alive": False, "proactive_allowed": False,
                                  "actions": []})
+            except Exception as error:
+                # Domain exceptions expose only stable codes, never source data.
+                from care_truc.runtime_types import CareError
+                from .dto import PlatformError
+                if isinstance(error, CareError):
+                    self._json(error.status, {'error': error.code})
+                elif isinstance(error, PlatformError):
+                    self._json(409, {'error': error.code})
+                else:
+                    self._json(503, {'error': 'Demo operation unavailable'})
+
+        def _body(self) -> dict | None:
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 <= length <= 16384:
+                    self._json(413, {'error': 'Request body too large'})
+                    return None
+                value = json.loads(self.rfile.read(length).decode('utf-8')) if length else {}
+                if not isinstance(value, dict):
+                    raise ValueError('Object required')
+                return value
+            except (ValueError, UnicodeError):
+                self._json(400, {'error': 'Invalid JSON object'})
+                return None
 
         def do_GET(self) -> None:
             path = urlsplit(self.path).path
-            if path == "/api/a3/status":
-                self._api("status")
+            query = {key: values[-1] for key, values in parse_qs(urlsplit(self.path).query).items()}
+            if path == "/api/a3/status" or (integrated and path == '/api/demo/state'):
+                self._api("status", query)
+            elif integrated and path == '/api/records':
+                self._api('records', query)
             elif path.startswith("/api/"):
                 self._json(404, {"error": "Unknown API route", "proactive_allowed": False})
             else:
+                if integrated and path == '/':
+                    self.path = '/live.html'
                 super().do_GET()
 
         def do_POST(self) -> None:
@@ -73,26 +121,44 @@ def create_server(*, core_path: Path, state_path: Path,
                 return
             routes = {"/api/a3/kill": "kill", "/api/a3/revive": "revive",
                       "/api/next": "next", "/api/a3/proactive-check": "proactive-check"}
+            if integrated:
+                routes.update({'/api/chat/open': 'chat-open', '/api/chat/say': 'chat-say',
+                               '/api/orders/verify': 'verify-order'})
             action = routes.get(urlsplit(self.path).path)
             if action is None:
                 self._json(404, {"error": "Unknown API route", "proactive_allowed": False})
                 return
-            self._api(action)
+            payload = self._body()
+            if payload is not None:
+                self._api(action, payload)
 
-    return LocalHTTPServer((host, port), partial(Handler, directory=str(directory)))
+    try:
+        server = LocalHTTPServer((host, port), partial(Handler, directory=str(directory)))
+    except BaseException:
+        if integrated:
+            demo.close()
+        raise
+    if integrated:
+        server.coordinator = demo
+    return server
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument('--integrated', action='store_true', help='Run the real A3/A2/A1 web-chat demo')
+    parser.add_argument('--ops-path', type=Path)
     parser.add_argument("--core-path", type=Path,
                         default=release_dir() / "core_14d.sqlite")
     parser.add_argument("--state-path", type=Path,
-                        default=project_root() / "runs/a3-demo/state.sqlite")
+                        default=None)
     parser.add_argument("--start-at", type=datetime.fromisoformat,
-                        help="Aware simulation timestamp; defaults to source sim_clock on first launch")
+                        help="Aware replay timestamp; integrated demo starts at 2026-10-24T14:00+07:00")
     args = parser.parse_args()
+    if args.state_path is None:
+        folder = 'integrated-demo' if args.integrated else 'a3-demo'
+        args.state_path = project_root() / 'runs' / folder / 'state.sqlite'
     if not 1 <= args.port <= 65535:
         parser.error("--port must be between 1 and 65535")
 
@@ -102,8 +168,10 @@ def main() -> None:
 
     try:
         with create_server(core_path=args.core_path, state_path=args.state_path,
-                           start_at=args.start_at, port=args.port, host=args.host) as server:
-            print(f"A3 demo: http://{args.host}:{server.server_port}/?variant=A", flush=True)
+                           start_at=args.start_at, port=args.port, host=args.host,
+                           integrated=args.integrated, ops_path=args.ops_path) as server:
+            label = 'Integrated A3/A2/A1 demo' if args.integrated else 'A3 demo'
+            print(f"{label}: http://{args.host}:{server.server_port}/", flush=True)
             print(f"Runtime: {args.state_path.resolve()}; NEXT advances exactly 30 minutes.", flush=True)
             print("Press Ctrl+C to stop.", flush=True)
             server.serve_forever()

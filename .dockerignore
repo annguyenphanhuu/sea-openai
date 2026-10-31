@@ -21,6 +21,7 @@
 
 # Explicit final exclusions also cover sensitive files inside allowed folders.
 **/.env*
+**/*.token
 **/data
 **/truth
 **/runs
