@@ -378,12 +378,14 @@ class RenderedReply:
     response_source: ResponseSource = 'template'
     evidence_refs: tuple[str, ...] = ()
     decision_codes: tuple[str, ...] = ()
+    public_evidence: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _text(self.text, 'text')
         _choice(self.response_source, ('template', 'phrase_selector'), 'response_source')
         _strings(self.evidence_refs, 'evidence_refs')
         _strings(self.decision_codes, 'decision_codes')
+        _strings(self.public_evidence, 'public_evidence')
 
 
 @dataclass(frozen=True, slots=True)
