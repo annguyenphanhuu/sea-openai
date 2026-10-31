@@ -36,7 +36,7 @@ def test_contact_retry_binds_full_payload_and_replays_without_context(tmp_path):
         h.store.close()
     asyncio.run(check())
 
-@pytest.mark.parametrize('text,count',[('Tôi muốn gặp nhân viên và hủy đơn',1),('ngu',3),('Tại sao?',8)])
+@pytest.mark.parametrize('text,count',[('Tôi muốn gặp nhân viên và hủy đơn',1),('ngu',3)])
 def test_terminal_replays_without_counting_or_new_effects(tmp_path,text,count):
     async def check():
         h=harness(tmp_path)

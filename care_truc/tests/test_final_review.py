@@ -64,21 +64,21 @@ def invalid_context(snapshot, defect):
     for known_time in (False, True) if known_time or defect != 'regressed'
 ])
 @pytest.mark.parametrize('trigger,reason', [('text', 'customer_requested_human'),
-    ('endpoint', 'customer_requested_human'), ('turn', 'turn_limit'), ('abuse', 'abuse_limit')])
+    ('endpoint', 'customer_requested_human'), ('abuse', 'abuse_limit')])
 def test_handoff_survives_rejected_business_context(tmp_path, defect, code, trigger, reason, known_time):
     async def check():
         h = harness(tmp_path)
         try:
             sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
             state = replace((await h.session(sid)), last_cutoff=NOW if known_time else None,
-                turn_count=7 if trigger == 'turn' else 0,
+                turn_count=100,
                 abusive_turn_count=2 if trigger == 'abuse' else 0)
             h.store.db.execute('UPDATE sessions SET data=? WHERE id=?', (canonical(state), sid))
             h.context_provider.snapshot = invalid_context(h.context_provider.snapshot, defect)
             if trigger == 'endpoint':
                 result = await h.request_handoff(sid, 'human', CUSTOMER)
             else:
-                text = 'đồ ngu' if trigger == 'abuse' else 'cho tôi xu' if trigger == 'turn' else 'tôi muốn gặp nhân viên'
+                text = 'đồ ngu' if trigger == 'abuse' else 'tôi muốn gặp nhân viên'
                 result = await h.handle_message(sid, 'human', text, CUSTOMER)
             assert reason in result.codes and code in result.codes
             assert (await h.session(sid)).status == 'handoff_pending'

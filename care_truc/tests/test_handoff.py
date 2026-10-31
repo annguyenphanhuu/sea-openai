@@ -69,17 +69,17 @@ def test_internal_retry_only_unsent_same_envelope_fresh_gate(tmp_path):
         h.store.close()
     asyncio.run(check())
 
-@pytest.mark.parametrize('trigger,reason', [('turn', 'turn_limit'), ('abuse', 'abuse_limit')])
-def test_limit_reasons_are_structured(tmp_path, trigger, reason):
+@pytest.mark.parametrize('trigger,reason', [('human', 'customer_requested_human'), ('abuse', 'abuse_limit')])
+def test_handoff_reasons_are_structured_after_many_turns(tmp_path, trigger, reason):
     async def check():
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
         state = (await h.session(sid))
-        state = replace(state, turn_count=7 if trigger == 'turn' else 0,
+        state = replace(state, turn_count=100,
                         abusive_turn_count=2 if trigger == 'abuse' else 0)
         from care_truc.runtime_types import canonical
         h.store.db.execute('UPDATE sessions SET data=? WHERE id=?', (canonical(state), sid))
-        result = await h.handle_message(sid, 'limit', 'đồ ngu' if trigger == 'abuse' else 'hello', CUSTOMER)
+        result = await h.handle_message(sid, 'limit', 'đồ ngu' if trigger == 'abuse' else 'tôi muốn gặp nhân viên', CUSTOMER)
         summary = json.loads(json.loads(json.loads(h.store.effect(result.effect_ids[0])['proposal'])['payload'])['summary'])
         assert summary['reason'] == reason
         assert len(h.store.effects()) == 1
@@ -174,4 +174,22 @@ def test_late_retry_cannot_resurrect_effect_from_other_connection(tmp_path, acce
         assert len(gateway.submissions) == 1
         other.store.close()
         h.store.close()
+    asyncio.run(check())
+
+
+def test_session_continues_after_more_than_eight_messages(tmp_path):
+    async def check():
+        h = harness(tmp_path)
+        try:
+            sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
+            for number in range(12):
+                reply = await h.handle_message(sid, f'ordinary-{number}', 'xin chào', CUSTOMER)
+                assert not reply.effect_ids
+                assert 'turn_limit' not in reply.codes
+            current = await h.session(sid)
+            assert current.status == 'active' and current.turn_count == 12
+            assert await h.handle_message(sid, 'ordinary-11', 'xin chào', CUSTOMER) == reply
+            assert await h.session(sid) == current
+        finally:
+            h.store.close()
     asyncio.run(check())

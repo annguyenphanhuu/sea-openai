@@ -130,3 +130,25 @@ test("initial render does not duplicate server-rendered control styles", async (
     await mockRuntime(page);
     expect(duplicates).toEqual([]);
 });
+
+test("Enter sends and Shift Enter inserts a newline", async ({ page }) => {
+    await mockRuntime(page);
+    const sent: unknown[] = [];
+    await page.route("**/api/runtime", async route => {
+        if (route.request().method() === "POST") sent.push(route.request().postDataJSON());
+        await route.fulfill({ json: fixture() });
+    });
+    const input = page.getByRole("textbox", { name: "Tin nhắn khách trong phiên local" });
+    await input.fill("Xin chào");
+    await input.dispatchEvent("keydown", { key: "Enter", isComposing: true, keyCode: 229 });
+    expect(sent).toHaveLength(0);
+    await input.press("Shift+Enter");
+    await expect(input).toHaveValue("Xin chào\n");
+    expect(sent).toHaveLength(0);
+    await input.press("Enter");
+    await expect.poll(() => sent.length).toBe(1);
+    expect(sent[0]).toMatchObject({ kind: "say", text: "Xin chào\n" });
+    await expect(input).toHaveValue("");
+    await input.press("Enter");
+    expect(sent).toHaveLength(1);
+});
