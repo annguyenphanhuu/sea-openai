@@ -32,6 +32,8 @@ class StateStore(Protocol):
     def audit_denial(self, action: Action, context: ServerContext, reason: str, now: datetime) -> None: ...
     def grant(self, action: Action, context: ServerContext, request_hash: str,
               result: ExecutionResult, contact_id: str, now: datetime) -> None: ...
+    def queue_cancellation(self, action: Action, context: ServerContext, request_hash: str,
+                           result: ExecutionResult, now: datetime) -> None: ...
 
 
 def _one(conn: sqlite3.Connection, sql: str, values: tuple = ()) -> dict | None:
@@ -69,11 +71,22 @@ class SqliteStateStore:
     def receipt_is_committed(self, record: CommandKeyRecord, result: ExecutionResult) -> bool:
         row = _one(self.conn, 'SELECT status,kind,order_id,amount_vnd,source FROM outbox WHERE action_id=?', (record.reference_id,))
         receipt = _one(self.conn, 'SELECT decision_code,attested_source FROM action_receipts WHERE action_id=?', (record.reference_id,))
-        if (row is None or receipt is None or row['status'] != 'succeeded'
+        expected_status = 'pending' if result.kind == 'cancel_request' else 'succeeded'
+        if (row is None or receipt is None or row['status'] != expected_status
                 or receipt['decision_code'] != 'succeeded' or row['kind'] != result.kind
                 or receipt['attested_source'] != row['source']
                 or result.action_id != record.reference_id or result.decision != 'succeeded'):
             return False
+        if result.kind == 'cancel_request':
+            effect = _one(self.conn, 'SELECT cancel_id,order_id,status,confirmation_id FROM cancel_requests WHERE request_action_id=?', (result.action_id,))
+            original = json.loads(record.payload_json)
+            run = self.conn.execute('SELECT run_id FROM run_metadata WHERE singleton=1').fetchone()[0]
+            return (effect is not None and effect['cancel_id'] == result.cancel_id
+                    and effect['order_id'] == row['order_id'] and effect['status'] == 'awaiting_review'
+                    and effect['confirmation_id'] == original['confirmation_id']
+                    and record.key in (f'{run}:cancel:{effect["confirmation_id"]}', f'cancel:{row["order_id"]}:{effect["confirmation_id"]}')
+                    and row['amount_vnd'] == 0 and result.amount_xu is None and result.amount_vnd is None
+                    and result.ledger_id is None and result.voucher_ledger_id is None)
         if record.key != f'{"xu" if result.kind == "coins" else "voucher"}:{row["order_id"]}':
             return False
         if result.kind == 'coins':
@@ -148,3 +161,21 @@ class SqliteStateStore:
         self.conn.execute('INSERT INTO action_receipts VALUES (?,?,?,?,?,?,?,?)',
                           (action.action_id, request_hash, context.principal_id, context.source,
                            action.evidence_ref, 'succeeded', canonical(asdict(result)), timestamp))
+
+    def queue_cancellation(self, action, context, request_hash, result, now):
+        """A success acknowledges queuing only; no cancellation/refund occurs."""
+        import hashlib
+        timestamp = utc(now)
+        facts = json.loads(self.evidence(action.evidence_ref)['evidence']['payload_json'])
+        self.conn.execute(
+            'INSERT INTO outbox(action_id,idempotency_key,order_id,kind,amount_vnd,source,confirmation_id,evidence_ref,needs_approval,queue,requested_at,available_at,status) '
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?, 'pending')",
+            (action.action_id, action.idempotency_key, action.order_id, action.kind, 0, action.source,
+             action.confirmation_id, action.evidence_ref, 1, action.queue, utc(action.requested_at), timestamp))
+        self.conn.execute('INSERT INTO cancel_requests(cancel_id,request_action_id,order_id,customer_id,status,confirmation_id,version,order_snapshot_sha256,requested_at,confirmed_at) '
+            "VALUES (?,?,?,?,'awaiting_review',?,1,?,?,?)",
+            (result.cancel_id, action.action_id, action.order_id, context.customer_id, action.confirmation_id,
+             hashlib.sha256(canonical(facts['order']).encode('utf-8')).hexdigest(), utc(action.requested_at), timestamp))
+        self.conn.execute('INSERT INTO action_receipts VALUES (?,?,?,?,?,?,?,?)',
+            (action.action_id, request_hash, context.principal_id, context.source, action.evidence_ref,
+             'succeeded', canonical(asdict(result)), timestamp))

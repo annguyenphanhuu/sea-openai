@@ -36,6 +36,8 @@ def main() -> None:
     sys.argv = ["platform_huy.serve_ui", "--host", "0.0.0.0", "--port", "7860",
                 "--core-path", str(release / "core_14d.sqlite"),
                 "--state-path", str(state)]
+    if os.environ.get('SEA_INTEGRATED', '').lower() in ('1', 'true'):
+        sys.argv.append('--integrated')
     # Keep one foreground process on Windows as well as Linux for clean shutdown.
     runpy.run_module("platform_huy.serve_ui", run_name="__main__")
 
