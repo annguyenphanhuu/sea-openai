@@ -4,11 +4,14 @@ import argparse
 from datetime import datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.cookies import SimpleCookie, CookieError
+import hmac
 import json
 import os
 from pathlib import Path
 from socketserver import TCPServer
 import sqlite3
+import secrets
 from urllib.parse import parse_qs, urlsplit
 
 from .a3_demo import A3Demo, project_root, release_dir
@@ -47,8 +50,20 @@ def create_server(*, core_path: Path, state_path: Path,
     else:
         demo = A3Demo(core_path, state_path, start_at)
     directory = Path(__file__).resolve().parent / "ui_prototype"
+    orders_directory = directory.parent.parent / 'logistics_an_nguyen' / 'ui'
+    orders_token = secrets.token_urlsafe(32)
 
     class Handler(SimpleHTTPRequestHandler):
+        extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript'}
+
+        def _orders_cookie_authorized(self) -> bool:
+            try:
+                cookie = SimpleCookie(self.headers.get('Cookie', ''))
+                token = cookie.get('orders_presenter')
+                return token is not None and hmac.compare_digest(token.value, orders_token)
+            except (CookieError, TypeError):
+                return False
+
         def _json(self, code: int, result: dict) -> None:
             payload = json.dumps(result, default=lambda value: value.isoformat(),
                                  ensure_ascii=False, allow_nan=False).encode("utf-8")
@@ -56,11 +71,18 @@ def create_server(*, core_path: Path, state_path: Path,
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
+            if presenter is not None and presenter.required and presenter.authorized(self.headers):
+                # Nguyen's unchanged API client sends same-origin credentials.
+                # This process-local capability permits only the orders read API.
+                secure = '; Secure' if host not in ('127.0.0.1', 'localhost', '::1') else ''
+                self.send_header('Set-Cookie', f'orders_presenter={orders_token}; '
+                                 f'Path=/api/orders; HttpOnly; SameSite=Strict{secure}')
             self.end_headers()
             self.wfile.write(payload)
 
         def _api(self, action: str, payload: dict | None = None) -> None:
-            if presenter is not None and not presenter.authorized(self.headers):
+            if (presenter is not None and not presenter.authorized(self.headers)
+                    and not (action == 'orders' and self._orders_cookie_authorized())):
                 self._json(401, {'error': 'Presenter key required'})
                 return
             try:
@@ -103,8 +125,28 @@ def create_server(*, core_path: Path, state_path: Path,
                 self._api("status", query)
             elif integrated and path == '/api/records':
                 self._api('records', query)
+            elif integrated and path == '/api/orders':
+                self._api('orders', query)
             elif path.startswith("/api/"):
                 self._json(404, {"error": "Unknown API route", "proactive_allowed": False})
+            elif integrated and path in ('/orders', '/orders/', '/orders/index.html'):
+                if path == '/orders' or query.get('source') != 'api':
+                    self.send_response(302)
+                    self.send_header('Location', '/orders/?source=api')
+                    self.send_header('Content-Length', '0')
+                    self.end_headers()
+                    return
+                self.directory = str(orders_directory)
+                self.path = '/index.html'
+                super().do_GET()
+            elif integrated and path.startswith('/orders/'):
+                name = path.removeprefix('/orders/')
+                if name not in ('styles.css', 'app.js', 'data.mjs'):
+                    self.send_error(404, 'Not found')
+                    return
+                self.directory = str(orders_directory)
+                self.path = '/' + name
+                super().do_GET()
             else:
                 if integrated and path == '/':
                     self.path = '/live.html'

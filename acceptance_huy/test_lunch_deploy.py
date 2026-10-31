@@ -146,9 +146,10 @@ def test_docker_metadata_and_copy_allowlist():
     assert "COPY ." not in dockerfile
     assert "HF_TOKEN" not in dockerfile
     readme = (root / "deploy/README.md").read_text(encoding="utf-8")
-    assert readme.startswith("---\n")
-    assert "sdk: docker" in readme
-    assert "app_port: 7860" in readme
+    assert len(readme.splitlines()) == 5
+    assert "az acr build" in readme
+    assert "az containerapp update" in readme
+    assert "7860" in readme
     ignored = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
     for pattern in ("**/.env*", "**/data", "**/truth", "**/runs", "**/.git", "**/.worktrees", "**/.scratch"):
         assert pattern in ignored

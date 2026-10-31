@@ -446,6 +446,9 @@ class DemoFlow:
         if selected and all(a['order_id'] != order_id for a in orders):
             orders.append(dict(self.handoff_orders.get(order_id, assessment_payload(selected)),
                                evidence_ref=f'#/orders/{len(orders)}/evidence'))
+        for row in orders:
+            row['cod_refusal_risk'] = next((level for level in ('high', 'medium')
+                if f'cod_refusal_risk:{level}' in row['reason_codes']), None)
         # Evidence remains scoped to the explicitly selected order.
         verification = self._inspect(order_id) if order_id else None
         if verification:
@@ -500,7 +503,14 @@ class DemoFlow:
             if any(key not in payload or payload[key] is None for key in required.get(action, ())):
                 raise CareError('missing_required_field', 400)
             result = None
-            if action == 'next':
+            if action == 'orders':
+                saved = self.conn.execute('SELECT payload FROM demo_a2_handoff WHERE singleton=1').fetchone()
+                if saved is None:
+                    # No tick has run yet; do not invent assessments or run NEXT on GET.
+                    return {'payload_version': 'a2_order_list_v1', 'tick_at': utc(self.now),
+                            'orders': [], 'feed_health': []}
+                return json.loads(saved[0])
+            elif action == 'next':
                 await self._next()
             elif action == 'kill':
                 sysguard.kill(self.conn)
