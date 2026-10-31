@@ -8,6 +8,8 @@ Boundary: Rules first; LLM output is untrusted; no direct money effects or telep
 
 Conversational turns use a structured natural reply template with server-selected fact placeholders and checked social language. The model receives the latest message and recent customer/assistant turns, with phone numbers, emails and key-shaped strings redacted. Code fills all factual blocks and rejects unknown, missing or duplicate placeholders and unapproved prose. Missing or stale ETA and location remain explicitly unknown. Transactional outcomes, including cancellation and coins, keep deterministic templates and do not call the model. Natural replies have an eight-second deadline; invalid output or timeout uses a question-specific fallback. Legacy phrase-ID selectors remain supported with their existing three-second deadline.
 
+ETA, location and explanation responses also report available journey evidence. A last recorded stage requires a matching structured scan and event timestamp from the same source record and ingestion time. Failed delivery attempts are counted once per record. Recorded no-answer outcomes describe delivery history without changing A2 fault attribution. Stale, future, conflicting or unstructured evidence does not become a public fact. Missing ETA or geographic location does not erase the verified stage and delivery history.
+
 ## Care harness
 
 The framework-independent runtime lives in `lifecycle.py`, `harness.py` and
