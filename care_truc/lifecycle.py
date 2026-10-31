@@ -4,7 +4,6 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 import re
-import sqlite3
 
 from .dispatcher import EffectDispatcher
 from .harness import CareHarness
@@ -13,12 +12,15 @@ from .ports import SystemClock
 from .process_lock import RunLock
 from .runtime_types import CareError, CustomerEvent, Health, TrustedRequestContext
 from .store import MemoryStore
+from .storage_port import CareStore, StorageError
+from .local_store import LocalCareStore
 from contracts.types import ContactTask
 
 
 class CareRuntime:
     @classmethod
-    async def start(cls, run_id: str, adapters, hooks=None, *, root=Path("runs"), background=True):
+    async def start(cls, run_id: str, adapters, hooks=None, *, root=Path("runs"), background=True,
+                    store: CareStore | None = None):
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}", run_id):
             raise ValueError("invalid_run_id")
         self = cls()
@@ -26,37 +28,48 @@ class CareRuntime:
         self.ready = False
         self.worker = None
         self.codes = []
-        self.lock = RunLock.acquire(Path(root) / run_id)
+        self.lock = None
+        self.storage = None
+        self.health_cache = (0, 0)
         self.store = None
         try:
-            self.store = MemoryStore.open(Path(root) / run_id / "care.sqlite")
-            self.store.db.execute("UPDATE runtime_meta SET boot_generation=boot_generation+1")
             clock = adapters.get("clock") or SystemClock()
+            if store is None:
+                self.lock = RunLock.acquire(Path(root) / run_id)
+                self.store = MemoryStore.open(Path(root) / run_id / "care.sqlite")
+                self.storage = LocalCareStore(self.store, monotonic=clock.monotonic)
+            else:
+                self.store = store
+                self.storage = store
+            await self.storage.prepare_recovery(deadline=clock.monotonic() + 2)
             context = adapters.get("context_provider")
             selector = adapters.get("selector")
             if context is None or not getattr(context, "supports_deadlines", False):
                 raise CareError("context_adapter_unavailable", 503)
             if selector is not None and not getattr(selector, "supports_deadlines", False):
                 raise CareError("model_deadline_unsupported", 503)
-            self.harness = CareHarness(run_id, self.store, context, clock, selector=selector, hooks=hooks)
+            self.harness = CareHarness(run_id, self.storage, context, clock, selector=selector, hooks=hooks)
             self.dispatcher = EffectDispatcher(self.harness, adapters.get("gateway"), adapters.get("gate"))
             self.harness.dispatcher = self.dispatcher
-            self.store.db.execute("UPDATE pending_effects SET state='needs_reconciliation' WHERE state='in_flight'")
             await self.recover()
+            self.health_cache = await self.storage.health_counts(deadline=clock.monotonic() + 2)
             self.ready = True
             if background:
                 self.worker = asyncio.create_task(self._work())
             return self
         except BaseException:
-            if self.store:
-                self.store.close()
-            self.lock.release()
+            try:
+                if self.storage:
+                    await self.storage.close(deadline=clock.monotonic() + 2)
+            finally:
+                if self.lock:
+                    self.lock.release()
             raise
 
     async def recover(self) -> None:
         import json
         now = self.harness.clock.utcnow().timestamp()
-        rows = list(self.store.db.execute("SELECT * FROM requests WHERE phase IN ('processing','retry_wait') AND next_at<=?", (now,)))
+        rows = await self.storage.recovery_requests(now, deadline=self.harness.clock.monotonic() + 2)
         for row in rows:
             owner = self.harness.owners.get(row["id"])
             if owner is not None and not owner.done():
@@ -97,11 +110,20 @@ class CareRuntime:
         if self.dispatcher.gate is None:
             codes.append("gate_unavailable")
         try:
-            pending = self.store.db.execute("SELECT count(*) FROM pending_effects WHERE state IN ('pending_delivery','retry_wait','in_flight')").fetchone()[0]
-            unknown = self.store.db.execute("SELECT count(*) FROM pending_effects WHERE state='needs_reconciliation'").fetchone()[0]
-        except sqlite3.DatabaseError:
+            if isinstance(self.storage, LocalCareStore):
+                pending, unknown = self.storage.cached_local_health()
+            else:
+                pending, unknown = self.health_cache
+        except StorageError:
             return Health("not_ready", ("store_unavailable",))
         return Health("degraded" if codes else "ready", tuple(codes), pending, unknown)
+
+    async def refresh_health(self) -> Health:
+        try:
+            self.health_cache = await self.storage.health_counts(deadline=self.harness.clock.monotonic() + 2)
+        except StorageError:
+            return Health("not_ready", ("store_unavailable",))
+        return self.get_health()
 
     async def shutdown(self) -> None:
         if self.closed:
@@ -122,5 +144,8 @@ class CareRuntime:
                         task.cancel()
                     await asyncio.gather(*tasks, return_exceptions=True)
         finally:
-            self.store.close()
-            self.lock.release()
+            try:
+                await self.storage.close(deadline=self.harness.clock.monotonic() + 2)
+            finally:
+                if self.lock:
+                    self.lock.release()
