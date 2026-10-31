@@ -87,6 +87,47 @@ class SqliteSessionStore:
             self.connection.execute('INSERT INTO sessions VALUES(?,?,?,?)', (session.id,session.principal_id,contact_key,_dump(session)))
         return session
 
+    def replay_creation(self, principal_id: str, key: str, payload_hash: str) -> Session | None:
+        row = self.connection.execute('SELECT principal,hash,body FROM creations WHERE key=?', (key,)).fetchone()
+        if row is None:
+            return None
+        if row[0] != principal_id or row[1] != payload_hash:
+            raise DomainError('request_conflict', 409)
+        return _load(row[2])
+
+    def create_once(self, session: Session, key: str, payload_hash: str,
+                    delivery: PendingDelivery | None = None) -> Session:
+        """Atomically reserve an opening key and its optional contact outbox row."""
+        with self._transaction():
+            cached = self.replay_creation(session.principal_id, key, payload_hash)
+            if cached is not None:
+                return cached
+            if delivery is not None and (delivery.session_id != session.id or delivery.kind != 'contact'
+                    or delivery.payload != session.contact or delivery.status != 'pending_delivery'
+                    or delivery.lease_until is not None):
+                raise DomainError('invalid_delivery', 409)
+            self.connection.execute('INSERT INTO sessions VALUES(?,?,?,?)',
+                                    (session.id, session.principal_id, key if delivery else None, _dump(session)))
+            self.connection.execute('INSERT INTO creations VALUES(?,?,?,?)',
+                                    (key, session.principal_id, payload_hash, _dump(session)))
+            if delivery is not None:
+                self.connection.execute('INSERT INTO deliveries VALUES(?,?,?,?,?,?,?,?)',
+                                        (delivery.id, session.id, delivery.key, None, None,
+                                         _dump(delivery), delivery.status, None))
+            return session
+
+    def replay_turn(self, principal_id: str, session_id: str, request_id: str,
+                    payload_hash: str) -> TurnResponse | None:
+        """Owner scoped cache read before provider IO; mutate rechecks atomically."""
+        self._session(principal_id, session_id)
+        row = self.connection.execute('SELECT hash,response FROM requests WHERE principal=? AND session=? AND request=?',
+                                      (principal_id, session_id, request_id)).fetchone()
+        if row is None:
+            return None
+        if row[0] != payload_hash:
+            raise DomainError('request_conflict', 409)
+        return _load(row[1])
+
     def mutate(self, principal_id: str, session_id: str, request_id: str, payload_hash: str,
                transition: Callable[[Session], Mutation], *, expected_version: int | None = None) -> TurnResponse:
         with self._transaction():
