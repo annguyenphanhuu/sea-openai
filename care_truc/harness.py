@@ -6,9 +6,11 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from functools import wraps
 import json
-import sqlite3
 from uuid import uuid4
 
+from .storage_port import CareStore, StorageError
+from .local_store import LocalCareStore
+from .store import MemoryStore
 from .guardrails import Guardrails
 from .hooks import RuntimeHooks, bounded
 from .phrases import allowed_ids, build_model_context, select_phrase
@@ -42,6 +44,7 @@ class CareHarness:
     def __init__(self, run_id, store, context_provider, clock, *, selector=None, hooks=None):
         self.run_id = run_id
         self.store = store
+        self.storage: CareStore = LocalCareStore(store, monotonic=clock.monotonic) if isinstance(store, MemoryStore) else store
         self.context_provider = context_provider
         self.clock = clock
         self.selector = selector
@@ -59,11 +62,11 @@ class CareHarness:
     def lock(self, session_id):
         return self.locks.setdefault(session_id, asyncio.Lock())
 
-    def record_observation(self, session_id, phase, result, reference):
+    async def record_observation(self, session_id, phase, result, reference):
         self.observer_codes.update(result.codes)
         try:
-            self.store.record_hook_event(session_id, phase, result, reference)
-        except sqlite3.DatabaseError:
+            (await self.storage.record_hook_event(session_id, phase, result, reference, deadline=self.clock.monotonic() + 2))
+        except StorageError:
             self.observer_codes.add("hook_audit_unavailable")
 
     async def authorize(self, ctx, order_id, principal_id=None):
@@ -87,7 +90,7 @@ class CareHarness:
             if state.opened_by == "a1":
                 sent_here = any(row["session_id"] == state.session_id and row["outcome"] == "succeeded"
                     and json.loads(row["proposal"])["kind"] == "contact_send"
-                    for row in self.store.effects())
+                    for row in (await self.storage.effects(deadline=self.clock.monotonic() + 2)))
                 snapshot = replace(snapshot, contact_sent=snapshot.contact_sent and sent_here)
             return snapshot
         except (TimeoutError, OSError):
@@ -102,7 +105,7 @@ class CareHarness:
             raise CareError("not_ready", 503)
         await self.authorize(ctx, order_id)
         key = fingerprint((self.run_id, ctx.principal_id, order_id, request_id))
-        state = self.store.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id, order_id), key)
+        state = (await self.storage.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id, order_id), key, deadline=self.clock.monotonic() + 2))
         return TurnResult("opened", state.session_id)
 
     @tracked
@@ -113,21 +116,22 @@ class CareHarness:
         if task.channel not in ("chat", "web_voice") or not task.proactive:
             raise CareError("invalid_contact", 400)
         key = fingerprint((self.run_id, "contact", task.idempotency_key))
-        state = self.store.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id,
-            task.order_id, task.channel, "a1", task.contact_id), key)
+        state = (await self.storage.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id,
+            task.order_id, task.channel, "a1", task.contact_id), key, deadline=self.clock.monotonic() + 2))
         snapshot = await self.snapshot(state, ctx)
         decision = self.guards.validate_context(snapshot)
         if (snapshot.assessment is None or task.assessment_at != snapshot.assessment.assessed_at
                 or task.created_at.tzinfo is None or task.created_at > snapshot.cutoff):
             decision = replace(decision, allowed=False, codes=("contact_context_invalid",))
         event = CustomerEvent("open_contact", "contact:" + task.contact_id, canonical(task))
-        request = self.store.begin_request(state.session_id, state.principal_id, event, fingerprint(task))
+        request = (await self.storage.begin_request(state.session_id, state.principal_id, event, fingerprint(task), deadline=self.clock.monotonic() + 2))
         if request["phase"] == "committed":
-            return self.store.response(request)
+            return self.storage.response(request)
         if request["phase"] == "failed_terminal":
             raise CareError(request["error"])
-        if not self.store.reserve_processing(request["id"], self.store.boot_generation,
-                                             self.clock.utcnow().timestamp()):
+        token = (await self.storage.reserve_processing(request["id"], (await self.storage.get_boot_generation(deadline=self.clock.monotonic() + 2)),
+                                             self.clock.utcnow().timestamp(), deadline=self.clock.monotonic() + 2))
+        if not token:
             return TurnResult("processing", state.session_id)
         outcome = PolicyOutcome(state, "off_topic", "opening" if decision.allowed else "blocked", decision.codes)
         rendered = self.renderer.render(outcome, snapshot, outcome.phrase_id)
@@ -140,28 +144,24 @@ class CareHarness:
                             effect_ids=(proposal.effect_id,) if decision.allowed else ())
         outcome = replace(outcome, proposals=(proposal,) if decision.allowed else ())
         try:
-            self.store.commit_turn(request["id"], state.version, outcome, result,
-                                   canonical(snapshot), canonical({"opening": True}))
-        except (sqlite3.DatabaseError, OSError):
-            self.store.retry_request(request["id"], self.clock.utcnow().timestamp())
+            committed = (await self.storage.commit_turn(request["id"], state.version, outcome, result,
+                                   canonical(snapshot), canonical({"opening": True}), token=token, deadline=self.clock.monotonic() + 2))
+            if committed is False:
+                raise CareError("stale_callback")
+        except (StorageError, OSError):
+            (await self.storage.retry_request(request["id"], self.clock.utcnow().timestamp(), deadline=self.clock.monotonic() + 2))
             raise CareError("service_error", 503) from None
-        return result
+        return committed
 
     async def handle_message(self, session_id, message_id, text, ctx, reply_to=None):
         return await self._process_event(session_id, CustomerEvent("message", message_id, text, reply_to), ctx)
 
     @tracked
     async def confirm_cancel(self, confirmation_id, request_id, ctx):
-        rows = self.store.db.execute("SELECT id FROM sessions").fetchall()
-        for row in rows:
-            state = self.store.load_session(row[0])
-            # Previously confirmed IDs remain retriable using the original event.
-            prior = self.store.find_request(state.session_id, ctx.principal_id, request_id)
-            matches = prior and json.loads(prior["payload"]).get("confirmation_id") == confirmation_id
-            if (state.pending and state.pending.confirmation_id == confirmation_id) or matches:
-                return await self._process_event(state.session_id,
-                    CustomerEvent("confirm_cancel", request_id, confirmation_id=confirmation_id), ctx)
-        raise CareError("not_found", 404)
+        session_id = await self.storage.confirmation_session(confirmation_id, ctx.principal_id, request_id,
+                                                            deadline=self.clock.monotonic() + 2)
+        return await self._process_event(session_id,
+            CustomerEvent("confirm_cancel", request_id, confirmation_id=confirmation_id), ctx)
 
     async def request_handoff(self, session_id, request_id, ctx):
         return await self._process_event(session_id, CustomerEvent("request_handoff", request_id), ctx)
@@ -171,17 +171,17 @@ class CareHarness:
         started_at = self.clock.monotonic()
         if not self.accepting:
             raise CareError("not_ready", 503)
-        state = self.store.load_session(session_id)
+        state = (await self.storage.load_session(session_id, deadline=self.clock.monotonic() + 2))
         await self.authorize(ctx, state.order_id, state.principal_id)
         # Staff reads do not confer permission to act as the customer.
         if ctx.principal_id != state.principal_id:
             raise CareError("forbidden", 403)
-        existing = self.store.find_request(session_id, ctx.principal_id, event.request_id)
+        existing = (await self.storage.find_request(session_id, ctx.principal_id, event.request_id, deadline=self.clock.monotonic() + 2))
         if existing:
             if existing["fingerprint"] != fingerprint(event):
                 raise CareError("request_conflict")
             if existing["phase"] == "committed":
-                return self.store.response(existing)
+                return self.storage.response(existing)
             if existing["phase"] == "failed_terminal":
                 raise CareError(existing["error"], 409)
             owner = self.owners.get(existing["id"])
@@ -193,22 +193,22 @@ class CareHarness:
         await lock.acquire()
         request = None
         try:
-            request = self.store.begin_request(session_id, ctx.principal_id, event, fingerprint(event))
+            request = (await self.storage.begin_request(session_id, ctx.principal_id, event, fingerprint(event), deadline=self.clock.monotonic() + 2))
             if request["phase"] == "committed":
-                return self.store.response(request)
+                return self.storage.response(request)
             self.owners[request["id"]] = asyncio.current_task()
-            token = self.store.reserve_processing(request["id"], self.store.boot_generation,
-                                                   self.clock.utcnow().timestamp())
+            token = (await self.storage.reserve_processing(request["id"], (await self.storage.get_boot_generation(deadline=self.clock.monotonic() + 2)),
+                                                   self.clock.utcnow().timestamp(), deadline=self.clock.monotonic() + 2))
             if token is None:
-                latest = self.store.request(request["id"])
+                latest = (await self.storage.request(request["id"], deadline=self.clock.monotonic() + 2))
                 if latest["phase"] == "failed_terminal":
                     raise CareError(latest["error"])
                 return TurnResult("processing", session_id)
             # Reload committed state and original payload when continuing an orphan.
-            state = self.store.load_session(session_id)
+            state = (await self.storage.load_session(session_id, deadline=self.clock.monotonic() + 2))
             event = CustomerEvent(**json.loads(request["payload"]))
             snapshot = await self.snapshot(state, ctx)
-            self.store.db.execute("UPDATE requests SET context=? WHERE id=?", (canonical(snapshot), request["id"]))
+            await self.storage.save_context(request["id"], canonical(snapshot), deadline=self.clock.monotonic() + 2)
             input_hook = await self.hooks.run("on_input", {"kind": event.kind, "request_id": event.request_id})
             hook_outcomes = {"on_input": {"action": input_hook.action, "codes": input_hook.codes}}
             outcome = self.policy.evaluate(state, event, snapshot)
@@ -221,20 +221,20 @@ class CareHarness:
             selection = PhraseSelection(outcome.phrase_id, "template")
             # Human/limit outcomes bypass the optional model entirely.
             if outcome.phrase_id in ("explain", "clarify") and self.selector is not None:
-                history = [json.loads(item["content"]).get("text", "") for item in self.store.events(session_id)
+                history = [json.loads(item["content"]).get("text", "") for item in (await self.storage.events(session_id, deadline=self.clock.monotonic() + 2))
                            if item["kind"] == "customer"][-4:]
                 model_context = build_model_context(outcome, snapshot, history)
                 before = await self.hooks.run("before_model", {"context": model_context.decode() if model_context else None,
                                                                "token": token})
                 hook_outcomes["before_model"] = {"action": before.action, "codes": before.codes}
-                if model_context and before.action == "continue" and self.store.reserve_model(request["id"]):
+                if model_context and before.action == "continue" and (await self.storage.reserve_model(request["id"], deadline=self.clock.monotonic() + 2)):
                     selection = await select_phrase(self.selector, model_context, allowed_ids(outcome), token, self.clock)
                     after = await self.hooks.run("after_model", {"selection": selection, "token": token})
                     hook_outcomes["after_model"] = {"action": after.action, "codes": after.codes}
                     if after.action != "continue":
                         selection = PhraseSelection(outcome.phrase_id, "template", after.codes)
-            if (self.store.boot_generation != token.boot_generation
-                    or self.store.load_session(session_id).version != token.state_version):
+            if ((await self.storage.get_boot_generation(deadline=self.clock.monotonic() + 2)) != token.boot_generation
+                    or (await self.storage.load_session(session_id, deadline=self.clock.monotonic() + 2)).version != token.state_version):
                 raise CareError("stale_callback")
             rendered = self.renderer.render(outcome, snapshot, selection.phrase_id)
             if not self.guards.validate_output(rendered, outcome, snapshot).allowed:
@@ -249,9 +249,9 @@ class CareHarness:
                 if proposal.kind == "action_request":
                     payload["evidence_ref"] = request["id"]
                 if proposal.kind == "handoff_request":
-                    history = [json.loads(item["content"]) for item in self.store.events(session_id)
+                    history = [json.loads(item["content"]) for item in (await self.storage.events(session_id, deadline=self.clock.monotonic() + 2))
                                if item["kind"] == "customer"]
-                    effects = [dict(row) for row in self.store.effects() if row["session_id"] == session_id]
+                    effects = [dict(row) for row in (await self.storage.effects(deadline=self.clock.monotonic() + 2)) if row["session_id"] == session_id]
                     payload["summary"] = self.renderer.render_handoff(outcome.state, snapshot, event=event,
                         history=history, effects=effects, previous_pending=state.pending)
                 proposals.append(replace(proposal, payload=canonical(payload), evidence_ref=request["id"]))
@@ -271,22 +271,25 @@ class CareHarness:
                 "hook_outcomes": hook_outcomes}
             bundle = {"snapshot": snapshot, "session": state, "event": event,
                       "decision_codes": outcome.codes, "proposals": outcome.proposals}
-            return self.store.commit_turn(request["id"], state.version, outcome, result,
-                                           canonical(bundle), canonical(trace))
-        except (sqlite3.DatabaseError, OSError):
+            committed = (await self.storage.commit_turn(request["id"], state.version, outcome, result,
+                                           canonical(bundle), canonical(trace), token=token, deadline=self.clock.monotonic() + 2))
+            if committed is False:
+                raise CareError("stale_callback")
+            return committed
+        except (StorageError, OSError):
             if request:
                 try:
-                    self.store.retry_request(request["id"], self.clock.utcnow().timestamp())
-                except sqlite3.DatabaseError:
+                    (await self.storage.retry_request(request["id"], self.clock.utcnow().timestamp(), deadline=self.clock.monotonic() + 2))
+                except StorageError:
                     pass
             raise CareError("service_error", 503) from None
         except CareError:
             raise
         except Exception:
             if request:
-                self.store.fail_request(request["id"], "policy_invariant_failed")
+                (await self.storage.fail_request(request["id"], "policy_invariant_failed", deadline=self.clock.monotonic() + 2))
             observed = await self.hooks.run("on_error", {"phase": "turn", "code": "policy_invariant_failed"})
-            self.record_observation(session_id, "on_error", observed, request["id"] if request else "")
+            await self.record_observation(session_id, "on_error", observed, request["id"] if request else "")
             raise CareError("policy_invariant_failed", 503) from None
         finally:
             if request:
@@ -301,10 +304,10 @@ class CareHarness:
 
     @tracked
     async def get_messages(self, session_id, ctx):
-        state = self.store.load_session(session_id)
+        state = (await self.storage.load_session(session_id, deadline=self.clock.monotonic() + 2))
         await self.authorize(ctx, state.order_id, state.principal_id)
         messages = []
-        for event in self.store.events(session_id):
+        for event in (await self.storage.events(session_id, deadline=self.clock.monotonic() + 2)):
             if event["visibility"] != "customer":
                 continue
             payload = json.loads(event["content"])
@@ -313,18 +316,18 @@ class CareHarness:
                 **({"outcome": payload["outcome"], "effect_id": payload["effect_id"]}
                    if event["kind"] == "receipt" else {})})
         effects = [{"effect_id": row["id"], "delivery_status": row["state"], "outcome": row["outcome"]}
-                   for row in self.store.effects() if row["session_id"] == session_id]
+                   for row in (await self.storage.effects(deadline=self.clock.monotonic() + 2)) if row["session_id"] == session_id]
         return {"messages": messages, "effects": effects, "status": state.status}
 
     @tracked
     async def get_trace(self, session_id, ctx):
         if not ctx or "care_trace" not in ctx.staff_permissions:
             raise CareError("forbidden", 403)
-        state = self.store.load_session(session_id)
+        state = (await self.storage.load_session(session_id, deadline=self.clock.monotonic() + 2))
         await self.authorize(ctx, state.order_id, state.principal_id)
-        rows = self.store.db.execute("SELECT trace FROM evidence_bundles e JOIN requests r ON e.request_id=r.id WHERE r.session_id=? ORDER BY r.rowid", (session_id,))
-        return {"decisions": [json.loads(row[0]) for row in rows], "runtime_events": [
-            json.loads(event["content"]) for event in self.store.events(session_id)
+        rows = await self.storage.traces(session_id, deadline=self.clock.monotonic() + 2)
+        return {"decisions": [json.loads(row) for row in rows], "runtime_events": [
+            json.loads(event["content"]) for event in (await self.storage.events(session_id, deadline=self.clock.monotonic() + 2))
             if event["kind"] == "runtime_hook"]}
 
     @tracked
@@ -332,11 +335,11 @@ class CareHarness:
         if not ctx or "care_handoffs" not in ctx.staff_permissions:
             raise CareError("forbidden", 403)
         result = []
-        for row in self.store.effects():
+        for row in (await self.storage.effects(deadline=self.clock.monotonic() + 2)):
             proposal = json.loads(row["proposal"])
             if proposal["kind"] != "handoff_request":
                 continue
-            state = self.store.load_session(row["session_id"])
+            state = (await self.storage.load_session(row["session_id"], deadline=self.clock.monotonic() + 2))
             await self.authorize(ctx, state.order_id, state.principal_id)
             result.append({"session_id": state.session_id, "order_id": state.order_id,
                 "status": state.status, "delivery_status": row["state"],
@@ -347,9 +350,9 @@ class CareHarness:
     async def resolve(self, ref: str, server_ctx: TrustedRequestContext) -> str:
         if not server_ctx or "care_evidence" not in server_ctx.staff_permissions:
             raise CareError("forbidden", 403)
-        row = self.store.db.execute("SELECT e.data,r.session_id FROM evidence_bundles e JOIN requests r ON e.request_id=r.id WHERE e.ref=?", (ref,)).fetchone()
+        row = await self.storage.evidence(ref, deadline=self.clock.monotonic() + 2)
         if row is None:
             raise CareError("not_found", 404)
-        state = self.store.load_session(row["session_id"])
+        state = (await self.storage.load_session(row["session_id"], deadline=self.clock.monotonic() + 2))
         await self.authorize(server_ctx, state.order_id, state.principal_id)
         return row["data"]
