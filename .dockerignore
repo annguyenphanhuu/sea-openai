@@ -1,20 +1,32 @@
-# Deny everything by default; keep only the deployment source allowlist.
+# Deny everything by default; allow application source and the exact release pair.
 **
 !contracts/
+contracts/**
 !contracts/*.py
 !contracts/*.sql
 !logistics_an_nguyen/
+logistics_an_nguyen/**
 !logistics_an_nguyen/*.py
+!logistics_an_nguyen/ui/
+logistics_an_nguyen/ui/**
+!logistics_an_nguyen/ui/index.html
+!logistics_an_nguyen/ui/app.js
+!logistics_an_nguyen/ui/data.mjs
+!logistics_an_nguyen/ui/styles.css
 !care_truc/
+care_truc/**
 !care_truc/*.py
 !care_truc/schema.sql
 !platform_huy/
+platform_huy/**
 !platform_huy/*.py
 !platform_huy/migrations/
+platform_huy/migrations/**
 !platform_huy/migrations/*.sql
 !platform_huy/ui_prototype/
 !platform_huy/ui_prototype/**
 !deploy/
+deploy/**
 !deploy/*.py
 !deploy/requirements.txt
 !deploy/Dockerfile
@@ -24,7 +36,9 @@
 **/*.token
 **/data
 **/truth
+**/heldout
 **/runs
+**/runtime
 **/.git
 **/.worktrees
 **/.scratch
@@ -33,3 +47,11 @@
 **/*.sqlite
 **/*.sqlite-*
 **/*.db
+
+# Open only the required parents; keep all other dataset contents excluded.
+!data/
+data/*
+!data/release_main/
+data/release_main/*
+!data/release_main/core_14d.sqlite
+!data/release_main/ops_14d.sqlite

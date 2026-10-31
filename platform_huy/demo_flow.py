@@ -39,6 +39,13 @@ _CANDIDATE = '261021ZS7E76FW'
 _LOST_CANDIDATE = '261019QY8UDYNZ'
 
 
+def _customer_reply(text, codes, effect_ids):
+    """Present a denied benefit politely without changing its durable decision."""
+    if 'coins_actions_blocked' in codes and not effect_ids:
+        return 'Dạ, hiện hệ thống đang tạm dừng ưu đãi. Anh/chị vui lòng thử lại sau nhé.'
+    return text
+
+
 def _hash(path):
     digest = hashlib.sha256()
     with path.open('rb') as source:
@@ -462,6 +469,12 @@ class DemoFlow:
             state = self.care.store.load_session(session_id)
             ctx = TrustedRequestContext(self._principal(self._inspect(state.order_id)))
             chat = await self.care.harness.get_messages(session_id, ctx)
+            # The same projection is applied to persisted history and the current
+            # result, so reloads/retries retain the audited denial and no effect.
+            for message in chat['messages']:
+                if message['kind'] == 'response':
+                    message['text'] = _customer_reply(message['text'],
+                        message.get('codes') or (), message.get('effect_ids') or ())
             chat.update(session_id=session_id, order_id=state.order_id, opened_by=state.opened_by,
                         pending=asdict(state.pending) if state.pending else None, turn_count=state.turn_count)
         controls = dict(self.conn.execute("SELECT control_key,value_json FROM controls WHERE scope='global'"))
@@ -474,6 +487,9 @@ class DemoFlow:
         if selected and all(a['order_id'] != order_id for a in orders):
             orders.append(dict(self.handoff_orders.get(order_id, assessment_payload(selected)),
                                evidence_ref=f'#/orders/{len(orders)}/evidence'))
+        for row in orders:
+            row['cod_refusal_risk'] = next((level for level in ('high', 'medium')
+                if f'cod_refusal_risk:{level}' in row['reason_codes']), None)
         # Evidence remains scoped to the explicitly selected order.
         verification = self._inspect(order_id) if order_id else None
         if verification:
@@ -529,7 +545,14 @@ class DemoFlow:
             if any(key not in payload or payload[key] is None for key in required.get(action, ())):
                 raise CareError('missing_required_field', 400)
             result = None
-            if action == 'next':
+            if action == 'orders':
+                saved = self.conn.execute('SELECT payload FROM demo_a2_handoff WHERE singleton=1').fetchone()
+                if saved is None:
+                    # No tick has run yet; do not invent assessments or run NEXT on GET.
+                    return {'payload_version': 'a2_order_list_v1', 'tick_at': utc(self.now),
+                            'orders': [], 'feed_health': []}
+                return json.loads(saved[0])
+            elif action == 'next':
                 await self._next()
             elif action == 'kill':
                 sysguard.kill(self.conn)
@@ -566,6 +589,7 @@ class DemoFlow:
                 raise ValueError('Unknown integrated demo operation')
             view = await self._view(payload)
             if result:
+                result = replace(result, text=_customer_reply(result.text, result.codes, result.effect_ids))
                 view['turn_result'] = asdict(result)
                 effects = [self.care.store.effect(effect_id) for effect_id in result.effect_ids]
                 blocked = bool(result.codes) or any(row is not None and row['state'] == 'blocked' for row in effects)
