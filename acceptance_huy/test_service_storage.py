@@ -150,5 +150,57 @@ def test_probe_detects_incompatible_or_uncertain_engine(failure):
         result = asyncio.run(module._run_checks("https://example.turso.io", "secret", transport=httpx.MockTransport(inject)))
         assert result["status"] == "FAIL", result
         assert "untrusted.example" not in json.dumps(result)
+        if failure in {"accept_constraint", "syntax_error"}:
+            assert not harness.streams
+        if failure == "pre_commit_disconnect":
+            assert len(harness.streams) == 1
+    finally:
+        harness.close()
+
+
+def test_sql_error_in_transaction_closes_stream_before_cleanup():
+    module = storage()
+    harness = HranaHarness()
+    async def inject(request):
+        body = json.loads(request.content)
+        sql = body["requests"][0].get("stmt", {}).get("sql", "")
+        response = await harness(request)
+        if "VALUES ('rolled-back', 0)" in sql:
+            data = response.json()
+            data["results"] = [{"type": "error", "error": {"code": "SQLITE_ERROR"}}]
+            return httpx.Response(200, json=data)
+        return response
+    try:
+        result = asyncio.run(module._run_checks("https://example.turso.io", "secret", transport=httpx.MockTransport(inject)))
+        assert result["status"] == "FAIL"
+        assert result["checks"]["rollback"] == "FAIL"
+        assert result["cleanup"] == "PASS", result
+        assert not harness.streams
+        assert harness.anchor.execute("SELECT name FROM sqlite_master WHERE name LIKE 'probe_%'").fetchall() == []
+    finally:
+        harness.close()
+
+
+def test_protocol_failure_does_not_reuse_ambiguous_baton():
+    module = storage()
+    harness = HranaHarness()
+    async def inject(request):
+        response = await harness(request)
+        if len(harness.calls) == 2:
+            return httpx.Response(200, json={"results": []})
+        return response
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(inject)) as client:
+            session = module.HranaSession(client, "https://example.turso.io", "secret")
+            await session.execute("BEGIN IMMEDIATE")
+            with pytest.raises(module.ProbeError):
+                await session.execute("SELECT 1")
+            await session.close()
+            with pytest.raises(module.ProbeError):
+                await session.execute("ROLLBACK")
+    try:
+        asyncio.run(run())
+        assert len(harness.calls) == 2
+        assert len(harness.streams) == 1
     finally:
         harness.close()

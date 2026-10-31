@@ -129,130 +129,133 @@ async def _run_checks(database_url: str, token: str, *, transport=None) -> dict:
     clients = []
     current = "migration"
     try:
-        async with httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False) as client:
-            def session():
-                value = HranaSession(client, database_url, token)
-                sessions.append(value)
-                return value
+        client = httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False)
+        clients.append(client)
+        def session():
+            value = HranaSession(client, database_url, token)
+            sessions.append(value)
+            return value
 
-            first = session()
-            report["engine_version"] = _scalar(await first.execute("SELECT sqlite_version()"))
-            await first.execute("PRAGMA foreign_keys=ON")
-            if _scalar(await first.execute("PRAGMA foreign_keys")) != "1":
-                raise ProbeError("foreign keys unavailable")
-            async def migrate():
-                await first.execute(f"CREATE TABLE IF NOT EXISTS {parent} (id TEXT PRIMARY KEY, version INTEGER NOT NULL CHECK(version >= 0))")
-                await first.execute(f"CREATE TABLE IF NOT EXISTS {child} (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL REFERENCES {parent}(id))")
-            await migrate()
-            await first.execute(f"INSERT INTO {parent} VALUES ('seed', 0)")
-            before = await first.execute(f"SELECT id, version FROM {parent} ORDER BY id")
-            await migrate()
-            after = await first.execute(f"SELECT id, version FROM {parent} ORDER BY id")
-            if before["rows"] != after["rows"]:
-                raise ProbeError("migration changed existing data")
-            report["checks"][current] = "PASS"
+        first = session()
+        report["engine_version"] = _scalar(await first.execute("SELECT sqlite_version()"))
+        await first.execute("PRAGMA foreign_keys=ON")
+        if _scalar(await first.execute("PRAGMA foreign_keys")) != "1":
+            raise ProbeError("foreign keys unavailable")
+        async def migrate():
+            await first.execute(f"CREATE TABLE IF NOT EXISTS {parent} (id TEXT PRIMARY KEY, version INTEGER NOT NULL CHECK(version >= 0))")
+            await first.execute(f"CREATE TABLE IF NOT EXISTS {child} (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL REFERENCES {parent}(id))")
+        await migrate()
+        await first.execute(f"INSERT INTO {parent} VALUES ('seed', 0)")
+        before = await first.execute(f"SELECT id, version FROM {parent} ORDER BY id")
+        await migrate()
+        after = await first.execute(f"SELECT id, version FROM {parent} ORDER BY id")
+        if before["rows"] != after["rows"]:
+            raise ProbeError("migration changed existing data")
+        report["checks"][current] = "PASS"
 
-            for current, sql in (
-                ("foreign_key", f"INSERT INTO {child} VALUES ('bad', 'missing')"),
-                ("check", f"INSERT INTO {parent} VALUES ('bad', -1)"),
-                ("unique", f"INSERT INTO {parent} VALUES ('seed', 0)"),
-            ):
-                try:
-                    await first.execute(sql)
-                except SqlError as exc:
-                    if not exc.code.startswith("SQLITE_CONSTRAINT"):
-                        raise
-                else:
-                    raise ProbeError("constraint accepted invalid row")
-                report["checks"][current] = "PASS"
-
-            current = "rollback"
-            await first.execute("BEGIN IMMEDIATE")
-            await first.execute(f"INSERT INTO {parent} VALUES ('rolled-back', 0)")
-            await first.execute("ROLLBACK")
-            if _scalar(await first.execute(f"SELECT count(*) FROM {parent} WHERE id='rolled-back'")) != "0":
-                raise ProbeError("rollback leaked row")
-            report["checks"][current] = "PASS"
-
-            current = "duplicate_race"
-            async def contender():
-                own = session()
-                try:
-                    await own.execute(f"INSERT INTO {parent} VALUES ('duplicate', 0)")
-                    return True
-                except SqlError as exc:
-                    if not exc.code.startswith("SQLITE_CONSTRAINT"):
-                        raise
-                    return False
-            if sorted(await asyncio.gather(contender(), contender())) != [False, True]:
-                raise ProbeError("duplicate race did not have one winner")
-            if _scalar(await first.execute(f"SELECT count(*) FROM {parent} WHERE id='duplicate'")) != "1":
-                raise ProbeError("duplicate receipt mismatch")
-            report["checks"][current] = "PASS"
-
-            current = "cas_race"
-            async def cas():
-                return (await session().execute(f"UPDATE {parent} SET version=1 WHERE id='seed' AND version=0"))["affected_row_count"]
-            if sorted(await asyncio.gather(cas(), cas())) != [0, 1]:
-                raise ProbeError("CAS did not have one winner")
-            report["checks"][current] = "PASS"
-
-            current = "lost_commit_receipt"
-            # Separate client/stream performs real BEGIN/COMMIT. The fault wrapper
-            # consumes a real response, then raises before the caller sees it.
-            fault_client = httpx.AsyncClient(transport=_DropCommitResponse(
-                transport or httpx.AsyncHTTPTransport(retries=0)), timeout=10, follow_redirects=False)
-            clients.append(fault_client)
-            fault = HranaSession(fault_client, database_url, token)
-            await fault.execute("BEGIN IMMEDIATE")
-            await fault.execute(f"INSERT INTO {parent} VALUES ('commit-receipt', 0)")
+        for current, sql in (
+            ("foreign_key", f"INSERT INTO {child} VALUES ('bad', 'missing')"),
+            ("check", f"INSERT INTO {parent} VALUES ('bad', -1)"),
+            ("unique", f"INSERT INTO {parent} VALUES ('seed', 0)"),
+        ):
             try:
-                await fault._request([
-                    {"type": "execute", "stmt": {"sql": "COMMIT", "args": [], "want_rows": False}},
-                    {"type": "close"},
-                ])
-            except ProbeError:
-                pass
+                await first.execute(sql)
+            except SqlError as exc:
+                if not exc.code.startswith("SQLITE_CONSTRAINT"):
+                    raise
             else:
-                raise ProbeError("commit response loss was not injected")
-            # COMMIT and close share one pipeline, so response loss cannot leak
-            # this stream. Never reuse the old baton or retry COMMIT/INSERT.
-            async with httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False) as fresh_client:
-                fresh = HranaSession(fresh_client, database_url, token)
-                try:
-                    if _scalar(await fresh.execute(f"SELECT count(*) FROM {parent} WHERE id='commit-receipt'")) != "1":
-                        raise ProbeError("committed receipt missing")
-                    report["checks"][current] = "PASS"
-                    current = "reconnect"
-                    if _scalar(await fresh.execute(f"SELECT version FROM {parent} WHERE id='seed'")) != "1":
-                        raise ProbeError("state missing after client restart")
-                    report["checks"][current] = "PASS"
-                finally:
-                    await fresh.close()
-            for value in sessions:
-                await value.close()
-            report["status"] = "PASS"
+                raise ProbeError("constraint accepted invalid row")
+            report["checks"][current] = "PASS"
+
+        current = "rollback"
+        await first.execute("BEGIN IMMEDIATE")
+        await first.execute(f"INSERT INTO {parent} VALUES ('rolled-back', 0)")
+        await first.execute("ROLLBACK")
+        if _scalar(await first.execute(f"SELECT count(*) FROM {parent} WHERE id='rolled-back'")) != "0":
+            raise ProbeError("rollback leaked row")
+        report["checks"][current] = "PASS"
+
+        current = "duplicate_race"
+        async def contender():
+            own = session()
+            try:
+                await own.execute(f"INSERT INTO {parent} VALUES ('duplicate', 0)")
+                return True
+            except SqlError as exc:
+                if not exc.code.startswith("SQLITE_CONSTRAINT"):
+                    raise
+                return False
+        if sorted(await asyncio.gather(contender(), contender())) != [False, True]:
+            raise ProbeError("duplicate race did not have one winner")
+        if _scalar(await first.execute(f"SELECT count(*) FROM {parent} WHERE id='duplicate'")) != "1":
+            raise ProbeError("duplicate receipt mismatch")
+        report["checks"][current] = "PASS"
+
+        current = "cas_race"
+        async def cas():
+            return (await session().execute(f"UPDATE {parent} SET version=1 WHERE id='seed' AND version=0"))["affected_row_count"]
+        if sorted(await asyncio.gather(cas(), cas())) != [0, 1]:
+            raise ProbeError("CAS did not have one winner")
+        report["checks"][current] = "PASS"
+
+        current = "lost_commit_receipt"
+        # Separate client/stream performs real BEGIN/COMMIT. The fault wrapper
+        # consumes a real response, then raises before the caller sees it.
+        fault_client = httpx.AsyncClient(transport=_DropCommitResponse(
+            transport or httpx.AsyncHTTPTransport(retries=0)), timeout=10, follow_redirects=False)
+        clients.append(fault_client)
+        fault = HranaSession(fault_client, database_url, token)
+        sessions.append(fault)
+        await fault.execute("BEGIN IMMEDIATE")
+        await fault.execute(f"INSERT INTO {parent} VALUES ('commit-receipt', 0)")
+        try:
+            await fault._request([
+                {"type": "execute", "stmt": {"sql": "COMMIT", "args": [], "want_rows": False}},
+                {"type": "close"},
+            ])
+        except ProbeError:
+            pass
+        else:
+            raise ProbeError("commit response loss was not injected")
+        # COMMIT and close share one pipeline, so response loss cannot leak
+        # this stream. Never reuse the old baton or retry COMMIT/INSERT.
+        async with httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False) as fresh_client:
+            fresh = HranaSession(fresh_client, database_url, token)
+            try:
+                if _scalar(await fresh.execute(f"SELECT count(*) FROM {parent} WHERE id='commit-receipt'")) != "1":
+                    raise ProbeError("committed receipt missing")
+                report["checks"][current] = "PASS"
+                current = "reconnect"
+                if _scalar(await fresh.execute(f"SELECT version FROM {parent} WHERE id='seed'")) != "1":
+                    raise ProbeError("state missing after client restart")
+                report["checks"][current] = "PASS"
+            finally:
+                await fresh.close()
+        report["status"] = "PASS"
     except Exception:
         report["checks"][current] = "FAIL"
         report["error"] = "Compatibility check failed; details suppressed to protect credentials."
     finally:
-        # Cleanup uses a new stream even when the original stream is broken.
-        try:
-            async with httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False) as cleanup_client:
-                cleanup = HranaSession(cleanup_client, database_url, token)
-                await cleanup.execute(f"DROP TABLE IF EXISTS {child}")
-                await cleanup.execute(f"DROP TABLE IF EXISTS {parent}")
-                await cleanup.close()
-            report["cleanup"] = "PASS"
-        except Exception:
-            report["cleanup"] = "FAIL"
-            report["namespace"] = prefix
-            report["status"] = "FAIL"
+        # Release known streams before DDL while their HTTP clients remain open.
         for value in sessions:
             try:
                 await value.close()
             except Exception:
                 report["status"] = "FAIL"
+        # Cleanup uses a new stream even when the original stream is broken.
+        try:
+            async with httpx.AsyncClient(transport=transport, timeout=10, follow_redirects=False) as cleanup_client:
+                cleanup = HranaSession(cleanup_client, database_url, token)
+                try:
+                    await cleanup.execute(f"DROP TABLE IF EXISTS {child}")
+                    await cleanup.execute(f"DROP TABLE IF EXISTS {parent}")
+                finally:
+                    await cleanup.close()
+            report["cleanup"] = "PASS"
+        except Exception:
+            report["cleanup"] = "FAIL"
+            report["namespace"] = prefix
+            report["status"] = "FAIL"
         for client in clients:
             await client.aclose()
     return report
