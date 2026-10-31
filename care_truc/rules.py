@@ -15,7 +15,7 @@ CLAUSE_BOUNDARY = (
 REPORTED_WISH = (
     r'\b(tai xe|shipper|nhan vien|ho|anh ay|co ay)\s+'
     r'(bao|noi|yeu cau)\b[^,;.!?]*?'
-    r'(?=\b(?:nhung|tuy nhien)\b|\bva\s+toi\b|[,;.!?]|$)'
+    r'(?=\b(?:nhung|tuy nhien)\b|\bva\s+(?:(?:bay gio|hien tai)\s+)?toi\b|[,;.!?]|$)'
 )
 HISTORICAL_WISH = r'\b(da tung|tung|truoc day|truoc kia|hom qua|luc truoc)\b'
 COIN_REQUEST = (

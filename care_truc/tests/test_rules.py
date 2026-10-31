@@ -95,3 +95,22 @@ def test_coordinated_reported_human_wish_not_handoff(text):
 def test_new_customer_predicate_ends_reporting_scope(text, intent, coins):
     result = classify(text)
     assert result.intent == intent and result.explicit_coins is coins
+
+@pytest.mark.parametrize('text,intent,coins', [
+    ('Tai xe noi toi muon huy va bay gio toi muon gap nhan vien', 'ask_human', False),
+    ('Tai xe noi toi muon huy va hien tai toi muon nhan xu', 'want_more', True),
+    ('Tài xế nói tôi muốn hủy và bây giờ tôi muốn gặp nhân viên', 'ask_human', False),
+    ('Tài xế nói tôi muốn hủy và hiện tại tôi muốn nhận xu', 'want_more', True),
+])
+def test_temporal_modifier_before_new_customer_subject(text, intent, coins):
+    result = classify(text)
+    assert result.intent == intent and result.explicit_coins is coins
+
+
+@pytest.mark.parametrize('text', [
+    'Tai xe noi toi muon huy va bay gio muon gap nhan vien',
+    'Tai xe noi toi muon huy va hien tai muon nhan xu',
+])
+def test_temporal_modifier_without_new_subject_stays_reported(text):
+    result = classify(text)
+    assert result.intent != 'ask_human' and not result.explicit_coins
