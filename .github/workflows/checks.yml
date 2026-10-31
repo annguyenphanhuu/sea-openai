@@ -3,7 +3,7 @@ name: Repository checks
 on:
   pull_request:
   push:
-    branches: [main, huy, an-nguyen, truc]
+    branches: [main, 'huy/**', 'nguye/**', 'truc/**']
 
 permissions:
   contents: read

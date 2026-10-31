@@ -84,11 +84,11 @@ Huy sở hữu route/auth/state, An Nguyen cung cấp logic A2, Trúc cung cấp
 
 Mutation phải chống retry bằng idempotency, kiểm ownership/quyền server-side. Không có endpoint cho LLM/client tự cấp tiền; xu đi qua text chat theo D4. Team chọn framework và provider/transport voice trong giờ đầu; chỉ Huy thêm requirements. Scaffold này chưa tự chọn dependency.
 
-## 3. Chia việc theo 7 giờ, 3 nhánh
+## 3. Chia việc theo 7 giờ
 
-Giờ tính từ lúc team bắt đầu thực thi plan. Huy dùng `huy`, An Nguyen dùng `an-nguyen`, Trúc dùng `truc`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
+Giờ tính từ lúc team bắt đầu thực thi plan. Mỗi tính năng dùng một nhánh: Huy dùng `huy/<tinh-nang>`, An Nguyen dùng `nguye/<tinh-nang>`, Trúc dùng `truc/<tinh-nang>`. Tên tính năng viết thường, nối từ bằng dấu gạch ngang, ví dụ `truc/care-api`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
 
-Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh cá nhân nếu có, rồi merge main vào nhánh cá nhân. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook, không ép tên nhánh feat/chore. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
+Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh tính năng nếu có, rồi merge main vào nhánh tính năng. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
 
 | Giờ | Huy — platform/A3 | An Nguyen — A2 | Trúc — A1 |
 | --- | --- | --- | --- |
@@ -110,7 +110,7 @@ Trước mỗi phần việc và trước khi push: fetch repo team, merge cập
 4. Trúc: A1 và test A2 do Trúc viết; chạy test A1 do Huy cung cấp.
 5. Huy: test A1, tích hợp API/UI/voice và regression toàn luồng; giải quyết conflict cùng chủ folder.
 
-Đưa test chéo cho chủ implementation chạy sớm trước merge. Không đổi contract âm thầm; mọi đổi contract qua Huy và thông báo hai bên dùng. Theo yêu cầu mới của Huy, **mỗi phần hoàn thành và kiểm tra đạt phải commit rồi push lên nhánh huy của repo team** (`upstream` trong checkout hiện tại). Merge vào main khi Huy yêu cầu. Các thành viên tiếp tục dùng nhánh cá nhân của mình.
+Đưa test chéo cho chủ implementation chạy sớm trước merge. Không đổi contract âm thầm; mọi đổi contract qua Huy và thông báo hai bên dùng. **Mỗi phần hoàn thành và kiểm tra đạt phải commit rồi push lên nhánh tính năng của người thực hiện trên repo team** (`origin` khi clone trực tiếp, `upstream` khi dùng fork). Merge vào main khi Huy yêu cầu.
 
 ## 5. Test chéo ai viết cho ai
 
