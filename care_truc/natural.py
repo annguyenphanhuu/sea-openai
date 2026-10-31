@@ -1,10 +1,12 @@
 """Conversational model drafts around immutable, server-rendered facts."""
 
-from datetime import timedelta, timezone
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 import json
 import re
 import unicodedata
 
+from contracts.params import feed_stale_max_min
 from .runtime_types import NaturalDraft, PhraseSelection, canonical
 
 
@@ -45,9 +47,95 @@ def reply_topic(text: str, intent: str) -> str:
         return 'greeting'
     if re.search(r'\b(cam on|thanks|thank you)\b', value):
         return 'thanks'
-    if intent == 'ask_why' or re.search(r'\b(giai thich|ro hon)\b', value):
+    if intent == 'ask_why' or re.search(r'\b(giai thich|ro hon|hoan tra|giao may lan|may lan giao|tinh trang don)\b', value):
         return 'explanation'
     return 'help'
+
+
+@dataclass(frozen=True, slots=True)
+class LastScan:
+    stage: str
+    event_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class JourneyFacts:
+    last_scan: LastScan | None
+    failed_attempts: int
+    no_answer_attempts: int
+
+
+STAGE_LABELS = {
+    'created': 'đơn được tạo', 'handed_over': 'đã bàn giao cho đơn vị vận chuyển',
+    'linehaul_departed': 'đã xuất phát trên tuyến vận chuyển',
+    'linehaul_arrived': 'đã đến điểm nhận trên tuyến vận chuyển',
+    'out_for_delivery': 'đang giao hàng', 'delivered': 'đã giao hàng',
+    'returning': 'đang hoàn trả', 'returned': 'đã hoàn trả',
+    'lost': 'ghi nhận thất lạc', 'damaged': 'ghi nhận hư hỏng',
+    'return_failed': 'hoàn trả chưa thành công',
+}
+
+
+def _evidence_groups(snapshot, feed: str) -> list[list[dict]]:
+    from .guardrails import age_valid
+    health = next((item for item in snapshot.guard.feeds if item.name == feed), None)
+    if (health is None or health.status != 'trusted'
+            or not age_valid(health.source_timestamp, snapshot.cutoff, feed_stale_max_min)):
+        return []
+    groups = {}
+    for item in snapshot.assessment.evidence:
+        if (item['is_structured'] is not True or item['feed'] != feed or item['source_table'] != feed
+                or not isinstance(item['record_id'], str) or not item['record_id']):
+            continue
+        groups.setdefault((item['record_id'], item['ingested_at']), []).append(item)
+    return list(groups.values())
+
+
+def _one_value(rows, code: str, expected_type):
+    values = [item['value'] for item in rows if item['fact_code'] == code]
+    if not values or any(type(value) is not expected_type or value != values[0] for value in values):
+        return None
+    return values[0]
+
+
+def journey_facts(snapshot) -> JourneyFacts:
+    scan_groups = [rows for rows in _evidence_groups(snapshot, 'scan_events')
+                   if any(item['fact_code'] == 'logistics_stage' for item in rows)]
+    last_scan = None
+    if len(scan_groups) == 1:
+        rows = scan_groups[0]
+        stage = _one_value(rows, 'logistics_stage', str)
+        stamp = _one_value(rows, 'stage_event_at', str)
+        if stage in STAGE_LABELS and stamp:
+            try:
+                event_at = datetime.fromisoformat(stamp.replace('Z', '+00:00'))
+                if event_at.utcoffset() is not None and event_at <= rows[0]['ingested_at'] <= snapshot.cutoff:
+                    last_scan = LastScan(stage, event_at)
+            except ValueError:
+                pass
+    records = {}
+    for rows in _evidence_groups(snapshot, 'delivery_attempts'):
+        records.setdefault(rows[0]['record_id'], []).extend(rows)
+    failures = no_answer = 0
+    for rows in records.values():
+        if _one_value(rows, 'failed_delivery_attempt', bool) is True:
+            failures += 1
+            no_answer += _one_value(rows, 'attempt_outcome', str) == 'no_answer'
+    return JourneyFacts(last_scan, failures, no_answer)
+
+
+def journey_summary(facts: JourneyFacts) -> str:
+    parts = []
+    if facts.last_scan:
+        stamp = facts.last_scan.event_at.astimezone(timezone(timedelta(hours=7))).strftime('%d/%m/%Y %H:%M')
+        parts.append('Mốc vận chuyển gần nhất được ghi nhận lúc ' + stamp + ' theo giờ Việt Nam: '
+                     + STAGE_LABELS[facts.last_scan.stage] + '.')
+    if facts.failed_attempts:
+        attempts = f'Lịch sử ghi nhận {facts.failed_attempts} lần giao chưa thành công'
+        if facts.no_answer_attempts:
+            attempts += f', trong đó {facts.no_answer_attempts} lần được ghi nhận không liên lạc được'
+        parts.append(attempts + '. Đây là kết quả ghi nhận của các lần giao, không phải kết luận bên có lỗi.')
+    return ' '.join(parts)
 
 
 def fact_slots(snapshot, topic: str) -> dict[str, str]:
@@ -57,6 +145,7 @@ def fact_slots(snapshot, topic: str) -> dict[str, str]:
 
     assessment = snapshot.assessment
     trusted = Guardrails().validate_context(snapshot).allowed
+    journey = journey_summary(journey_facts(snapshot)) if trusted else ''
     unknown = 'Thông tin hiện chưa đủ mới hoặc chưa được xác minh, nên mình chưa thể kết luận tình trạng hiện tại.'
     if trusted:
         status = 'Theo thông tin đã xác minh, đơn hàng ' + STATUS.get(assessment.status, 'chưa xác định tình trạng') + '.'
@@ -70,9 +159,13 @@ def fact_slots(snapshot, topic: str) -> dict[str, str]:
         status = unknown
         reason = 'Mình chưa có đủ thông tin đã xác minh để giải thích nguyên nhân cụ thể.'
         eta_text = 'Dự báo giao hàng hiện chưa được xác minh, nên mình chưa thể hẹn bạn ngày nhận hàng cụ thể.'
+    if journey:
+        eta_text = journey + ' ' + eta_text
+        reason = journey + ' ' + reason
+    location = (journey + ' ' if journey else '') + 'Mình chưa có vị trí hiện tại đã được xác minh của đơn hàng. Bạn có thể yêu cầu gặp nhân viên để kiểm tra thêm.'
     by_topic = {
         'eta': {'eta': eta_text},
-        'location': {'location': 'Mình chưa có vị trí hiện tại đã được xác minh của đơn hàng. Bạn có thể yêu cầu gặp nhân viên để kiểm tra thêm.'},
+        'location': {'location': location},
         'explanation': {'status': status, 'reason': reason},
         'policy': {'policy': 'Yêu cầu hỗ trợ hoặc bồi thường cần được kiểm tra điều kiện và bằng chứng của đơn. Mình không thể tự hứa số tiền hoặc xác nhận cấp xu qua câu trả lời này.'},
         'greeting': {}, 'thanks': {}, 'help': {},
