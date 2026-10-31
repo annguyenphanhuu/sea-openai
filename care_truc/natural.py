@@ -27,7 +27,23 @@ SOCIAL_SENTENCES = (
     'Mình hiểu bạn muốn biết rõ hơn về chính sách',
     'Mình xin lỗi vì sự bất tiện này', 'Mình rất tiếc vì trải nghiệm chưa thuận tiện của bạn',
     'Bạn cần hỗ trợ về thông tin đơn hàng hay muốn gặp nhân viên',
+    'Chào bạn, mình sẵn sàng hỗ trợ nhé',
+    'Bạn cứ hỏi nhé, mình sẽ giải thích từng phần',
+    'Mình rất tiếc vì bạn phải chờ lâu',
+    'Chờ hàng lâu mà chưa rõ tình hình thì thật bất tiện',
+    'Mình hiểu bạn cần biết thời gian nhận hàng để sắp xếp',
+    'Mình nói rõ hơn để bạn dễ theo dõi nhé',
+    'Không có gì đâu, bạn cần thêm thông tin thì cứ nhắn nhé',
+    'Bạn muốn xem mốc vận chuyển gần nhất hay tìm hiểu về quyền lợi khi đơn trễ',
+    'Bạn muốn tìm hiểu điều kiện hỗ trợ khi đơn trễ không',
+    'Bạn muốn mình giải thích tình trạng đơn hay thời gian giao dự kiến',
 )
+
+
+def social_sentence(sentence: str) -> str:
+    """Distinguish actual questions from statements addressed to the customer."""
+    question = sentence.startswith(('Bạn cần', 'Bạn có', 'Bạn muốn', 'Mình có thể'))
+    return sentence + ('?' if question else '!' if sentence.startswith(('Chào', 'Xin chào')) else '.')
 
 
 def folded(text: str) -> str:
@@ -128,13 +144,13 @@ def journey_summary(facts: JourneyFacts) -> str:
     parts = []
     if facts.last_scan:
         stamp = facts.last_scan.event_at.astimezone(timezone(timedelta(hours=7))).strftime('%d/%m/%Y %H:%M')
-        parts.append('Mốc vận chuyển gần nhất được ghi nhận lúc ' + stamp + ' theo giờ Việt Nam: '
+        parts.append('Cập nhật vận chuyển gần nhất lúc ' + stamp + ' theo giờ Việt Nam: '
                      + STAGE_LABELS[facts.last_scan.stage] + '.')
     if facts.failed_attempts:
         attempts = f'Lịch sử ghi nhận {facts.failed_attempts} lần giao chưa thành công'
         if facts.no_answer_attempts:
             attempts += f', trong đó {facts.no_answer_attempts} lần được ghi nhận không liên lạc được'
-        parts.append(attempts + '. Đây là kết quả ghi nhận của các lần giao, không phải kết luận bên có lỗi.')
+        parts.append(attempts + '. Chỉ từ những lần giao này thì chưa thể kết luận bên nào có lỗi.')
     return ' '.join(parts)
 
 
@@ -152,7 +168,7 @@ def fact_slots(snapshot, topic: str) -> dict[str, str]:
         reason = public_reason(assessment)
         eta = assessment.revised_eta
         if eta is not None and eta >= snapshot.cutoff:
-            eta_text = 'Thời gian nhận hàng dự kiến là ' + eta.astimezone(timezone(timedelta(hours=7))).strftime('%d/%m/%Y %H:%M') + ' theo giờ Việt Nam. Đây là dự kiến, chưa phải cam kết giao mới.'
+            eta_text = 'Bạn dự kiến nhận được hàng vào ' + eta.astimezone(timezone(timedelta(hours=7))).strftime('%d/%m/%Y %H:%M') + ' theo giờ Việt Nam. Mốc này vẫn là dự kiến, chưa phải cam kết giao mới.'
         else:
             eta_text = 'Mình chưa có thời gian giao dự kiến đã được xác minh, nên chưa thể hẹn bạn ngày nhận hàng cụ thể.'
     else:
@@ -160,14 +176,14 @@ def fact_slots(snapshot, topic: str) -> dict[str, str]:
         reason = 'Mình chưa có đủ thông tin đã xác minh để giải thích nguyên nhân cụ thể.'
         eta_text = 'Dự báo giao hàng hiện chưa được xác minh, nên mình chưa thể hẹn bạn ngày nhận hàng cụ thể.'
     if journey:
-        eta_text = journey + ' ' + eta_text
+        eta_text = eta_text + '\n\n' + journey
         reason = journey + ' ' + reason
     location = (journey + ' ' if journey else '') + 'Mình chưa có vị trí hiện tại đã được xác minh của đơn hàng. Bạn có thể yêu cầu gặp nhân viên để kiểm tra thêm.'
     by_topic = {
         'eta': {'eta': eta_text},
         'location': {'location': location},
         'explanation': {'status': status, 'reason': reason},
-        'policy': {'policy': 'Yêu cầu hỗ trợ hoặc bồi thường cần được kiểm tra điều kiện và bằng chứng của đơn. Mình không thể tự hứa số tiền hoặc xác nhận cấp xu qua câu trả lời này.'},
+        'policy': {'policy': 'Bạn có thể nhắn “Tôi xin xu” nếu muốn được xét hỗ trợ. Mình cần kiểm tra thời gian trễ, trách nhiệm và bằng chứng của đơn, nên không thể tự hứa số tiền. Gửi yêu cầu chưa có nghĩa là đã được cấp xu nhé.'},
         'greeting': {}, 'thanks': {}, 'help': {},
     }
     return by_topic[topic]
@@ -217,7 +233,7 @@ def render_template(draft: NaturalDraft, snapshot) -> str:
     plain = folded(literal)
     if draft.topic == 'greeting' and not re.search(r'\b(chao|hello)\b', plain):
         raise ValueError('natural_greeting_missing')
-    if draft.topic == 'thanks' and not re.search(r'\b(vui|cam on|ho tro)\b', plain):
+    if draft.topic == 'thanks' and not re.search(r'\b(vui|cam on|ho tro|khong co gi)\b', plain):
         raise ValueError('natural_acknowledgement_missing')
     for name, value in slots.items():
         text = text.replace('{' + name + '}', value)
@@ -229,11 +245,11 @@ def render_template(draft: NaturalDraft, snapshot) -> str:
 def fallback_draft(topic: str) -> NaturalDraft:
     templates = {
         'greeting': 'Chào bạn! Mình có thể hỗ trợ gì cho bạn?',
-        'thanks': 'Rất vui được hỗ trợ bạn. Bạn cần mình giúp thêm điều gì không?',
-        'eta': 'Mình hiểu cảm giác chờ đợi của bạn. {eta}',
-        'location': 'Mình hiểu bạn muốn kiểm tra thông tin. {location}',
-        'explanation': 'Mình hiểu băn khoăn của bạn. {status} {reason}',
-        'policy': 'Mình hiểu nhu cầu hỗ trợ của bạn. {policy}',
+        'thanks': 'Không có gì đâu, bạn cần thêm thông tin thì cứ nhắn nhé.',
+        'eta': '{eta}',
+        'location': '{location}',
+        'explanation': '{status} {reason}',
+        'policy': '{policy}',
         'help': 'Bạn cần hỗ trợ về thông tin đơn hàng hay muốn gặp nhân viên?',
     }
     return NaturalDraft(topic, templates[topic])

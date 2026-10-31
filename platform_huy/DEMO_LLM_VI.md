@@ -1,8 +1,23 @@
 # Ba kịch bản demo LLM trên giao diện
 
 Mở `http://127.0.0.1:8790`. Giao diện gồm Tổng quan, Đơn hàng, Liên hệ,
-Chat và Tiền. Server cần chạy với `--integrated --llm`. Demo dùng dữ liệu tổng
+Chat và Tiền. Server cần chạy với `--integrated --llm` và
+`SEA_LLM_REVIEWS=1` để bật LLM cho cả A1/A2/A3. Demo dùng dữ liệu tổng
 hợp và ghi quyền lợi vào SQLite local; không chuyển tiền ra ví thật.
+
+**Đã chạy lại ngày 31/10/2026:** cả ba kịch bản đạt, tổng cộng **13/13 kiểm tra**
+(10 kiểm tra pipeline và 3 lượt chat qua HTTP). Xem
+[kết quả thực tế và câu trả lời đã ghi nhận](DEMO_RESULTS_VI.md).
+Server được khởi động lại từ mã nguồn `main` tại `1a6dd55`; cổng 8791 đã tắt.
+Runtime trình diễn đang ở **14:30 ngày 24/10/2026**, có **6.259 đơn, 30 phiên chat,
+ledger rỗng**. Có sẵn ba lượt chat kiểm tra cách trả lời; có thể tiếp tục cùng phiên.
+
+Lệnh khởi động với đầy đủ LLM trong PowerShell:
+
+```powershell
+$env:SEA_LLM_REVIEWS = "1"
+python -m platform_huy.serve_ui --integrated --llm --host 127.0.0.1 --port 8790 --state-path runs/demo-main-1a6dd55/state.sqlite
+```
 
 Nếu runtime còn ở 14:00 ngày 24/10/2026, vào **Tổng quan → NEXT · +30 phút**
 một lần và chờ cả A3/A2/A1 hoàn tất. Các kết quả dưới đây được kiểm tra tại
@@ -18,6 +33,9 @@ một lần và chờ cả A3/A2/A1 hoàn tất. Các kết quả dưới đây 
    **24/10/2026 17:00**, và nói rõ đây là dự kiến, chưa phải cam kết mới.
 4. Nhấn **Xem bằng chứng và LSR của đơn**: ngày cam kết vẫn là **22/10/2026**,
    shop bàn giao đúng hạn, `LSR exempt: true`.
+   Để thể hiện giọng tư vấn, hỏi thêm **“Mình chờ lâu quá, cần hàng gấp.
+   Khi nào mới nhận được vậy?”**. Bot ghi nhận sự sốt ruột, giữ nguyên ETA và
+   không biến dự kiến thành lời hứa. Gửi **“Cảm ơn bạn nhé”** để xem cách kết thúc ngắn gọn.
 5. Nếu muốn thêm một ca có lịch sử rõ: chọn phiên `261018J0R2AF1I` trong
    **Chat A1 đang mở** và hỏi **“Đã giao mấy lần rồi? Đơn có đang hoàn trả không?”**.
    Phản hồi phải bám lịch sử **3 lần giao chưa thành công**, **2 lần không liên
