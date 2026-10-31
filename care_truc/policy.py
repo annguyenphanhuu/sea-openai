@@ -4,9 +4,8 @@ from dataclasses import replace
 from datetime import timedelta
 from uuid import uuid4
 
-from contracts.params import late_xu_for, max_turns
+from contracts.params import max_turns
 from contracts.types import Action
-from .guardrails import Guardrails
 from .runtime_types import (CustomerEvent, EffectProposal, PendingCancellation,
                            PolicyOutcome, CareError, canonical)
 
@@ -56,22 +55,12 @@ class CarePolicy:
                 "cancel_review", pending.confirmation_id)
             return self._action(replace(new, status="active", pending=None), intent, action)
         if coins:
-            guard = Guardrails().validate_context(context)
-            assessment = context.assessment
-            eligible = (event.kind == "message" and state.channel == "chat" and state.opened_by == "a1"
-                and context.contact_sent and guard.allowed and context.guard.actions_allowed
-                and context.evidence_resolvable and context.ledger_granted is False
-                and assessment.late_days >= 2 and assessment.status != "unknown_feed"
-                and assessment.fault_party in ("carrier", "platform"))
-            if eligible:
-                try:
-                    amount = late_xu_for(context.items_value_vnd)
-                except (TypeError, ValueError):
-                    return PolicyOutcome(new, intent, "clarify", ("invalid_items_value",))
-                action = Action(uuid4().hex, state.order_id, "coins", amount, "a1", context.cutoff,
-                    f"{state.run_id}:coins:{state.order_id}", "", False, "care")
-                return self._action(new, intent, action)
-            return PolicyOutcome(new, intent, "ineligible", guard.codes or ("coins_ineligible",))
+            from .coins import evaluate_coins, build_coin_action
+            eligibility = evaluate_coins(state, event, context)
+            if eligibility.allowed:
+                return replace(self._action(new, intent, build_coin_action(state, eligibility, context.cutoff)),
+                               codes=("coins_eligible",))
+            return PolicyOutcome(new, intent, "ineligible", eligibility.codes)
         return PolicyOutcome(new, intent, "explain" if intent == "ask_why" else "clarify")
 
     def _handoff(self, state, intent, reason) -> PolicyOutcome:

@@ -20,7 +20,7 @@ def context(order_id="o1", **changes):
     guard = GuardSnapshot("a3", NOW, (FeedSnapshot("ops", "trusted", NOW),),
                           ("ops",), True, True)
     return replace(ContextSnapshot("customer", order_id, NOW, assessment, guard,
-                                   1_000_000, False, False, True), **changes)
+                                   1_000_000, False, False, True, False), **changes)
 
 
 class FakeClock:

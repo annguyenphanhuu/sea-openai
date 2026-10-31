@@ -44,6 +44,12 @@ class DispatchGate(Protocol):
 
 
 class EffectGateway(Protocol):
+    """Platform-owned submission, with atomic final permission/control and D4 recheck.
+
+    Coin grants must enforce global once-per-order ledger uniqueness across runs,
+    validate the durable evidence/current text and immutable amount, and return
+    authoritative durable receipts. Local reservation is never grant authority.
+    """
     supports_deadlines: bool
     idempotent: bool
     async def submit(self, proposal: EffectProposal, *, deadline: float) -> Receipt: ...

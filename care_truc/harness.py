@@ -258,6 +258,14 @@ class CareHarness:
             self.store.db.execute("UPDATE requests SET context=? WHERE id=?", (canonical(snapshot), request["id"]))
             input_hook = await self.hooks.run("on_input", {"kind": event.kind, "request_id": event.request_id})
             hook_outcomes = {"on_input": {"action": input_hook.action, "codes": input_hook.codes}}
+            reserved = self.store.db.execute(
+                "SELECT 1 FROM pending_effects WHERE run_id=? "
+                "AND json_extract(proposal,'$.order_id')=? "
+                "AND json_extract(proposal,'$.kind')='action_request' "
+                "AND json_extract(json_extract(proposal,'$.payload'),'$.kind')='coins'",
+                (state.run_id, state.order_id)).fetchone()
+            if reserved:
+                snapshot = replace(snapshot, ledger_pending=True)
             outcome = self.policy.evaluate(state, event, snapshot)
             if snapshot.cutoff != datetime.min.replace(tzinfo=timezone.utc):
                 outcome = replace(outcome, state=replace(outcome.state, last_cutoff=snapshot.cutoff))

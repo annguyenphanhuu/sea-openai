@@ -16,12 +16,15 @@ def save_proposal(store, proposal, request_id, state) -> None:
     existing = store.db.execute("SELECT * FROM pending_effects WHERE run_id=? AND effect_key=?",
                                 (state.run_id, proposal.key)).fetchone()
     if existing:
+        original = EffectProposal(**json.loads(existing["proposal"]))
+        owner = store.load_session(existing["session_id"])
+        if (original.order_id != state.order_id or owner.principal_id != state.principal_id
+                or original.kind != proposal.kind):
+            raise CareError("effect_binding_conflict")
         if existing["state"] == "blocked" and existing["attempts"] == 0:
             if proposal.kind == "handoff_request":
                 # A new explicit human request retries the same unsent handoff envelope.
                 store.set_effect(existing["id"], state="pending_delivery", next_at=0)
-            elif proposal.kind == "action_request" and json.loads(proposal.payload)["kind"] == "coins":
-                revise_proposal(store, proposal.key, request_id, proposal)
         return
     if proposal.kind == "action_request" and payload.get("kind") == "coins":
         reserved = store.db.execute(
@@ -51,6 +54,13 @@ def revise_proposal(store, key, source_request, proposal) -> int:
                             (request["run_id"], key)).fetchone()
     if row["attempts"]:
         raise CareError("effect_payload_frozen")
+    original = EffectProposal(**json.loads(row["proposal"]))
+    old_payload = json.loads(original.payload)
+    new_payload = json.loads(proposal.payload)
+    if ((original.kind == "action_request" and old_payload.get("kind") == "coins")
+            or (proposal.kind == "action_request" and new_payload.get("kind") == "coins")):
+        # A coin reservation is immutable even before its first network attempt.
+        raise CareError("coins_revision_not_allowed")
     event = json.loads(request["payload"])
     if row["state"] != "blocked" or event["kind"] != "message":
         raise CareError("revision_not_allowed")

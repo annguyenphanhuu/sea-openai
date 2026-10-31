@@ -81,6 +81,7 @@ class ContextSnapshot:
     ledger_granted: bool | None = None
     contact_sent: bool = False
     evidence_resolvable: bool = False
+    ledger_pending: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)

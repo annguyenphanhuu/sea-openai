@@ -68,11 +68,10 @@ class Guardrails:
                 return GuardDecision(False, ("action_gate_missing",))
             payload = json.loads(proposal.payload)
             if payload["kind"] == "coins":
-                from contracts.params import late_xu_for
-                assessment = snapshot.assessment
-                if (not snapshot.contact_sent or snapshot.ledger_granted is not False
-                        or assessment.late_days < 2 or assessment.status == "unknown_feed"
-                        or assessment.fault_party not in ("carrier", "platform")
-                        or payload["amount_vnd"] != late_xu_for(snapshot.items_value_vnd)):
-                    return GuardDecision(False, ("coins_ineligible",))
+                from .coins import evaluate_facts
+                eligibility = evaluate_facts(snapshot)
+                if not eligibility.allowed:
+                    return GuardDecision(False, eligibility.codes)
+                if payload["amount_vnd"] != eligibility.amount_vnd:
+                    return GuardDecision(False, ("coins_amount_mismatch",))
         return GuardDecision(True)

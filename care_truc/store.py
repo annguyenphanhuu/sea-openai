@@ -129,11 +129,20 @@ class MemoryStore:
             opening = json.loads(request["payload"])["kind"] == "open_contact"
             self._event(state.session_id, request_id + ":customer", "opening" if opening else "customer",
                         request["payload"], "staff" if opening else "customer")
-            self._event(state.session_id, request_id + ":response", "response", canonical(response))
             if outcome.invalidate_unsent:
                 self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait') AND json_extract(proposal,'$.kind')!='handoff_request'", (state.session_id,))
             for proposal in outcome.proposals:
                 self._save_proposal(proposal, request_id, state)
+            if outcome.proposals:
+                ids = tuple(self.db.execute(
+                    "SELECT id FROM pending_effects WHERE run_id=? AND effect_key=?",
+                    (state.run_id, proposal.key)).fetchone()[0] for proposal in outcome.proposals)
+                response = replace(response, effect_ids=ids)
+                trace_data = json.loads(trace)
+                trace_data["effect_ids"] = ids
+                self.db.execute("UPDATE evidence_bundles SET trace=? WHERE request_id=?",
+                                (canonical(trace_data), request_id))
+            self._event(state.session_id, request_id + ":response", "response", canonical(response))
             self.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
                             (canonical(response), evidence, request_id))
         return response
