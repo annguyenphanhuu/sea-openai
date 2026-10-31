@@ -240,8 +240,9 @@ class _Gateway:
 
 
 class DemoFlow:
-    def __init__(self, core_path, state_path, start_at=None, ops_path=None, *, selector=None):
+    def __init__(self, core_path, state_path, start_at=None, ops_path=None, *, selector=None, reviewer=None):
         self.selector = selector
+        self.reviewer = reviewer
         self.core_path = Path(core_path).resolve(strict=True)
         self.ops_path = Path(ops_path or self.core_path.with_name('ops_14d.sqlite')).resolve(strict=True)
         self.state_path = Path(state_path).resolve()
@@ -303,6 +304,7 @@ class DemoFlow:
         self.conn.execute('CREATE TABLE IF NOT EXISTS demo_flow_snapshot(singleton INTEGER PRIMARY KEY CHECK(singleton=1),payload TEXT NOT NULL)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS demo_a2_handoff(singleton INTEGER PRIMARY KEY CHECK(singleton=1),payload TEXT NOT NULL)')
         self.conn.execute('CREATE TABLE IF NOT EXISTS demo_tick_timings(tick_at TEXT,ordinal INTEGER,agent TEXT,started_at TEXT,finished_at TEXT,duration_ms REAL,status TEXT,detail_json TEXT,PRIMARY KEY(tick_at,agent))')
+        self.conn.execute('CREATE TABLE IF NOT EXISTS agent_llm_reviews(tick_at TEXT,agent TEXT,payload_json TEXT,PRIMARY KEY(tick_at,agent))')
         self.platform = SqliteStateStore(self.conn,
             evidence_producers=frozenset({'demo-release-v1'}),
             message_recorders=frozenset({'demo-care-v1'}),
@@ -621,7 +623,15 @@ class DemoFlow:
         for assessment in self.assessments.values():
             label_counts[assessment.status] += 1
         outbox, ledger = self._rows('outbox'), self._rows('ledger_new')
-        return {'llm': {'enabled': self.selector is not None, 'model': getattr(self.selector, 'model', None)},
+        reviews = {agent: json.loads(payload) for agent, payload in self.conn.execute(
+            'SELECT agent,payload_json FROM agent_llm_reviews WHERE tick_at=?', (utc(self.now),))}
+        return {'llm': {'enabled': self.selector is not None or self.reviewer is not None,
+                'model': getattr(self.selector, 'model', None),
+                'agents': {'A1': {'enabled': self.selector is not None,
+                                  'last_call': getattr(self.selector, 'last_call', None)},
+                           **{agent: {'enabled': self.reviewer is not None,
+                                      'model': getattr(self.reviewer, 'model', None),
+                                      'latest': reviews.get(agent)} for agent in ('A2', 'A3')}}},
             'now': self.now.astimezone(_VN).isoformat(), 'guard_alive': sysguard.guard_alive(self.conn, self.now),
             'proactive_allowed': self._allowed(), 'feed_health': [dict(asdict(h), age_minutes=None if h.source_timestamp is None else (self.now-h.source_timestamp).total_seconds()/60) for h in self._health()],
             'last_heartbeat_at': None if heartbeat is None else heartbeat[0],
@@ -775,7 +785,8 @@ class DemoFlow:
                 self.selected_order_id = payload['order_id']
             elif action == 'records':
                 allowed = {'outbox', 'ledger_new', 'voucher_ledger', 'cancel_requests', 'contact_log', 'customer_messages',
-                           'execution_evidence', 'eligibility_reviews', 'action_receipts', 'demo_inbox', 'demo_tick_timings'}
+                           'execution_evidence', 'eligibility_reviews', 'action_receipts', 'demo_inbox', 'demo_tick_timings',
+                           'agent_llm_reviews'}
                 table = payload.get('table', 'outbox')
                 if table not in allowed:
                     raise CareError('invalid_table', 400)

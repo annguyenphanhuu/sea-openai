@@ -179,12 +179,15 @@ def redact(text: str) -> str:
     return re.sub(r'\bsk-[A-Za-z0-9_-]+', '[khóa đã ẩn]', text)[:1500]
 
 
-def build_natural_context(outcome, snapshot, history, latest: str) -> bytes | None:
+def build_natural_context(outcome, snapshot, history, latest: str, *, semantic_topics: bool = False) -> bytes | None:
     topic = reply_topic(latest, outcome.intent)
     payload = {'mode': 'grounded_reply', 'topic': topic, 'intent': outcome.intent,
                'slots': fact_slots(snapshot, topic),
                'history': [{'role': item['role'], 'text': redact(item['text'])} for item in history[-6:]],
                'customer_message': redact(latest)}
+    if semantic_topics and topic == 'help':
+        payload['topic_slots'] = {name: fact_slots(snapshot, name) for name in
+            ('eta', 'location', 'explanation', 'policy', 'greeting', 'thanks', 'help')}
     while True:
         encoded = canonical(payload).encode('utf-8')
         if len(encoded) <= 12000:
@@ -238,18 +241,29 @@ def fallback_draft(topic: str) -> NaturalDraft:
 
 async def generate_reply(selector, context: bytes, phrase_id: str, snapshot, clock):
     from .hooks import bounded
-    topic = json.loads(context)['topic']
+    data = json.loads(context)
+    topic = data['topic']
     try:
         raw = await bounded(selector.select(context, deadline=clock.monotonic() + 8), clock, 8)
         if not isinstance(raw, bytes) or len(raw) > 4096:
             raise ValueError('natural_bytes_invalid')
         parsed = json.loads(raw)
-        if not isinstance(parsed, dict) or set(parsed) != {'template'}:
+        expected = {'template', 'topic'} if 'topic_slots' in data else {'template'}
+        if not isinstance(parsed, dict) or set(parsed) != expected:
             raise ValueError('natural_schema_invalid')
-        draft = NaturalDraft(topic, parsed['template'])
+        selected_topic = parsed.get('topic', topic)
+        if 'topic_slots' in data and selected_topic not in data['topic_slots']:
+            raise ValueError('natural_topic_invalid')
+        draft = NaturalDraft(selected_topic, parsed['template'])
         render_template(draft, snapshot)
+        if isinstance(getattr(selector, 'last_call', None), dict):
+            selector.last_call['validation_status'] = 'accepted'
         return PhraseSelection(phrase_id, 'model-generated', draft=draft)
     except TimeoutError:
+        if isinstance(getattr(selector, 'last_call', None), dict):
+            selector.last_call.update(status='fallback', code='model_timeout', validation_status='rejected')
         return PhraseSelection(phrase_id, 'template', ('model_timeout',), fallback_draft(topic))
     except Exception:
+        if isinstance(getattr(selector, 'last_call', None), dict):
+            selector.last_call.update(status='fallback', validation_status='rejected')
         return PhraseSelection(phrase_id, 'template', ('model_output_rejected',), fallback_draft(topic))

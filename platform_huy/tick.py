@@ -7,8 +7,10 @@ from logistics_an_nguyen.adapter import ReleaseAdapter
 from logistics_an_nguyen.handoff import assessed_orders_payload
 from logistics_an_nguyen.progress import ProgressTracker
 from logistics_an_nguyen.service import assessment_payload, evaluate_tick
+from logistics_an_nguyen.llm import review_assessments
 
 from . import sysguard
+from .llm_guard import review_guard
 from .state import immediate, utc
 
 
@@ -47,6 +49,10 @@ async def run_tick(now, *, flow):
     with immediate(flow.conn):
         sysguard.run(world, flow.conn, now)
         health = tuple(sysguard.health_for(world, flow.conn, now))
+        if flow.reviewer is not None:
+            guard_review = await review_guard(health, flow.conn, now, flow.reviewer)
+            flow.conn.execute('INSERT OR REPLACE INTO agent_llm_reviews VALUES (?,?,?)',
+                              (utc(now), 'A3', canonical(guard_review)))
         timings.append(_finish(a3))
         _save_timing(flow, now, 1, timings[-1])
 
@@ -56,6 +62,15 @@ async def run_tick(now, *, flow):
         facts = tracker.apply(ReleaseAdapter(world).orders(), tick_at=now, feed_health=health)
         result = evaluate_tick(facts, tick_at=now, feed_health=health)
         handoff = assessed_orders_payload(world, result, feed_health=health)
+        if flow.reviewer is not None:
+            analysis = await review_assessments(result.assessments, flow.reviewer)
+            flow.conn.execute('INSERT OR REPLACE INTO agent_llm_reviews VALUES (?,?,?)',
+                              (utc(now), 'A2', canonical(analysis)))
+            handoff['llm_review'] = analysis
+            by_order = {item['order_id']: item for item in analysis['reviews']}
+            for row in handoff['orders']:
+                if row['order_id'] in by_order:
+                    row['llm_review'] = by_order[row['order_id']]
         payload = canonical([assessment_payload(a) for a in result.assessments])
         flow.conn.execute('UPDATE demo_clock SET current_at=?,version=version+1 WHERE singleton=1', (utc(now),))
         flow.conn.execute('INSERT INTO demo_flow_snapshot VALUES (1,?) ON CONFLICT(singleton) DO UPDATE SET payload=excluded.payload', (payload,))
