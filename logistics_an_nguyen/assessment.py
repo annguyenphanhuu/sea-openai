@@ -206,7 +206,14 @@ def assess_order(
         # confirmed customer, platform or force-majeure cause with carrier fault.
         if handover_on_time is True and fault_party in ("unknown", "carrier"):
             fault_party = "carrier"
-            reasons.append("lsr_exempt:seller_handover_on_time")
+            reasons.append("lsr_exempt:carrier")
+        elif handover_on_time is False and fault_party == "unknown":
+            fault_party = "seller"
+        if fault_party == "carrier" and not any(
+            item["source_table"] == "linehaul_reports" and item["fact_code"] == "linehaul_report"
+            for item in evidence
+        ):
+            reasons.append("linehaul_report_missing")
     reasons.append(f"fault:{fault_party}")
     revised_eta = facts.get("revised_eta") if delivered_at is None else None
     if revised_eta is not None and revised_eta < tick_at:

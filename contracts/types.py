@@ -23,7 +23,7 @@ INTENTS: tuple[Intent, ...] = (
 )
 
 Channel = Literal["chat", "web_voice"]
-FaultParty = Literal["customer", "carrier", "platform", "force_majeure", "unknown"]
+FaultParty = Literal["customer", "carrier", "seller", "platform", "force_majeure", "unknown"]
 ActionSource = Literal["a1", "app", "rule", "cancel_reviewer"]
 ActionKind = Literal[
     "coins", "cancel_request", "eta_notice", "voucher", "refund",
