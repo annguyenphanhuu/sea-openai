@@ -4,7 +4,9 @@ import { voiceOperationSchema, voicePayloads, voiceResults } from "@/lib/voice-a
 export async function POST(request: Request, context: { params: Promise<{ operation: string }> }) {
     const host = request.headers.get("host") || "";
     const origin = request.headers.get("origin");
-    if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host)
+    const publicHost = process.env.FRONTEND_HOST;
+    const allowedPublicHost = !!publicHost && host.toLowerCase() === publicHost.toLowerCase();
+    if ((!allowedPublicHost && !/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host))
         || (request.headers.has("x-forwarded-host") && request.headers.get("x-forwarded-host") !== host)
         || request.headers.has("forwarded") || (origin !== `http://${host}` && origin !== `https://${host}`)) {
         return NextResponse.json({ error: "Yêu cầu voice phải đến từ giao diện local." }, { status: 403 });
