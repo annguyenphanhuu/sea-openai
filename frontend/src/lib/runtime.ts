@@ -12,6 +12,8 @@ const orderSchema = z.object({
     created_at: z.string().nullable().optional(), handed_over_at: z.string().nullable().optional(),
 });
 export const runtimeSchema = z.object({
+    llm: z.object({ enabled: z.boolean(), model: z.string().nullable() }).optional(),
+    inside: z.object({ used_llm: z.boolean(), codes: z.array(z.string()) }).optional(),
     mode: z.literal("local_integrated_web_inbox"), now: z.string(), guard_alive: z.boolean(),
     proactive_allowed: z.boolean(), orders: z.array(orderSchema), orders_total: z.number(),
     contact_queue_total: z.number(), phase_trace: z.array(z.string()),
