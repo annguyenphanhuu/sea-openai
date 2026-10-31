@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SEA OpenAI | write-up</title><meta name="author" content="Ascendant — An Nguyên, Huy, Trúc"><style>
+@page { size: A4; margin: 13mm 14mm 13mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Segoe UI", Arial, sans-serif; color: #172b3a; font-size: 10.3pt; line-height: 1.34; margin: 0; }
+header { border-top: 5px solid #087f83; padding-top: 7px; margin-bottom: 12px; color: #087f83; font-size: 8.5pt; letter-spacing: .08em; font-weight: 650; }
+h1 { font-size: 22pt; line-height: 1.14; letter-spacing: -.025em; margin: 0 0 9px; color: #103a49; }
+h2 { font-size: 12.8pt; line-height: 1.2; margin: 13px 0 5px; color: #08777b; break-after: avoid; }
+p { margin: 5px 0 7px; orphans: 3; widows: 3; }
+a { color: #006a83; text-decoration: underline; overflow-wrap: anywhere; }
+strong { font-weight: 650; }
+table { width:100%; border-collapse: collapse; margin: 8px 0 10px; font-size: 9.3pt; line-height: 1.3; }
+thead { display: table-header-group; }
+th,td { border: 1px solid #ccdadd; padding: 6px 8px; text-align: left; vertical-align: top; }
+th { background: #e6f1f1; color: #164855; font-weight: 650; }
+tr { break-inside: avoid; }
+code { font-family: Consolas, "Courier New", monospace; font-size: .88em; overflow-wrap:anywhere; }
+pre { font-family: Consolas, "Courier New", monospace; background: #eff5f6; border-left: 3px solid #087f83; padding: 9px 11px; font-size: 8.3pt; line-height: 1.38; white-space:pre-wrap; break-inside: avoid; }
+pre code { font-size: 1em; }
+.page-break { break-before: page; }
+body.write-up td:first-child { width:25%; }
+body.declarations { font-size: 9.8pt; line-height: 1.3; }
+body.declarations h1 {font-size:23pt;}
+body.declarations td:first-child {width:39%;}
+body.declarations table {font-size:9pt;}
+ul {padding-left:18px;}
+</style></head><body class="write-up"><header>ASCENDANT / SEA × OPENAI / 31.10.2026</header><main><h1>SEA OpenAI — Chăm sóc đơn giao trễ có kiểm soát</h1>
+<p><strong>Ascendant · An Nguyên, Huy, Trúc · 31/10/2026</strong><br>
+<strong>Hướng thi:</strong> Autonomous &amp; Adaptive AI<br>
+<a href="https://sea-openai-ops-559aa5.azurewebsites.net/">Demo trực tuyến</a> · <a href="https://github.com/annguyenphanhuu/sea-openai">Repo bài thi</a></p>
+<h2>Vấn đề</h2>
+<p>Đơn giao chậm khiến khách thiếu thông tin và người bán khó biết trách nhiệm nằm ở đâu. Một thông báo sai vì scan chưa về có thể làm tình huống tệ hơn; một lời hứa hoặc khoản đền bù thiếu bằng chứng tạo thêm rủi ro. Nhóm muốn hệ thống biết khi nào nên giải thích, hỏi lại, chuyển người và dừng hành động.</p>
+<p>Ba quan sát sau mô tả <strong>dữ liệu tổng hợp “Chợ Phố”</strong>, không phải thống kê Shopee. Chúng truy vấn toàn bộ đơn tạo 18–31/10/2026 cùng các scan/lần giao trong release đến 08/11; là phân tích hồi cứu, không phải thông tin agent được nhìn trước tại tick demo. Một số bảng khác còn có bản ghi đến 10/11. Tỷ lệ làm tròn đến phần trăm nguyên. Nguồn và SQL: <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/docs/pitch-notes.md">docs/pitch-notes.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Quan sát</th>
+<th>Phạm vi và cách đọc</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>651/1.474 ≈ 44%</strong></td>
+<td>COD chưa hủy, đã giao sau ngày cam kết <strong>hoặc chưa giao thành công</strong>, từng có lần bị từ chối. Nhóm gồm 731 giao trễ và 743 chưa giao; không suy ra trễ gây từ chối.</td>
+</tr>
+<tr>
+<td><strong>444/619 ≈ 72%</strong></td>
+<td>Chỉ đơn kênh <code>seller_self</code> đã giao trễ: lần bàn giao đầu trong hạn chuẩn bị 2 ngày. Không áp dụng cho mọi kênh hoặc mọi đơn trễ.</td>
+</tr>
+<tr>
+<td><strong>158 đơn giao hỏng lần 3</strong></td>
+<td>Không đơn nào giao thành công trong release; tất cả từng vào quy trình hoàn. Chỉ 49 đã về kho; 109 chưa hoàn tất, gồm 92 đang hoàn, 12 chờ hoàn và 5 hoàn thất bại.</td>
+</tr>
+</tbody>
+</table>
+<p>Các con số nêu nhu cầu hỗ trợ và giải thích trách nhiệm; chúng <strong>không đo mức cải thiện do hệ thống</strong>.</p>
+<h2>Giải pháp và quyền hành động</h2>
+<pre><code class="language-text">NEXT (+30 phút) → snapshot chỉ đọc → A3 kiểm tra độ tin dữ liệu
+                                       ↓
+                              A2 đánh giá + bằng chứng
+                                       ↓
+                              A1 chăm sóc qua chat
+                                       ↓
+               Cửa tiền platform → kiểm điều kiện → biên nhận SQLite
+</code></pre>
+<p><strong>A3</strong> kiểm feed, ghi heartbeat và chặn chủ động khi mất độ tin; Kill chặn ngay, Revive cần lượt chạy mới và feed hợp lệ. <strong>A2</strong> phân loại đơn, đưa ETA và lý do dựa trên bằng chứng; ngày cam kết vẫn là mốc tính trễ theo lịch Việt Nam. Replay chỉ cho thấy dữ liệu đã nhận tại thời điểm mô phỏng. <strong>A1</strong> dùng luật nhận ý định, giải thích từ A2, hỏi xác nhận hủy và chuyển nhân viên.</p>
+<p>LLM hiện chỉ chọn <strong>mã câu trong danh mục được duyệt</strong> cho một số lượt giải thích/hỏi rõ; code điền ngày, số tiền và dữ kiện, kiểm tra đầu ra và dùng template khi lỗi. A2/A3 không gọi LLM để quyết tiền. <code>execute_action</code> kiểm quyền, nguồn gốc yêu cầu, freshness, điều kiện, số tiền và chống cấp trùng. Xu thành công ghi khóa <code>xu:{order_id}</code>; retry không tạo khoản thứ hai. Từ chối vẫn có audit nhưng không khóa vĩnh viễn lần xét lại.</p>
+<div class="page-break"></div>
+
+<h2>Bốn cảnh demo</h2>
+<p>Chạy bản web Python tích hợp, bấm NEXT và chọn đơn release có bằng chứng. Đây là kịch bản kiểm tra hành vi, không phải cam kết mọi ca đều được duyệt.</p>
+<table>
+<thead>
+<tr>
+<th>Cảnh</th>
+<th>Thao tác và kết quả cần quan sát</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. Hỏi đơn</strong></td>
+<td>Mở chat do A1 tạo, hỏi “Sao đơn tôi trễ vậy?”. Đối chiếu câu trả lời với ngày cam kết, ETA và bằng chứng A2. Khi bật LLM, xem dấu vết <code>used_llm</code>; không mặc định mọi lượt đều gọi model.</td>
+</tr>
+<tr>
+<td><strong>2. Xin đền bù</strong></td>
+<td>Với đơn <code>261021ZS7E76FW</code>, nhân viên tự xem bằng chứng và ghi xác minh có audit; nguồn không tự chứng minh không có bất khả kháng. Gửi TEXT “Tôi xin xu”. Nếu đủ điều kiện, ledger ghi <strong>26.000 xu</strong> từ giá trị hàng 525.000 VND; gửi lại để kiểm tra không cấp trùng. Đây là quyền lợi nội bộ, không chuyển tiền vào ví thật.</td>
+</tr>
+<tr>
+<td><strong>3. Hủy đơn</strong></td>
+<td>Gõ “Tôi muốn hủy đơn”, đọc câu hỏi xác nhận và bấm xác nhận. Quan sát <code>cancel_request</code> chờ duyệt trong runtime; không sửa đơn nguồn, không tự hoàn tiền.</td>
+</tr>
+<tr>
+<td><strong>4. Tắt A3</strong></td>
+<td>Bấm Kill A3: chặn ngay chủ động liên hệ/cấp xu. NEXT không được tạo liên hệ mới bị cấm. Revive rồi NEXT chỉ phục hồi nếu các gate còn lại cho phép; không tự gỡ <code>proactive_block</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Luật đền bù là chính sách mô phỏng của nhóm: trễ ít nhất hai ngày lịch Việt Nam, khách xin bằng TEXT trong chat A1 mở, không lỗi khách hoặc bất khả kháng, đủ bằng chứng và quyền. Xu bằng 5% giá trị hàng, làm tròn xuống bội 1.000, trong khoảng 10.000–1.000.000. Voucher 10.000 VND có executor riêng và khóa riêng, nhưng chưa được chứng minh qua luồng chat A1 ở mốc đối chiếu.</p>
+<h2>Khớp hướng đăng ký, với phạm vi thực tế</h2>
+<p>Bản đăng ký ngày 15/10 chọn <strong>Autonomous &amp; Adaptive AI</strong>, gồm A1 xử lý khiếu nại, A2 logistics và A3 giám sát/tự khắc phục. Bài thi giữ ba vai trò, tự chạy chuỗi <strong>A3 → A2 → A1</strong> mỗi lần NEXT và thích nghi bằng chặn an toàn, hỏi bằng chứng hoặc chuyển nhân viên. <strong>Phạm vi đã thu hẹp:</strong> chưa chứng minh tự sửa code/rollback hạ tầng, quản lý tồn kho hay hoàn tiền thương mại như ý tưởng ban đầu. Bản demo hiện thể hiện giám sát và điều kiện hành động. <a href="https://github.com/vinhhuy12/sea-openai-hackathon/blob/main/day-d/event/du-an-3-agent.md">Bản đăng ký gốc trong repo chuẩn bị</a>.</p>
+<h2>Dùng Codex và bằng chứng</h2>
+<p>Theo khai báo của nhóm, Codex viết code, test và deploy; Claude chỉ đọc, review, viết prompt trong ngày thi, không sửa code giải pháp. Công việc chia theo quyền sở hữu thư mục; các nhánh triển khai độc lập dùng subagent/worktree riêng, controller tích hợp. Research → spec → review context sạch → plan; có lượt kiểm tra độc lập và log RED/GREEN thực trong <code>.scratch</code>. Đây là quy trình hỗ trợ kiểm soát lỗi, không thay thế xác minh của con người.</p>
+<p>Mốc đối chiếu code: <strong><code>b00d78e</code>, 14:47:50 +07:00 ngày 31/10</strong>; repo bắt đầu từ <code>25131a2</code> lúc 09:09:30, chỉ một dòng README. Log trình duyệt tích hợp ghi nhận NEXT, chat, ledger xu, hủy chờ duyệt, handoff và Kill; log selector ghi một lần gọi model thật. Các lần chạy suite sau merge còn lỗi, nên không công bố tổng test hiện tại đều đạt hoặc accuracy/ROI. <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/docs/codex-log.md">Nhật ký và nguồn kiểm tra</a>.</p>
+<h2>Giới hạn công khai</h2>
+<p><strong>Voice đang làm</strong>, chưa tính là hoàn tất. Dữ liệu tổng hợp và xác minh nhân viên trong test không chứng minh tình huống thực. A3 dùng timeout trên 90 phút, trong khi A1 còn kiểm tra heartbeat 60 phút nên có thể chặn sớm hơn. Bản công khai dùng quyền người trình bày, chưa là hệ thống phân quyền khách hàng. SQLite runtime không bảo đảm giữ qua restart; không có ví thật, SMS/PSTN hay số đo hiệu quả kinh doanh. Repo cũ chỉ dùng ý tưởng/kế hoạch, không chép code; dữ liệu chuẩn bị trước và OSS được khai riêng trong <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/docs/declarations.md">Declarations</a>.</p></main></body></html>

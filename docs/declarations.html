@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SEA OpenAI | declarations</title><meta name="author" content="Ascendant — An Nguyên, Huy, Trúc"><style>
+@page { size: A4; margin: 13mm 14mm 13mm; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { font-family: "Segoe UI", Arial, sans-serif; color: #172b3a; font-size: 10.3pt; line-height: 1.34; margin: 0; }
+header { border-top: 5px solid #087f83; padding-top: 7px; margin-bottom: 12px; color: #087f83; font-size: 8.5pt; letter-spacing: .08em; font-weight: 650; }
+h1 { font-size: 22pt; line-height: 1.14; letter-spacing: -.025em; margin: 0 0 9px; color: #103a49; }
+h2 { font-size: 12.8pt; line-height: 1.2; margin: 13px 0 5px; color: #08777b; break-after: avoid; }
+p { margin: 5px 0 7px; orphans: 3; widows: 3; }
+a { color: #006a83; text-decoration: underline; overflow-wrap: anywhere; }
+strong { font-weight: 650; }
+table { width:100%; border-collapse: collapse; margin: 8px 0 10px; font-size: 9.3pt; line-height: 1.3; }
+thead { display: table-header-group; }
+th,td { border: 1px solid #ccdadd; padding: 6px 8px; text-align: left; vertical-align: top; }
+th { background: #e6f1f1; color: #164855; font-weight: 650; }
+tr { break-inside: avoid; }
+code { font-family: Consolas, "Courier New", monospace; font-size: .88em; overflow-wrap:anywhere; }
+pre { font-family: Consolas, "Courier New", monospace; background: #eff5f6; border-left: 3px solid #087f83; padding: 9px 11px; font-size: 8.3pt; line-height: 1.38; white-space:pre-wrap; break-inside: avoid; }
+pre code { font-size: 1em; }
+.page-break { break-before: page; }
+body.write-up td:first-child { width:25%; }
+body.declarations { font-size: 9.8pt; line-height: 1.3; }
+body.declarations h1 {font-size:23pt;}
+body.declarations td:first-child {width:39%;}
+body.declarations table {font-size:9pt;}
+ul {padding-left:18px;}
+</style></head><body class="declarations"><header>ASCENDANT / SEA × OPENAI / 31.10.2026</header><main><h1>Declarations — SEA OpenAI</h1>
+<p><strong>Ascendant · An Nguyên, Huy, Trúc · 31/10/2026</strong><br>
+<a href="https://github.com/annguyenphanhuu/sea-openai">Repo bài thi</a> · <a href="https://sea-openai-ops-559aa5.azurewebsites.net/">Demo</a></p>
+<h2>1. Dự án và tài liệu đã có trước hackathon</h2>
+<p>Nhóm đã chuẩn bị và diễn tập tại <a href="https://github.com/vinhhuy12/sea-openai-hackathon">vinhhuy12/sea-openai-hackathon</a> trước sự kiện. Repo đó có nghiên cứu, ý tưởng ba agent, bản đăng ký, đặc tả, kế hoạch, prompt, bộ sinh dữ liệu và code tập dượt. <strong>Khai báo của nhóm: không chép code giải pháp từ repo tập dượt vào repo thi; chỉ dùng ý tưởng, kế hoạch và bài học thiết kế.</strong> Mã tập dượt không được tính là sản phẩm viết trong ngày. Lịch sử Git của repo thi là bằng chứng thời điểm thêm tệp, không tự chứng minh nguồn gốc từng dòng mã.</p>
+<p><strong>Dữ liệu được tái sử dụng, có khai báo riêng:</strong> <code>release_main/core_14d.sqlite</code> và <code>ops_14d.sqlite</code> được script Python của nhóm sinh trước sự kiện bằng seed cố định. Toàn bộ người, đơn và doanh nghiệp là tổng hợp/hư cấu. Đơn tạo 18–31/10/2026, scan/lần giao tiếp tục đến 08/11; một số bảng còn có bản ghi đến 10/11. Đây không phải dữ liệu nội bộ Shopee. Câu ticket gốc do Claude tạo, script điền dữ kiện thuộc bộ tổng hợp và biến thể ngôn ngữ. Bộ sinh dữ liệu và mã tập dượt không đưa vào repo giải pháp. <a href="https://github.com/vinhhuy12/sea-openai-hackathon/blob/main/data/release_main/DATA.md">Tài liệu dữ liệu nguồn</a> và <code>manifest.sha256</code> đi cùng bản release được cung cấp riêng; kiểm định trong <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/docs/data_audit.md">docs/data_audit.md</a>.</p>
+<p>Ánh xạ địa giới trong dữ liệu dựa trên <a href="https://github.com/quangtam/vietnam-address-database">quangtam/vietnam-address-database</a>. NOTICE của bộ sinh ghi MIT theo metadata/README upstream, upstream không có tệp LICENSE ở lần kiểm tra 23–24/10; nguồn này ghi công <a href="https://github.com/thanhtrungit97/dvhcvn">thanhtrungit97/dvhcvn</a>, nơi chưa khai giấy phép. Đây là khai báo provenance dữ liệu, không coi toàn bộ dữ liệu là do nhóm sáng tạo độc quyền.</p>
+<p>Các bộ τ²-bench, Bitext, DataCo, Olist và AIOpsLab từng xuất hiện trong phương án đăng ký; <strong>không dùng làm dữ liệu đầu vào của demo hiện tại</strong>. Không lấy số đo của bản tập dượt làm kết quả ngày thi. Đáp án <code>truth/</code>/heldout không phải đầu vào agent.</p>
+<h2>2. Phần làm riêng trong hackathon 31/10</h2>
+<p>Repo thi bắt đầu ở <strong><code>25131a2</code> lúc 09:09:30 +07:00</strong>, chỉ có README một dòng; scaffold <strong><code>919fef3</code> lúc 09:53:09</strong>. Đối chiếu đến <strong><code>b00d78e</code> lúc 14:47:50</strong>, các phần xây trong ngày gồm:</p>
+<table>
+<thead>
+<tr>
+<th>Phạm vi</th>
+<th>Thư mục bằng chứng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hợp đồng, tham số, schema; runtime SQLite, replay/NEXT, A3 và cổng thực thi</td>
+<td><code>contracts/</code>, <code>requirements/</code>, <code>platform_huy/</code></td>
+</tr>
+<tr>
+<td>Đánh giá logistics A2, ETA, bằng chứng và danh sách đơn</td>
+<td><code>logistics_an_nguyen/</code></td>
+</tr>
+<tr>
+<td>Chăm sóc A1, luật hội thoại, xác nhận hủy, handoff và chọn câu</td>
+<td><code>care_truc/</code></td>
+</tr>
+<tr>
+<td>Web/API tích hợp, frontend, đóng gói triển khai</td>
+<td><code>platform_huy/serve_ui.py</code>, <code>platform_huy/ui_prototype/</code>, <code>frontend/</code>, <code>deploy/</code></td>
+</tr>
+<tr>
+<td>Kiểm thử, tài liệu bài thi và evidence</td>
+<td><code>acceptance_huy/</code>, <code>acceptance_an_nguyen/</code>, <code>acceptance_truc/</code>, <code>care_truc/tests/</code>, <code>docs/</code>, <code>.scratch/</code></td>
+</tr>
+</tbody>
+</table>
+<p>Voice còn đang làm; voucher chưa được chứng minh xuyên suốt qua chat A1. Quyền lợi demo chỉ ghi runtime nội bộ; không chi tiền thật hoặc dùng ví Shopee. Tài liệu này không tính tính năng chưa kiểm chứng là đã hoàn thành.</p>
+<div class="page-break"></div>
+
+<h2>3. Công cụ, dịch vụ và OSS</h2>
+<p><strong>Khai báo vai trò trong ngày thi:</strong> Codex viết code, viết/chạy test và thực hiện deploy theo nhiệm vụ; subagent/worktree chia phạm vi, review độc lập trước tích hợp khi phù hợp. Claude chỉ đọc, review và viết prompt, <strong>không chạm code giải pháp</strong>. Việc Claude tạo câu ticket trước sự kiện là hoạt động chuẩn bị dữ liệu đã khai ở mục 1. Không suy ra tác giả từng dòng chỉ từ tên người commit.</p>
+<p>OpenAI API là dịch vụ chọn mã câu có giới hạn cho A1; model cấu hình tại snapshot mặc định <code>gpt-5.4-mini</code>, có thể đổi qua môi trường. Microsoft Azure App Service là nơi cung cấp link demo. Công cụ AI và dịch vụ cloud không phải mã nguồn do nhóm sở hữu. Bộ bài nộp Markdown được chuyển sang HTML rồi Microsoft Edge headless in PDF.</p>
+<table>
+<thead>
+<tr>
+<th>Thành phần OSS dùng trực tiếp</th>
+<th>Vai trò / khai báo giấy phép</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python, SQLite</td>
+<td>Nền chạy và lưu trữ; Python theo PSF, SQLite public domain.</td>
+</tr>
+<tr>
+<td><code>pytest==9.0.3</code>, <code>httpx==0.28.1</code></td>
+<td>Test và HTTP/OpenAI; MIT, BSD-3-Clause.</td>
+</tr>
+<tr>
+<td><code>huggingface-hub==1.16.4</code> trong <code>deploy/requirements.txt</code></td>
+<td>Adapter tải release/fallback trong repo; Apache-2.0. Không đồng nghĩa demo được host trên Hugging Face.</td>
+</tr>
+<tr>
+<td>Next.js 16.4.3, React/React DOM 19.3.0</td>
+<td>Frontend riêng; MIT.</td>
+</tr>
+<tr>
+<td>Fluent UI, Griffel, Phosphor Icons, Tailwind CSS, PostCSS, Zod</td>
+<td>UI, style, biểu tượng và validation; MIT theo lockfile.</td>
+</tr>
+<tr>
+<td>TypeScript, Playwright; ESLint và <code>@types/*</code></td>
+<td>Build/test/typecheck; TypeScript và Playwright Apache-2.0, ESLint và các gói <code>@types</code> trực tiếp MIT.</td>
+</tr>
+<tr>
+<td>Python-Markdown, pypdf, PyMuPDF</td>
+<td>Công cụ xuất/kiểm tra tài liệu tại máy soạn, không thêm dependency cho ứng dụng; lần lượt BSD-3-Clause, BSD-3-Clause, AGPL-3.0 hoặc giấy phép thương mại của nhà cung cấp.</td>
+</tr>
+</tbody>
+</table>
+<p>Danh mục phụ thuộc trực tiếp và bắc cầu của frontend cùng trường license nằm trong <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/frontend/package-lock.json">frontend/package-lock.json</a>; Python khai ở <a href="https://github.com/annguyenphanhuu/sea-openai/tree/main/requirements">requirements/</a> và <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/deploy/requirements.txt">deploy/requirements.txt</a>. Giữ giấy phép/thông báo của từng gói khi phân phối chúng; repo này không chuyển quyền sở hữu OSS thành mã tự viết. Không khai một giấy phép chung mới cho toàn bộ dự án.</p>
+<p><strong>Phạm vi khai báo:</strong> nội dung dựa trên tài liệu nguồn, repo thực và xác nhận của nhóm; không phải chứng nhận độc lập về tuân thủ cuộc thi hay nguồn gốc toàn bộ mã. <a href="https://github.com/annguyenphanhuu/sea-openai/blob/main/docs/codex-log.md">Nhật ký Codex và các mốc kiểm chứng</a> ghi rõ giới hạn bằng chứng.</p></main></body></html>
