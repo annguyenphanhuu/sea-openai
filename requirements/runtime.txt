@@ -1,1 +1,2 @@
-# The scaffold uses only the Python 3.11+ standard library.
+pymongo==4.19.0
+python-dotenv==1.2.4

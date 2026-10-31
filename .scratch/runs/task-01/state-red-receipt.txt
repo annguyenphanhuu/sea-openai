@@ -1,4 +1,0 @@
-Command: C:/Users/huyth/miniconda3/envs/sea-openai/python.exe -s -m pytest acceptance_huy/test_task01_state.py -v -k "nonempty_unrecognized or bootstrap_enables" --basetemp=.scratch/runs/task-01/pytest-state-red
-Start UTC: 2026-10-31T04:35:11.4750856Z
-End UTC: 2026-10-31T04:35:12.1220569Z
-Exit: 1
