@@ -10,6 +10,27 @@ import pytest
 from platform_huy.serve_ui import create_server
 
 
+def test_public_keyless_demo_does_not_expose_voice_credentials(tmp_path, monkeypatch):
+    import platform_huy.serve_ui as module
+    source = Path(__file__).resolve().parents[2] / 'data/release_main/core_14d.sqlite'
+    if not source.is_file():
+        pytest.skip('Release input required')
+    monkeypatch.delenv('LIVE_PRESENTER_KEY', raising=False)
+    monkeypatch.setenv('OPENAI_API_KEY', 'test-key')
+    server_type = module.LocalHTTPServer
+    monkeypatch.setattr(module, 'LocalHTTPServer', lambda address, handler: server_type(('127.0.0.1', address[1]), handler))
+    server = create_server(core_path=source, state_path=tmp_path/'state.sqlite', integrated=True, host='0.0.0.0', port=0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        response = httpx.post(f'http://127.0.0.1:{server.server_port}/api/voice/state', json={})
+        assert response.status_code == 401
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def test_voice_http_binds_web_voice_session_and_blocks_coins(tmp_path, monkeypatch):
     source = Path(__file__).resolve().parents[2] / 'data/release_main/core_14d.sqlite'
     if not source.is_file():

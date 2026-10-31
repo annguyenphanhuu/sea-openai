@@ -165,4 +165,3 @@ test("late playback failure after stop cannot reactivate voice", async ({ page }
     await expect(page.getByRole("textbox", { name: "Tin nhắn khách trong phiên local" })).toBeEnabled();
     expect(await page.locator('audio').evaluate(audio => audio instanceof HTMLMediaElement ? audio.srcObject : null)).toBeNull();
 });
-

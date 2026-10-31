@@ -132,7 +132,8 @@ def create_server(*, core_path: Path, state_path: Path,
 
         def _voice_api(self, operation: str, payload: dict) -> None:
             from .voice_routes import VoiceError
-            if voice is None or presenter is None or not presenter.authorized(self.headers):
+            if (voice is None or presenter is None or not presenter.authorized(self.headers)
+                    or (host.casefold() not in ('127.0.0.1', 'localhost', '::1') and not presenter.required)):
                 self._json(401, {'error': 'Presenter key required'})
                 return
             try:
