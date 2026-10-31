@@ -86,7 +86,7 @@ Mutation phải chống retry bằng idempotency, kiểm ownership/quyền serve
 
 ## 3. Chia việc theo 7 giờ
 
-Giờ tính từ lúc team bắt đầu thực thi plan. Mỗi tính năng dùng một nhánh: Huy dùng `huy/<tinh-nang>`, An Nguyen dùng `nguye/<tinh-nang>`, Trúc dùng `truc/<tinh-nang>`. Tên tính năng viết thường, nối từ bằng dấu gạch ngang, ví dụ `truc/care-api`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
+Giờ tính từ lúc team bắt đầu thực thi plan. Mỗi tính năng dùng một nhánh: Huy dùng `huy/<tinh-nang>`, An Nguyen dùng `nguyen/<tinh-nang>`, Trúc dùng `truc/<tinh-nang>`. Tên tính năng viết thường, nối từ bằng dấu gạch ngang, ví dụ `truc/care-api`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
 
 Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh tính năng nếu có, rồi merge main vào nhánh tính năng. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
 

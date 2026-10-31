@@ -31,7 +31,7 @@ Installation affects only the local clone. The installer sets local `core.hooksP
 the absolute `.githooks` path in the installing checkout and refuses to replace
 a different configured hooks directory. Keep that checkout available: linked
 worktrees share these hooks, including when their branch has older hook files.
-Use a feature branch (`truc/<feature>`, `nguye/<feature>`, or `huy/<feature>`) as required by AGENTS.md.
+Use a feature branch (`truc/<feature>`, `nguyen/<feature>`, or `huy/<feature>`) as required by AGENTS.md.
 Git cannot store both a flat branch such as `truc` and branches under `truc/`
 on the same remote. Coordinate with the owner to rename or remove the flat branch
 after its open work is integrated, before pushing a branch with that prefix.
