@@ -28,6 +28,13 @@ filter by status `late` and payment `COD` to inspect the red badges. The browser
 does not infer risk from payment, amount or source text. The Python rule uses
 the confirmed 1,000,000 VND threshold and visible failed delivery attempts.
 
+The green **Miễn trừ LSR** badge appears only for the assessed
+`lsr_exempt:carrier` reason. The seller fault label is **Người bán**.
+Inspect `handed_over_scan`, linked `linehaul_trip_id` and `linehaul_report` in the
+evidence panel; reports remain unverified text. `linehaul_report_missing` makes a
+missing report visible without fabricating one or overriding the scan/policy rule.
+The badge is an A2 recommendation, not proof that an external penalty was changed.
+
 ## API handoff
 
 Serve this static UI alongside Truc's authenticated HTTP application, then open
