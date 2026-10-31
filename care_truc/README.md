@@ -1,6 +1,6 @@
 # Customer care, A1, UI, and APIs
 Input: A2 assessed-order lists with shipping dates, ETA and delay evidence, plus A3 gates and customer turns.
-Output: Customer care, web voice, management/customer/shop UI and HTTP APIs, action requests, and handoffs.
+Implemented output: in-process chat JSON responses, durable action requests and handoffs. Web voice and HTTP mounting remain external integration work.
 Owner: Truc.
 Boundary: Rules first; LLM output is untrusted; no direct money effects or telephone calls.
 
@@ -91,9 +91,10 @@ the entire normalized task. Customer open request IDs bind the order within the
 run and principal. Committed retries replay before reading business context.
 
 New requests after `handoff_pending`, `transferred`, or `completed` return a state
-conflict. Old requests still replay their immutable response. Internal retry of a
-blocked handoff needs a separate staff/system workflow; it must not reopen customer
-automation. Timeouts retain the existing dispatcher reconciliation path.
+conflict. Old requests still replay their immutable response. Internal
+`retry_handoff(session_id, ctx)` requires `care_handoff_retry`, rechecks the latest
+gate and reuses only a blocked, never-submitted handoff envelope. It does not
+reopen customer automation. Timeouts retain reconciliation.
 
 Turn responses include the assessment fingerprint, safe public evidence, and
 references resolvable through the permission-gated durable bundle resolver. Facts
@@ -120,3 +121,42 @@ The existing v1 store receives an additive `cancellations` lifecycle table on
 open. Embedded legacy pending confirmations without this evidence fail closed;
 there is no backfill of authorization or consumed tokens. No source DB or
 shared runtime schema is changed.
+
+## Labeled adapter demo
+
+Run `python -m care_truc.demo`. This is an **adapter demo: algorithm fixtures
+only**, using one `CareRuntime`/`CareHarness`/`CareApi`, temporary SQLite and
+explicitly injected memory context, gateway, gate, clock and hostile selector.
+The temporary directory is deleted on exit. No source databases or world data
+are accessed, modified or generated. Receipt `succeeded` values are simulated
+algorithm outcomes, never evidence of real contact, money or cancellation.
+
+The flow checks proactive contact, ask-why, explicit coin request, receipt polling,
+separate explicit cancellation confirmation and human handoff, selector fallback,
+blocked guard, resolvable durable evidence and immutable POST replay. GET returns
+current `effects` and separate `system_events`; render those separately from
+conversation `messages`. `message_id` identifies the reply used as `reply_to`.
+
+For real adapters, inject `context_provider`, `gateway`, `gate`, optional `selector`
+and `clock` into `await CareRuntime.start(run_id, adapters, root=Path('runs'))`.
+Shutdown on the same event loop. There are no fixture defaults in production.
+`ContextSnapshot.ledger_pending` must be explicitly `False` for coin eligibility;
+`None` is unknown and blocks it. `ledger_granted=False`, successful actual contact,
+resolvable evidence, valid trusted facts and all other policy conditions remain
+required. Gateway `atomic_final_validation` must be exactly `True`: this is a
+platform guarantee of atomic latest permission/control/D4 validation at acceptance,
+not permission for a caller to set a flag to bypass a missing implementation.
+
+Huy must provide ownership/principal/cutoff binding, completed assessment and
+item value as-of, mandatory-feed policy, atomic latest-control dispatch, durable
+gateway lookup/receipts and global order uniqueness, durable handoff delivery,
+HTTP mount/authentication and review of route decisions. The current platform
+`SqliteEffectGateway` lacks `atomic_final_validation`; real integrated delivery
+therefore remains unavailable and the dispatcher fails closed. This demo does
+not change that gateway. Voice provider/session negotiation is also unintegrated.
+
+API payloads use `handle_message(session_id, message_id, text, reply_to?)` and
+`confirm_cancel(confirmation_id, request_id, reply_to, confirmed)`; JSON confirmed
+must be a boolean and authorization requires explicit `true`. Customer JSON
+cannot provide channel, amount, source, permissions or cutoff. See
+[VERIFICATION.md](VERIFICATION.md) for repeatable checks and integration limits.

@@ -1,60 +1,43 @@
-# Harness verification and boundaries
+# Care verification
 
-The runtime was implemented against the 2026-10-31 care harness and business
-specifications. Each implementation unit was tested and pushed separately to
-`truc/care-harness`. Run the commands in README from the repository root.
+From the repository root, Python 3.11+:
 
-The test environment uses real SQLite transactions and Windows OS process locks,
-with fixed authenticated context, fake operational time, scripted platform
-receipts/gates and optional phrase selectors. No release database was changed.
-These results do not establish live HTTP, provider, A3/A2 or executor integration.
+```powershell
+python -c "import contracts; import care_truc"
+python -m pytest care_truc/tests/test_flow.py -q
+python -m pytest care_truc/tests -q
+python -m pytest -q
+python -m pytest acceptance_huy acceptance_an_nguyen acceptance_truc care_truc/tests -q
+python -m care_truc.demo
+git diff --check
+python scripts/guardrails.py --all --tests
+```
 
-## Independent final review
+Root pytest discovers acceptance folders; include care tests explicitly for the
+combined suite. The flow test invokes the same labeled demo used by the CLI. All
+its inputs are algorithm fixtures, SQLite is isolated, and no source DB or world
+data is accessed or generated. The gateway uses memory receipts; simulated
+success never asserts actual delivery or execution. Expected CLI fields are
+`coin_receipt`, `cancel_receipt`, `handoff_receipt` = `succeeded`, selector source
+`template`, and true immutable replay, evidence, privacy and blocked-guard checks.
 
-A fresh read-only reviewer examined commit `53d1395` and found one critical and
-eight important issues. They were addressed in one fix pass with regression tests
-in `tests/test_review_regressions.py`:
+The single runtime starts with explicitly injected adapters. Tests cover immutable
+POST/current GET (`effects`, `system_events`), durable evidence resolution,
+`care_contact`, explicit `ledger_pending=False`, and strict gateway capability
+`atomic_final_validation is True`. Internal handoff retry requires
+`care_handoff_retry`; it preserves the original envelope and terminal session.
+Cancellation requires explicit confirmed consent and the exact prompt
+`reply_to`/`message_id`; ordinary acceptance without that binding cannot execute it.
 
-| Finding | Verified behavior |
-| --- | --- |
-| Shutdown released ownership during external drain | Every active harness/dispatcher operation is tracked before storage/lock release |
-| Text confirmation used customer request ID | Confirmation binds to public assistant response event ID |
-| Interrupted opening could not resume | Typed open_contact payload recovers with the original task and processing budget, zero customer turns |
-| Blocked effects starved later work | Non-actionable rows are skipped and scans advance fairly |
-| Repeating blocked handoff failed revision checks | New explicit human request reuses the unsent handoff key/envelope |
-| D4 used unbound order-level contact success | Current session requires its own authoritative successful contact receipt |
-| Why response omitted supported reasons | Approved templates map structured evidence and reason codes; unknown reasons remain neutral |
-| Handoff lost the conversation/action context | Summary preserves labelled customer statements, facts, pending requests and known action outcomes |
-| Hook failures disappeared | Sanitized hook phase outcomes appear in staff trace and observer failures degrade health without undoing receipts |
+The v1 harness adds cancellation lifecycle storage, but cannot migrate the former
+synchronous prototype schema. Legacy embedded confirmations without durable
+authorization evidence fail closed. Contact sessions lacking the bound open
+fingerprint also need an explicit migration decision. Use fresh run state;
+retention and migration of existing production state require separate review.
 
-The same fix pass verified that contact envelopes contain a validated opening
-message and that the persisted internal opening payload is staff-only, rather
-than being displayed as a customer message.
-
-Deferred minor: a conflicting repeat of an older, already superseded receipt
-revision is ignored rather than reported as an adapter inconsistency. The latest
-authoritative state is preserved. Conflicts at the current revision are rejected.
-
-The reviewer did not judge live authentication correctness, atomic external
-permission enforcement, provider cancellation compliance, executor once-per-order
-guarantees or live HTTP/provider integration. Those require actual platform
-adapters and remain separate integration checks; test fixtures do not prove them.
-
-## Execution decisions
-
-- Updated ownership on main gives Truc HTTP/auth; this implementation keeps the
-  requested in-process scope. Risk: later adapter handoff ownership needs alignment.
-- Store request references use generated internal IDs, scoped separately from
-  client IDs. Risk: an extra internal lookup, avoiding cross-session collisions.
-- Canonical JSON captures nested contract evidence before callbacks can change
-  it. Risk: serialization overhead, without widening business authority.
-- Initial full guardrails failed on pre-existing tracked `.scratch/runs` files.
-  They were preserved while this branch used staged checks plus both suites.
-  Subsequent main updates removed those artifacts and full guardrails passed.
-  Risk at that stage was blocked repository CI; no longer outstanding.
-
-Execution record correction: Task 4 RED tests were inadvertently included in the
-Task 3 commit by an overlapping bookkeeping command. They were observed failing
-before their implementation; subsequent commit/check operations were serialized.
-
-Final verification after updating origin/main: **96 harness tests and 518 acceptance tests passed**. `import contracts`, `git diff --check` and `python scripts/guardrails.py --all --tests` passed. Nine review regressions exercise the fixes (reason rendering and handoff context share one scenario). No post-fix independent re-review was requested; regression tests and the full suites verify the single fix pass.
+No HTTP server, network authentication, voice provider/session negotiation or
+replay-fed A2/A3/executor delivery is demonstrated. Huy's current
+`SqliteEffectGateway` does not advertise atomic final validation, so integrated
+delivery is blocked until the owner implements and declares that guarantee.
+Separate gate checking cannot establish it. Required handoff inputs and proposed
+route mapping are in README; all route decisions remain subject to platform review.
