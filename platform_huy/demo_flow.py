@@ -39,6 +39,13 @@ _CANDIDATE = '261021ZS7E76FW'
 _LOST_CANDIDATE = '261019QY8UDYNZ'
 
 
+def _customer_reply(text, codes, effect_ids):
+    """Present a denied benefit politely without changing its durable decision."""
+    if 'coins_actions_blocked' in codes and not effect_ids:
+        return 'Dạ, hiện hệ thống đang tạm dừng ưu đãi. Anh/chị vui lòng thử lại sau nhé.'
+    return text
+
+
 def _hash(path):
     digest = hashlib.sha256()
     with path.open('rb') as source:
@@ -461,6 +468,12 @@ class DemoFlow:
             state = self.care.store.load_session(session_id)
             ctx = TrustedRequestContext(self._principal(self._inspect(state.order_id)))
             chat = await self.care.harness.get_messages(session_id, ctx)
+            # The same projection is applied to persisted history and the current
+            # result, so reloads/retries retain the audited denial and no effect.
+            for message in chat['messages']:
+                if message['kind'] == 'response':
+                    message['text'] = _customer_reply(message['text'],
+                        message.get('codes') or (), message.get('effect_ids') or ())
             chat.update(session_id=session_id, order_id=state.order_id, opened_by=state.opened_by,
                         pending=asdict(state.pending) if state.pending else None, turn_count=state.turn_count)
         controls = dict(self.conn.execute("SELECT control_key,value_json FROM controls WHERE scope='global'"))
@@ -574,6 +587,7 @@ class DemoFlow:
                 raise ValueError('Unknown integrated demo operation')
             view = await self._view(payload)
             if result:
+                result = replace(result, text=_customer_reply(result.text, result.codes, result.effect_ids))
                 view['turn_result'] = asdict(result)
                 effects = [self.care.store.effect(effect_id) for effect_id in result.effect_ids]
                 blocked = bool(result.codes) or any(row is not None and row['state'] == 'blocked' for row in effects)
