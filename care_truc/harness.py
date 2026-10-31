@@ -221,3 +221,42 @@ class CareHarness:
         if self.dispatcher is None:
             raise CareError("dispatcher_unavailable", 503)
         return await self.dispatcher.drain_pending()
+
+    async def get_messages(self, session_id, ctx):
+        state = self.store.load_session(session_id)
+        await self.authorize(ctx, state.order_id, state.principal_id)
+        messages = []
+        for event in self.store.events(session_id):
+            if event["visibility"] != "customer":
+                continue
+            payload = json.loads(event["content"])
+            messages.append({"id": event["id"], "sequence": event["sequence"], "kind": event["kind"],
+                "text": payload.get("text", ""),
+                **({"outcome": payload["outcome"], "effect_id": payload["effect_id"]}
+                   if event["kind"] == "receipt" else {})})
+        effects = [{"effect_id": row["id"], "delivery_status": row["state"], "outcome": row["outcome"]}
+                   for row in self.store.effects() if row["session_id"] == session_id]
+        return {"messages": messages, "effects": effects, "status": state.status}
+
+    async def get_trace(self, session_id, ctx):
+        if not ctx or "care_trace" not in ctx.staff_permissions:
+            raise CareError("forbidden", 403)
+        state = self.store.load_session(session_id)
+        await self.authorize(ctx, state.order_id, state.principal_id)
+        rows = self.store.db.execute("SELECT trace FROM evidence_bundles e JOIN requests r ON e.request_id=r.id WHERE r.session_id=? ORDER BY r.rowid", (session_id,))
+        return {"decisions": [json.loads(row[0]) for row in rows]}
+
+    async def get_handoffs(self, ctx):
+        if not ctx or "care_handoffs" not in ctx.staff_permissions:
+            raise CareError("forbidden", 403)
+        result = []
+        for row in self.store.effects():
+            proposal = json.loads(row["proposal"])
+            if proposal["kind"] != "handoff_request":
+                continue
+            state = self.store.load_session(row["session_id"])
+            await self.authorize(ctx, state.order_id, state.principal_id)
+            result.append({"session_id": state.session_id, "order_id": state.order_id,
+                "status": state.status, "delivery_status": row["state"],
+                "summary": json.loads(proposal["payload"]).get("summary")})
+        return {"handoffs": result}
