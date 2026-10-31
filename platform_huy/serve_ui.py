@@ -86,7 +86,7 @@ def create_server(*, core_path: Path, state_path: Path,
                 self._json(401, {'error': 'Presenter key required'})
                 return
             try:
-                result = demo.request(action, payload) if integrated else demo.request(action)
+                result = demo.request(action, payload, reject_overlapping_next=True) if integrated else demo.request(action)
                 self._json(200, result)
             except (OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                 # Failure responses cannot authorize even a stale browser client.

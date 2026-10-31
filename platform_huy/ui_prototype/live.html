@@ -119,7 +119,8 @@ function renderTick(value){
         const timing=timings.find(t=>t.agent===agent),done=trace.includes(agent),active=tickActive()&&phase===agent;
         const step=document.createElement('div');step.className='tick-step'+(done?' complete':active?' running':'');
         const title=document.createElement('strong'),note=document.createElement('small');
-        title.textContent=agent==='A3'?'A3 kiểm tra feed':agent==='A2'?`A2 đánh giá ${done&&!tickActive()&&Number.isFinite(value.orders_total)?money(value.orders_total)+' đơn':'đơn hàng'}`:'A1 xử lý liên hệ';
+        const orderCount=tickActive()?progress.orders_to_assess:value.orders_total;
+        title.textContent=agent==='A3'?'A3 kiểm tra feed':agent==='A2'?`A2 đánh giá ${Number.isFinite(orderCount)?money(orderCount)+' đơn':'đơn hàng'}`:'A1 xử lý liên hệ';
         note.textContent=done?`✓ Hoàn tất${Number.isFinite(timing?.duration_ms)?' · '+(timing.duration_ms/1000).toFixed(2)+' s':''}`:active?'Đang chạy…':'Chờ';
         step.append(title,note);return step;
     }));

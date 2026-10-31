@@ -11,7 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
-from threading import Lock, Thread
+from threading import Condition, Lock, Thread
 import time
 from uuid import uuid4
 
@@ -253,6 +253,7 @@ class DemoFlow:
         self.start_at = start_at
         self.closed = False
         self._snapshot_lock = Lock()
+        self._next_finished = Condition(self._snapshot_lock)
         self._status_snapshot = {}
         self._tick_progress = {'busy': False, 'current_phase': None, 'status': 'idle',
             'run_id': None, 'from_at': None, 'to_at': None, 'elapsed_seconds': 0,
@@ -390,12 +391,14 @@ class DemoFlow:
             with self._snapshot_lock:
                 self._tick_progress.update(busy=False, current_phase=None, status='failed',
                     elapsed_seconds=time.perf_counter() - self._tick_started)
+                self._next_finished.notify_all()
             raise
         with self._snapshot_lock:
             self._tick_progress.update(busy=False, current_phase=None, status='completed',
                 elapsed_seconds=time.perf_counter() - self._tick_started)
             # Copy before another HTTP thread can reserve the following tick.
             result.update(self._cached_status_locked())
+            self._next_finished.notify_all()
         return result
 
     def _inspect(self, order_id):
@@ -710,7 +713,7 @@ class DemoFlow:
             response.update(busy=cached['busy'], current_phase=cached['current_phase'], progress=cached['progress'])
             return response
 
-    def request(self, action='status', payload=None):
+    def request(self, action='status', payload=None, *, reject_overlapping_next=False):
         if self.closed:
             raise RuntimeError('Demo flow is closed')
         payload = {} if payload is None else payload
@@ -719,8 +722,11 @@ class DemoFlow:
         with self._snapshot_lock:
             busy = self._tick_progress['busy']
             if action == 'next':
-                if busy:
+                if busy and reject_overlapping_next:
                     raise CareError('next_in_progress', 409)
+                if busy and not self._next_finished.wait_for(
+                        lambda: not self._tick_progress['busy'], timeout=120):
+                    raise TimeoutError('next_queue_timeout')
                 start = self._status_snapshot['now']
                 target = datetime.fromisoformat(start) + timedelta(minutes=30)
                 self._tick_started = time.perf_counter()
