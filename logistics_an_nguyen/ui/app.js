@@ -1,4 +1,4 @@
-import { STATUSES, FAULTS, causeLabels, codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, reasonLabel, resolveEvidence } from "./data.mjs";
+import { STATUSES, FAULTS, causeLabels, codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, lsrExemptionBadge, reasonLabel, resolveEvidence } from "./data.mjs";
 
 const $ = (id) => document.getElementById(id);
 const mode = new URLSearchParams(location.search).get("source") || "sample";
@@ -125,6 +125,12 @@ function render() {
         if (riskBadge) {
             const badge = node("span", riskBadge.label, `cod-risk cod-risk-${riskBadge.level}`);
             badge.title = "Tín hiệu theo quy tắc A2; không phải xác nhận khách đã từ chối nhận hàng.";
+            status.append(badge);
+        }
+        const exemption = lsrExemptionBadge(order);
+        if (exemption) {
+            const badge = node("span", exemption, "lsr-exemption");
+            badge.title = "Đề xuất của A2: shop bàn giao đúng hạn, chậm giao thuộc đơn vị vận chuyển. Xem bằng chứng để đối chiếu.";
             status.append(badge);
         }
         const cause = node("div");

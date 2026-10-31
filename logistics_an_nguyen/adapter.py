@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
+import json
 from statistics import median
 
 from contracts.types import Evidence
@@ -41,6 +42,7 @@ class ReleaseAdapter:
                     if parse_instant(row[field], field) > tick_at:
                         raise ValueError(f"snapshot {field} exceeds tick_at")
         self.snapshot = snapshot
+        self.scan_records = {row["event_id"]: row for row in snapshot.scans}
         self.handovers = handover_milestones(snapshot.scans, {
             row["order_id"]: parse_instant(row["created_at"], "created_at")
             for row in snapshot.orders if not row["cancelled_at"]
@@ -121,6 +123,10 @@ class ReleaseAdapter:
                 evidence.append(_evidence(
                     "scan_events", record_id, ingested_at, "handed_over_at", utc_iso(event_at),
                 ))
+                evidence.append(_evidence(
+                    "scan_events", record_id, ingested_at, "handed_over_scan",
+                    json.dumps(self.scan_records[record_id], ensure_ascii=False, sort_keys=True),
+                ))
             for code in ("payment_method", "items_value_vnd"):
                 if order.get(code) is not None:
                     evidence.append(_evidence("orders", order_id, created_at, code, order[code]))
@@ -188,12 +194,25 @@ class ReleaseAdapter:
                         evidence += [_evidence(feed, forecast.cohort_id, tick_at, code, value,
                                                table="a2_survival_v1") for code, value in values.items()]
 
-            # Driver/dispatcher claims are unverified, even when a reason code looks structured.
-            if last and stage == "linehaul_departed" and last["location_type"] == "trip":
-                for report in self.reports.get(last["location_id"], []):
-                    evidence.append(_evidence(
-                        "linehaul_reports", report["report_id"], datetime.fromisoformat(report["reported_at"]),
-                        "driver_report", report["reason_code"] + ": " + (report["driver_note"] or ""), structured=False,
-                    ))
+            # Keep trip provenance after arrival or later stages. Claims remain
+            # unverified regardless of how structured a reported reason appears.
+            trip_scans = {}
+            for scan in history:
+                if scan["location_type"] == "trip" and scan["status"] in ("linehaul_departed", "linehaul_arrived"):
+                    trip_scans.setdefault(scan["location_id"], scan)
+            for trip_id, scan in sorted(trip_scans.items()):
+                evidence.append(_evidence(
+                    "scan_events", scan["event_id"], datetime.fromisoformat(scan["ingested_at"]),
+                    "linehaul_trip_id", trip_id,
+                ))
+                for report in self.reports.get(trip_id, []):
+                    seen = datetime.fromisoformat(report["reported_at"])
+                    evidence += [
+                        _evidence("linehaul_reports", report["report_id"], seen, "linehaul_report",
+                                  json.dumps(report, ensure_ascii=False, sort_keys=True), structured=False),
+                        _evidence("linehaul_reports", report["report_id"], seen, "driver_report",
+                                  (report["reason_code"] or "") + ": " + (report["driver_note"] or ""),
+                                  structured=False),
+                    ]
             result.append(OrderFacts(order_id, guaranteed, created_at, REQUIRED_FEEDS, tuple(evidence)))
         return tuple(result)

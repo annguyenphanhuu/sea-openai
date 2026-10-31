@@ -38,7 +38,7 @@ def assessment_payload(assessment: OrderAssessment) -> dict:
         "handover_on_time": handover_on_time,
         "lsr_exemption": (
             "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển."
-            if "lsr_exempt:seller_handover_on_time" in assessment.reason_codes else None
+            if "lsr_exempt:carrier" in assessment.reason_codes else None
         ),
         "reason_codes": list(assessment.reason_codes),
         "evidence": evidence_payload(assessment.evidence),
