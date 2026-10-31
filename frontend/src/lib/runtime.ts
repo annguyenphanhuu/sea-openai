@@ -12,6 +12,7 @@ const orderSchema = z.object({
     created_at: z.string().nullable().optional(), handed_over_at: z.string().nullable().optional(),
 });
 export const runtimeSchema = z.object({
+    turn_result: z.object({ message_id: z.string().nullable().optional(), text: z.string() }).optional(),
     llm: z.object({ enabled: z.boolean(), model: z.string().nullable() }).optional(),
     inside: z.object({ used_llm: z.boolean(), codes: z.array(z.string()) }).optional(),
     mode: z.literal("local_integrated_web_inbox"), now: z.string(), guard_alive: z.boolean(),
@@ -38,6 +39,76 @@ export const commandSchema = z.discriminatedUnion("kind", [
         request_id: z.string().uuid(), reply_to: z.string().optional() }).strict(),
 ]);
 export type Command = z.infer<typeof commandSchema>;
+export type SayCommand = Extract<Command, { kind: "say" }>;
+export type PendingTurn = {
+    command: SayCommand;
+    status: "sending" | "uncertain";
+    reply: { id: string; text: string } | null;
+    restored: boolean;
+};
+const streamEventSchema = z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("acknowledged"), request_id: z.string() }),
+    z.object({ kind: z.literal("status"), request_id: z.string(), status: z.literal("processing") }),
+    z.object({ kind: z.literal("reply"), request_id: z.string(), message_id: z.string(), text: z.string() }),
+    z.object({ kind: z.literal("done"), request_id: z.string(), snapshot: runtimeSchema }),
+    z.object({ kind: z.literal("error"), request_id: z.string(), message: z.string() }),
+]);
+export type ChatStreamEvent = z.infer<typeof streamEventSchema>;
+
+export async function readChatStream(response: Response, command: SayCommand, onEvent: (event: ChatStreamEvent) => void): Promise<Runtime> {
+    if (!response.ok) throw new Error("Chưa xác nhận được kết quả. Gửi lại cùng yêu cầu để kiểm tra.");
+    if (!response.headers.get("content-type")?.includes("application/x-ndjson")) {
+        const snapshot = runtimeSchema.parse(await response.json());
+        if (snapshot.chat?.session_id !== command.session_id) throw new Error("Hội thoại trả về không khớp yêu cầu.");
+        return snapshot;
+    }
+    if (!response.body) throw new Error("Luồng trả lời không khả dụng.");
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    let buffer = "";
+    let result: Runtime | null = null;
+    const consume = (line: string) => {
+        if (!line.trim()) return;
+        if (result) throw new Error("Luồng trả lời có dữ liệu sau khi hoàn tất.");
+        const event = streamEventSchema.parse(JSON.parse(line));
+        if (event.request_id !== command.request_id) throw new Error("Luồng trả lời không khớp yêu cầu.");
+        if (event.kind === "error") throw new Error(event.message);
+        if (event.kind === "done") {
+            if (event.snapshot.chat?.session_id !== command.session_id) throw new Error("Hội thoại trả về không khớp yêu cầu.");
+            result = event.snapshot;
+        }
+        onEvent(event);
+    };
+    try {
+        while (true) {
+            const chunk = await reader.read();
+            buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+            if (buffer.length > 4_000_000) throw new Error("Luồng trả lời vượt kích thước cho phép.");
+            let newline = buffer.indexOf("\n");
+            while (newline !== -1) {
+                consume(buffer.slice(0, newline));
+                buffer = buffer.slice(newline + 1);
+                newline = buffer.indexOf("\n");
+            }
+            if (chunk.done) break;
+        }
+        consume(buffer);
+        if (!result) throw new Error("Kết nối bị ngắt trước khi xác nhận kết quả. Gửi lại cùng yêu cầu để kiểm tra.");
+        return result;
+    } finally {
+        await reader.cancel().catch(() => {});
+        reader.releaseLock();
+    }
+}
+
+export async function requestChat(command: SayCommand, onEvent: (event: ChatStreamEvent) => void): Promise<Runtime> {
+    const response = await fetch("/api/runtime", {
+        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
+        body: JSON.stringify(command),
+        signal: AbortSignal.timeout(65000),
+    });
+    return readChatStream(response, command, onEvent);
+}
 
 export async function requestRuntime(input?: Command | { order_id?: string; session_id?: string }): Promise<Runtime> {
     const mutation = input && "kind" in input;
