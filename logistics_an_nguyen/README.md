@@ -17,7 +17,8 @@ hay thay thế quyết định chung trong `docs/decisions.md`.
 | Câu hỏi quản lý, lưu/đọc/trả lời và chống trùng khi retry | Đã triển khai trong `service.py` và `questions.py` |
 | Đầu ra JSON cho API orders/shop và review | Đã có Python API và serializer để Huy gắn HTTP route |
 | Kiểm thử biên và lỗi A2 | Đã có trong `acceptance_an_nguyen/` |
-| Adapter đọc DB release, xác suất/ETA dự báo thực tế | Chờ DB nguồn và schema; không đoán tên bảng hay tạo world data |
+| Adapter đọc DB release | Đã nối schema `release_main`, đọc as-of và chỉ đọc |
+| Baseline ETA/xác suất | Đã có survival model từ lịch sử nhìn thấy; chưa hiệu chỉnh/kiểm định độ chính xác |
 | Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy tích hợp; A1 do Truc phụ trách |
 
 ## Python API
@@ -129,18 +130,18 @@ lọc trường nội bộ/quyền truy cập trước khi trả cho khách ho�
 
 ## Bàn giao cần Huy/Truc xử lý
 
-1. Huy cung cấp DB release, schema và mapping các fact; sau đó An Nguyen viết
-   adapter thật và kiểm thử replay với dữ liệu nguồn chỉ đọc.
+1. Đã có DB release và adapter A2. Huy nối `ReleaseReader`/`ReleaseAdapter` sau
+   A3 và trước A1, thống nhất tên feed theo các bảng nguồn bên dưới.
 2. Huy duyệt predicates, freshness, confidence cap, missing-forecast sentinel
    và từ vựng fact; ghi quyết định đã duyệt vào `docs/decisions.md` (Huy sở hữu).
-3. Huy chọn nguồn/mô hình dự báo cùng An Nguyen, cung cấp provenance và kiểm
-   định xác suất/ETA. Hiện chưa có thuật toán học hay dự báo thời gian giao mới.
+3. Huy và An Nguyen kiểm định baseline survival mới theo nhiều tick, thống nhất
+   nhóm tuyến và tiêu chí chất lượng trước khi dùng tự động cho khách hàng.
 4. Huy gắn serializer vào API orders/shop và QuestionStore vào API supervisor,
    thêm auth, phân quyền, xử lý lỗi và transaction/checkpoint của tick.
 5. Truc đọc `OrderAssessment`, reason/evidence và kiểm tra guard qua platform;
    không suy diễn eligibility xu từ riêng status hoặc probability.
 
-Không có HTTP server hay vòng replay hoàn chỉnh trong phần A2 này. Các mục
+Không có HTTP server hay vòng replay A3 → A2 → A1 hoàn chỉnh trong phần A2 này. Các mục
 trên là yêu cầu bàn giao trong repository, chưa được gửi cho thành viên khác.
 
 ## Kiểm thử
@@ -152,3 +153,92 @@ trên là yêu cầu bàn giao trong repository, chưa được gửi cho thành
 
 Cài môi trường theo `requirements/dev.txt` do Huy sở hữu. Test dùng fixture
 trong test và SQLite in-memory; không cần DB release, không tạo dữ liệu world.
+
+## Adapter dữ liệu release và chạy local
+
+```powershell
+.venv/Scripts/python.exe -m logistics_an_nguyen --tick 2026-10-28T12:00:00+07:00
+```
+
+Lệnh mặc định đọc `data/release_main/core_14d.sqlite`, đọc health từ
+`runs/state.sqlite` nếu đã có, ghi JSONL assessment và summary vào `runs/a2/`.
+Không tạo state A3 giả, không thay đổi DB nguồn, không ghi ledger/outbox/câu hỏi.
+`--core`, `--state`, `--output` cho phép đổi nguồn/state/đích; output phải nằm
+trong `runs/`. Tick bắt buộc có timezone, không dùng giờ máy làm thời gian nghiệp vụ.
+
+```python
+from logistics_an_nguyen import ReleaseReader, ReleaseAdapter, evaluate_tick
+
+# Execute after A3; health contains the real snapshots from this replay tick.
+with ReleaseReader("data/release_main/core_14d.sqlite") as reader:
+    snapshot = reader.snapshot(current_tick)
+orders = ReleaseAdapter(snapshot).orders()
+result = evaluate_tick(orders, tick_at=current_tick, feed_health=health)
+```
+
+`ReleaseReader` là lớp harness đọc allowlist cột, bằng SQL có tham số cutoff,
+qua SQLite URI `mode=ro` và `query_only`. Chỉ lớp này giữ kết nối source;
+estimator chỉ nhận projection as-of. Đây là projection trong bộ nhớ, không
+phải công cụ cắt toàn bộ DB vật lý `cut_at.py` được nhắc trong QUICKSTART
+(công cụ đó chưa có trong repo). Harness kiểm thử chính thức vẫn cần Huy cung
+cấp bản cắt vật lý nếu quy trình đánh giá yêu cầu. Adapter cũng đọc được
+`core_asof.sqlite` có cùng schema qua `--core`.
+
+Các cột thời gian nguồn dùng ISO giây với offset `+07:00` theo schema đã kiểm
+tra; cutoff được đổi về cùng định dạng. Không dùng SQLite `datetime()` để so sánh.
+
+| Bảng | Cột thời gian quyết định khả năng nhìn thấy | Cách dùng |
+| --- | --- | --- |
+| `orders` | `created_at` | Ngày đảm bảo, hãng, service; che `cancelled_at` tương lai |
+| `scan_events` | `ingested_at`, đồng thời không nhận event tương lai | Giai đoạn, giao xong, ngoại lệ, thời gian ở giai đoạn |
+| `delivery_attempts` | `attempt_at` (schema không có ingestion riêng) | Giao thành công, mã lý do và số cuộc gọi |
+| `linehaul_reports` | `reported_at` (schema không có ingestion riêng) | Chỉ thêm báo cáo chưa xác minh của chuyến đang đi |
+
+Đọc bảng không có `ingested_at` dùng thời điểm availability được tài liệu data
+quy định; cần Huy chốt khi cung cấp ingestion riêng. Không đọc `truth_main.sqlite`,
+`main/`, `heldout/`, ledger, ticket, số tiền hay thông tin định danh khách.
+`ops_14d.sqlite` dành cho A3; adapter A2 chưa tự kết luận feed khỏe từ telemetry.
+
+- Lọc ingestion trước; chọn scan cuối theo **event time**, tie theo thứ tự vòng
+  đời. Vì scan hãng có thể tới muộn, scan cũ ingest mới không được kéo lùi giai đoạn.
+- Retry có `carrier_event_id` được gộp theo đơn/ID; scan nội bộ không có ID được
+  gộp khi cùng trạng thái/vị trí và cách bản giữ lại dưới 120 giây.
+- Đơn đã hủy ở tick bị loại khỏi tập đánh giá. `lost`, `damaged`, `returning`,
+  `returned`, `waiting_to_return`, `return_failed` được chuyển sang exception.
+- Fault customer cần mã/outcome khớp: không liên lạc được có ít nhất 3 cuộc gọi;
+  từ chối hoặc xin hẹn lại có ít nhất 1 cuộc gọi. `wrong_address` chưa đủ để
+  phân biệt lỗi khách và lỗi phân giải địa chỉ nên giữ unknown.
+- Scan mất/hỏng tại kho quy về platform; tại station/trip/sorting_center quy
+  về carrier. Đây là mapping đề xuất cần chủ contract duyệt, không phải nhãn đáp án.
+- `linehaul_reports.reason_code` cũng là lời người nhập có thể sai: cả mã và
+  ghi chú đều unstructured. Không suy ra force majeure từ riêng báo cáo thời tiết.
+
+## Baseline ETA/xác suất từ lịch sử đã nhìn thấy
+
+`forecast.py` dùng Kaplan–Meier theo `(carrier_id, service_level, stage)`:
+
+1. Lấy thời gian từ lần gần nhất vào giai đoạn đến giao thành công đã nhìn thấy.
+2. Đơn chưa giao vẫn tham gia dưới dạng right-censored tại tick; đơn kết thúc
+   không giao bị censor tại thời điểm kết thúc. Không loại sạch đơn chậm đang chờ.
+3. Điều kiện hóa theo số giờ đơn hiện tại đã ở giai đoạn; tính xác suất vẫn
+   chưa giao sau cuối ngày đảm bảo và ETA trung vị của thời gian còn lại.
+4. Chỉ trả forecast khi còn ít nhất 20 mẫu phù hợp tuổi giai đoạn và ít nhất
+   5 mẫu đã giao. Không ngoại suy vượt phần đuôi chưa quan sát; ETA có thể None
+   nếu chưa xác định được trung vị. Giao đúng nửa đêm ngày kế tiếp được tính trễ.
+
+Đây là baseline **chưa hiệu chỉnh thống kê**, không phải cam kết giao hàng.
+Confidence chỉ là điểm hỗ trợ dựa trên số mẫu/tỷ lệ đã giao, tối đa 0,8. Nhóm
+carrier/service/stage chưa tách theo tuyến, giờ/ngày hay sự cố; các ca hoàn/hủy
+có thể vi phạm giả định censor độc lập. Cần kiểm định trước khi dùng tự động.
+
+Evidence dẫn xuất ghi `a2_survival_v1`, mã cohort hash theo các mẫu, số mẫu,
+số mẫu đã giao, phiên bản phương pháp và tick. Không tạo record nguồn giả.
+Forecast được gắn phụ thuộc cả ba feed `orders`, `scan_events`,
+`delivery_attempts`: thiếu/bad một feed sẽ chặn sử dụng ETA/xác suất dẫn xuất,
+không chỉ giảm confidence rồi vẫn đưa ETA cho khách.
+
+Chạy thực tế tại `2026-10-28T12:00:00+07:00`: 11.008 đơn nhìn thấy,
+815 đơn đã hủy, 10.193 đơn được xử lý, 74.028 scan và 7.230 lần giao;
+3.230 đơn có baseline forecast. Khi chưa có health từ A3, toàn bộ assessment
+là `unknown_feed`, đúng cơ chế chặn; các số trên không phải điểm chất lượng
+dự báo và không chứng minh forecast chính xác.
