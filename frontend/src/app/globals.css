@@ -141,3 +141,14 @@ h1 { margin: 0; font-size: clamp(26px, 2.25vw, 35px); font-weight: 550; letter-s
     .operations-grid { display: flex; flex-direction: column; gap: 20px; }.list-column, .detail-panel { width: 100%; }.panel-heading { padding: 19px 15px 17px; }.panel-heading h2 { font-size: 15px; }.panel-heading p { font-size: 10px; max-width: 25ch; line-height: 1.7; }.list-tools { padding-inline: 12px; }.filter-group { gap: 1px; }.filter-group button { padding: 7px 8px; font-size: 11px; }.count-badge { font-size: 9px; }.order-table-header { display: none; }.order-row { grid-template-columns: 1fr 1fr; gap: 13px 10px; padding: 18px 15px; }.order-person strong { font-size: 12px; }.order-person small { font-size: 11px; }.order-evaluation { text-align: right; }.order-evaluation > small { justify-content: flex-end; font-size: 10px; }.order-due, .order-probability { font-size: 12px; }.order-due small { display: none; }.order-probability > span:not(.mobile-data-label) { font-size: 10px; }.mobile-data-label { display: inline; font: 10px var(--font-geist-sans), sans-serif; color: var(--muted); margin-right: 4px; }.order-row:first-child { border-top: 1px solid var(--line); }.list-footer { font-size: 9px; padding-inline: 14px; }.list-explainer { padding-inline: 14px; }.workflow-summary { padding: 21px 17px; }.workflow-steps { gap: 7px; font-size: 9px; }.workflow-steps b { width: 22px; }.workflow-summary h2 { max-width: 26ch; }
     .detail-panel { display: block; }.detail-heading { padding: 20px; }.detail-body { min-height: 0; }.detail-actions { border-left: 0; border-top: 1px solid var(--line); }.detail-tabs button { font-size: 12px; }.detail-heading h2 { font-size: 24px; }.assessment-box h3, .assessment-box p, .date-grid dt, .date-grid dd, .evidence-heading h3, .latest-event strong { font-size: 12px; }.confidence-line, .fault-line { font-size: 11px; }.contact-condition { font-size: 10px; }.detail-actions > button { font-size: 12px; }.date-grid { gap: 20px 10px; }.action-disclaimer { font-size: 10px; }.app-footer { margin: 0 16px; padding: 20px 0; flex-direction: column; gap: 6px; font-size: 9px; }.guard-details { padding: 22px 18px; }.guard-detail-title h2 { font-size: 20px; }.demo-controls label { font-size: 11px; }.error-state { padding-block: 50px; }
 }
+
+.runtime-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-block: 12px; }
+.runtime-detail { min-width: 0; }
+.runtime-detail pre, .demo-controls pre, .guard-details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 400px; overflow: auto; font-size: 12px; }
+.runtime-detail textarea { min-height: 80px; }
+.runtime-messages { display: grid; gap: 12px; max-height: 450px; overflow: auto; margin-block: 18px; }
+.runtime-messages small { opacity: .65; }
+.order-panel .list-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.order-panel .order-rows { max-height: 560px; overflow-y: auto; }
+.order-panel > .list-tools:last-child { max-height: 220px; overflow-y: auto; }

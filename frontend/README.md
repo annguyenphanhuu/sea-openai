@@ -1,60 +1,33 @@
-# Chợ Phố frontend
+# Integrated local operations console
 
-Operations UI built with Next.js App Router, React, TypeScript, Tailwind CSS v4, official Fluent UI React controls, and Phosphor icons. This is a separately runnable application shared by the repository.
+The default Next.js page reads A2 assessments and A3 gates from the Python pipeline. NEXT runs A3, A2 and A1. Chat messages, cancellation confirmations and staff handoffs use the real local runtime. Ledger records are local, not external wallet payments. Web voice is not implemented.
 
-## Run
+Start the backend from the repository root. Keep runtime state outside any ancestor folder named data because the current platform path validator rejects those paths.
 
-Use Node.js 20.9+ and npm, from the repository root:
+```powershell
+.\.venv\Scripts\python.exe -m platform_huy.serve_ui --integrated --port 8765 --state-path "$env:LOCALAPPDATA/Temp/sea-console/state.sqlite"
+```
+
+In a second terminal, start Next.js.
 
 ```powershell
 cd frontend
-npm ci
-npm run dev
-```
-
-Open http://localhost:3000. For a production build:
-
-```powershell
+$env:PIPELINE_URL = 'http://127.0.0.1:8765'
 npm run build
-npm run start
+npm run start -- --hostname 127.0.0.1
 ```
 
-## What is connected
+Open http://127.0.0.1:3000. NEXT advances replay by 30 minutes and can create eligible local contacts. The list is the backend's priority queue of up to 30 orders plus the selected order. It is not the full assessment list. A3 controls are available under Giám sát dữ liệu. Cancellation requires a second confirmation and remains a review request.
 
-The browser calls local demo Route Handlers, not the Python runtime:
+`PIPELINE_URL` and optional `LIVE_PRESENTER_KEY` are server environment variables. They are never sent to the browser. This console is for localhost presenter use. The proxy rejects public Host headers and forwarded-host requests. Start Next on loopback and do not expose it through a tunnel or reverse proxy. This is not customer authentication.
 
-- `GET /api/demo/snapshot?scenario=healthy|failure`: four original illustrative orders plus a simulated guard gate.
-- `POST /api/demo/preview`: `{ orderId, scenario, kind: "draft" | "handoff" }`. Validates input, checks simulated per-order/guard conditions on the server, and returns a deterministic preview with `delivered: false` and `persisted: false`.
-
-No source DB is read or changed. No message, handoff, payment, cancellation, voice session, replay, or real assessment is executed. Scenario selection is deliberately client-controlled demo input, never a production permission. The dataset and timestamps remain the original prototype's examples; this is not current operational data.
-
-Drafts and handoff previews live only in browser memory and reset on page reload. Repeating a preview HTTP request has no side effect. Theme preference alone is stored locally. Missing order and handover dates remain unavailable.
-
-## Screens and interactions
-
-- Phòng điều hành: search by order/customer/route, filters, order selection, risk and evidence.
-- Giám sát dữ liệu: A3/A2/A1 boundaries and simulated contact gate.
-- Phân tích logistics: decision timeline for the selected order.
-- Chăm sóc khách hàng: draft preview and handoff preview.
-
-The expandable demo controls let you simulate a feed failure. Draft preparation is blocked for failure, missing-feed, or low-risk examples. Handoff preview remains available. Both themes follow system preference until manually changed; layouts adapt down to 375px.
-
-## Validation
+On an uncertain chat response, retry the same text. The page reuses its request key until success. NEXT and other commands are never automatically retried. Reload runtime state before deciding whether to advance again.
 
 ```powershell
-npm run lint
 npm run typecheck
+npm run lint
 npm run build
-npx playwright install chromium
 npm run test:e2e
 ```
 
-Browser checks use Playwright Chromium by default. To reuse installed Microsoft Edge on Windows, set `$env:PLAYWRIGHT_CHANNEL = "msedge"` before running the tests. The test runner starts the production server on port 3000. Screenshots and failure traces are written to ignored `test-results/`. Tests cover filters/search, order selection, missing data, evidence, preview cycles, server rejection, error recovery, responsive layout, and light/dark themes.
-
-## Integration boundary
-
-`src/lib/api.ts` owns browser HTTP transport. `src/lib/demo.ts` is a demo wire schema and fixture set, not a copy of the complete shared Python contract. Replace the demo adapter with authenticated team APIs when available, deriving production DTOs from the team's authoritative schemas. Server-side ownership, source trust/heartbeat checks, permissions, persisted idempotency, and action execution belong to the actual API/platform. Do not promote the demo gate or fixture assessments into production authorization.
-
-The original prototype and its `?variant=A|B|C` behavior remain untouched. Dependencies/configuration are local to this folder; shared Python dependencies and contracts are unchanged.
-
-References: [Next.js installation](https://nextjs.org/docs/app/getting-started/installation), [Tailwind Next.js setup](https://tailwindcss.com/docs/installation/framework-guides/nextjs), [Fluent UI React](https://fluent2.microsoft.design/get-started/develop).
+The browser tests require an isolated, running release-fed backend. They mutate that runtime through chat, handoff and A3 controls. Use a fresh state path for each run. Set `PIPELINE_URL` in the test shell and `PLAYWRIGHT_CHANNEL=chrome` if Chromium is unavailable.

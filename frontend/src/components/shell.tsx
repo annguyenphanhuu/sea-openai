@@ -65,12 +65,12 @@ export function Shell({ view, onView, children }: { view: View; onView: (view: V
             <header className="topbar">
                 <div className="flex items-center gap-3 min-w-0"><Button ref={trigger} appearance="subtle" className="mobile-menu" icon={<List size={22} />} aria-label="Mở menu" aria-expanded={menu} onClick={() => setMenu(!menu)} />
                     <span className="breadcrumb-root">Không gian làm việc</span><CaretRight size={13} className="breadcrumb-root" /><span className="breadcrumb-current">{navigation.find((item) => item.id === view)?.label}</span></div>
-                <div className="flex items-center gap-3"><span className="demo-badge"><Flask size={14} /> Phiên minh họa</span>
+                <div className="flex items-center gap-3"><span className="demo-badge"><Flask size={14} /> Replay local</span>
                     <Button appearance="subtle" icon={dark ? <Sun size={19} /> : <Moon size={19} />} aria-label={dark ? "Dùng giao diện sáng" : "Dùng giao diện tối"} onClick={toggle} />
                 </div>
             </header>
             <main id="main-content" className="workspace-container">{children}</main>
-            <footer className="app-footer"><span>Chợ Phố Care Operations</span><span>Dữ liệu mẫu từ prototype. Không kết nối hệ thống thật.</span></footer>
+            <footer className="app-footer"><span>Chợ Phố Care Operations</span><span>Pipeline local A3 / A2 / A1. Không thanh toán ví bên ngoài.</span></footer>
         </div>
     </div>;
 }
