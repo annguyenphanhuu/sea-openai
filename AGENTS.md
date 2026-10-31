@@ -13,12 +13,13 @@ Acceptance folders name the person being tested. Follow `docs/team_plan.md`; onl
 Use Python 3.11+ from the repository root:
 
 ```powershell
-python -m pip install -r requirements/dev.txt  # Install test dependencies.
+python -m pip install -r requirements.txt      # Install shared development dependencies.
 python -c "import contracts"                 # Check contract imports.
 pytest -q                                   # Run acceptance tests.
 ```
 
-No application launch or build command exists yet.
+Run the static UI prototype with `python -m platform_huy.serve_ui` (localhost port 8765).
+No integrated application launch or build command exists yet.
 
 ## Coding Style
 

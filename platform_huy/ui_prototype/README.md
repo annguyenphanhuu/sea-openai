@@ -5,8 +5,12 @@ Question: should early operations prioritize a portfolio overview, a case worksp
 Run from the repository root (standard library only):
 
 ```powershell
-python -m http.server 8765 --bind 127.0.0.1 --directory platform_huy/ui_prototype
+python -m platform_huy.serve_ui
 ```
+
+Use the Python executable from your virtual environment. See the
+[shared setup instructions](../../requirements/README.md). This launcher avoids
+Windows hostname decoding errors; pass `--port 8766` if the default port is busy.
 
 Open http://127.0.0.1:8765/?variant=A. Switch with the bottom arrows or keyboard left/right (outside text inputs).
 
