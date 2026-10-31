@@ -3,8 +3,8 @@
 A2 nhận snapshot đơn hàng, bằng chứng logistics, trạng thái feed từ A3 và thời
 gian tick; trả về đúng một `contracts.types.OrderAssessment` cho mỗi đơn cùng
 các câu hỏi cần quản lý xác minh. Mã chạy bằng Python 3.11+, chỉ dùng thư viện
-chuẩn. Các quy ước bên dưới là **quy ước nội bộ A2 để tích hợp thử**, không sửa
-hay thay thế quyết định chung trong `docs/decisions.md`.
+chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` ngày
+31/10/2026. Từ vựng adapter, quy lỗi chi tiết và mô hình là phần A2 để team review.
 
 ## Phân tích và tình trạng công việc
 
@@ -57,11 +57,12 @@ Adapter đáng tin cậy phải liên kết bằng chứng với đúng đơn; c
 không có `order_id`, nên A2 không tự xác minh được liên kết này. Không nhận
 trực tiếp payload khách hàng rồi gắn `is_structured=True`.
 
-`FeedHealth(feed, status, checked_at)` là snapshot nội bộ với status theo schema
-chung. Snapshot thiếu, không healthy, ở tương lai hoặc quá 60 phút được xem là
-không dùng được. Quy tắc freshness này là mặc định A2 cần Huy chốt. Đây không
-phải kiểm tra quyền liên hệ: heartbeat/control và kiểm tra lại tại lúc gửi vẫn
-thuộc A3/platform. A2 không tạo `ContactTask` hay `Action`.
+`FeedHealth(feed, status, checked_at, source_timestamp, last_ingested_at=None)`
+dùng status `trusted/stale/corrupt/missing` theo schema mới. Phải trusted, có
+timestamp nguồn không quá 30 phút và không ở tương lai; `checked_at` và ingestion
+mới không làm dữ liệu nguồn cũ thành mới. Đây không phải kiểm tra quyền liên hệ:
+heartbeat A3 (ngưỡng 60 phút), control và kiểm tra lại lúc gửi thuộc platform.
+A2 không tạo `ContactTask` hay `Action`.
 
 ## Quy ước bằng chứng cần Huy duyệt
 
@@ -70,7 +71,8 @@ Mỗi fact dùng đầy đủ các trường của `contracts.types.Evidence`. C
 
 | `fact_code` | Kiểu `value` | Ý nghĩa |
 | --- | --- | --- |
-| `exception` | bool | Có ngoại lệ logistics đang hiệu lực |
+| `logistics_stage` | status scan nguồn | Chỉ lost/damaged/return_failed tạo exception |
+| `stationary_ticks` | số nguyên không âm | Số khoảng tick 30 phút liên tiếp không đổi giai đoạn/vị trí |
 | `fault_party` | enum `FaultParty` | Bên chịu lỗi được bằng chứng xác nhận |
 | `delivered_at` | ISO 8601 có timezone | Thời gian giao thực tế, không vượt tick |
 | `revised_eta` | ISO 8601 có timezone | ETA đã được nguồn có cấu trúc xác nhận |
@@ -93,17 +95,18 @@ Mỗi fact dùng đầy đủ các trường của `contracts.types.Evidence`. C
   ngày giao có bằng chứng hoặc tick. Dùng UTC+07 cho replay Việt Nam hiện đại,
   không yêu cầu gói `tzdata` trên Windows; không hỗ trợ quy tắc múi giờ lịch sử.
 - Đã trễ thì xác suất sự kiện trễ là 1; đã giao đúng hẹn là 0. Đơn chưa trễ/chưa
-  giao dùng xác suất từ nguồn. Chưa có forecast: trả `unknown_feed`, confidence
-  0 và `risk_estimate_missing`. Trường probability bắt buộc trong contract v0
-  tạm là 0 trong trường hợp này; **không được đọc là dự báo an toàn**.
+  giao dùng xác suất từ nguồn. Chưa có forecast: confidence 0 và
+  `risk_estimate_missing`; không tự coi feed là hỏng. Probability bắt buộc trong
+  contract tạm là 0; **không được đọc là dự báo an toàn**. Nhãn theo D2 có thể
+  là on_track khi chưa có bằng chứng thỏa nhãn khác; phải đọc cả confidence/reasons.
 - Confidence thiếu là 0. Feed không dùng được, fact mâu thuẫn hoặc forecast
   thiếu cũng đặt confidence 0. Các giá trị này chưa được hiệu chỉnh thống kê.
 
-Thứ tự predicate: `exception=True`; feed không dùng được/mâu thuẫn/thiếu
-forecast; fault customer; `late_days > 0`; xác suất >= 0,7; xác suất >= 0,2;
-`slow_safe=True`; còn lại `on_track`. Ba nhãn dự báo chỉ dùng khi chưa giao.
-Các trạng thái exception/customer_fault chỉ hết hiệu lực khi nguồn ingest bản
-cập nhật rõ ràng; A2 không tự đoán rằng giao xong đã giải quyết mọi ngoại lệ.
+Thứ tự predicate: stage lost/damaged/return_failed; feed không dùng được/mâu
+thuẫn; fault customer; `late_days > 0`; ETA vượt ngày đảm bảo; đứng yên hai
+khoảng tick liên tiếp; chậm chặng nhưng ETA vẫn trong ngày; còn lại on_track.
+Ba nhãn dự báo chỉ dùng khi chưa giao. Ngưỡng p_contact/p_watch không thay các
+predicate D2. Marker `exception=True` cũ không đủ để sinh nhãn exception.
 
 Lỗi kiểu dữ liệu, timestamp không timezone, enum/số sai phạm vi bị từ chối bằng
 `ValueError`; platform cần ghi incident/quarantine đầu vào đó. Hỏng một input
@@ -132,8 +135,8 @@ lọc trường nội bộ/quyền truy cập trước khi trả cho khách ho�
 
 1. Đã có DB release và adapter A2. Huy nối `ReleaseReader`/`ReleaseAdapter` sau
    A3 và trước A1, thống nhất tên feed theo các bảng nguồn bên dưới.
-2. Huy duyệt predicates, freshness, confidence cap, missing-forecast sentinel
-   và từ vựng fact; ghi quyết định đã duyệt vào `docs/decisions.md` (Huy sở hữu).
+2. D2/freshness đã cập nhật theo Huy; còn cần review confidence cap, cách biểu
+   diễn thiếu forecast và mapping fault. Huy ghi quyết định chung trong docs.
 3. Huy và An Nguyen kiểm định baseline survival mới theo nhiều tick, thống nhất
    nhóm tuyến và tiêu chí chất lượng trước khi dùng tự động cho khách hàng.
 4. Huy gắn serializer vào API orders/shop và QuestionStore vào API supervisor,
@@ -152,7 +155,7 @@ trên là yêu cầu bàn giao trong repository, chưa được gửi cho thành
 ```
 
 Cài môi trường theo `requirements/dev.txt` do Huy sở hữu. Test dùng fixture
-trong test và SQLite in-memory; không cần DB release, không tạo dữ liệu world.
+trong test và SQLite in-memory/temporary; không cần DB release, không tạo world data.
 
 ## Adapter dữ liệu release và chạy local
 
@@ -167,13 +170,16 @@ Không tạo state A3 giả, không thay đổi DB nguồn, không ghi ledger/ou
 trong `runs/`. Tick bắt buộc có timezone, không dùng giờ máy làm thời gian nghiệp vụ.
 
 ```python
-from logistics_an_nguyen import ReleaseReader, ReleaseAdapter, evaluate_tick
+from logistics_an_nguyen import ReleaseReader, ReleaseAdapter, ProgressTracker, evaluate_tick
 
 # Execute after A3; health contains the real snapshots from this replay tick.
 with ReleaseReader("data/release_main/core_14d.sqlite") as reader:
     snapshot = reader.snapshot(current_tick)
 orders = ReleaseAdapter(snapshot).orders()
+tracker = ProgressTracker(previous_progress)
+orders = tracker.apply(orders, tick_at=current_tick, feed_health=health)
 result = evaluate_tick(orders, tick_at=current_tick, feed_health=health)
+# Persist tracker.records in runtime state only after the tick succeeds.
 ```
 
 `ReleaseReader` là lớp harness đọc allowlist cột, bằng SQL có tham số cutoff,
@@ -194,8 +200,8 @@ tra; cutoff được đổi về cùng định dạng. Không dùng SQLite `date
 | `delivery_attempts` | `attempt_at` (schema không có ingestion riêng) | Giao thành công, mã lý do và số cuộc gọi |
 | `linehaul_reports` | `reported_at` (schema không có ingestion riêng) | Chỉ thêm báo cáo chưa xác minh của chuyến đang đi |
 
-Đọc bảng không có `ingested_at` dùng thời điểm availability được tài liệu data
-quy định; cần Huy chốt khi cung cấp ingestion riêng. Không đọc `truth_main.sqlite`,
+Đọc bảng không có `ingested_at` dùng thời điểm availability theo D5 của Huy.
+Không đọc `truth_main.sqlite`,
 `main/`, `heldout/`, ledger, ticket, số tiền hay thông tin định danh khách.
 `ops_14d.sqlite` dành cho A3; adapter A2 chưa tự kết luận feed khỏe từ telemetry.
 
@@ -203,8 +209,9 @@ quy định; cần Huy chốt khi cung cấp ingestion riêng. Không đọc `tr
   đời. Vì scan hãng có thể tới muộn, scan cũ ingest mới không được kéo lùi giai đoạn.
 - Retry có `carrier_event_id` được gộp theo đơn/ID; scan nội bộ không có ID được
   gộp khi cùng trạng thái/vị trí và cách bản giữ lại dưới 120 giây.
-- Đơn đã hủy ở tick bị loại khỏi tập đánh giá. `lost`, `damaged`, `returning`,
-  `returned`, `waiting_to_return`, `return_failed` được chuyển sang exception.
+- Đơn đã hủy ở tick bị loại khỏi tập đánh giá. Chỉ `lost`, `damaged`,
+  `return_failed` tạo exception. Returning/returned/waiting_to_return ngừng dự
+  báo giao hàng nhưng không tự thành exception; vẫn theo thứ tự D2.
 - Fault customer cần mã/outcome khớp: không liên lạc được có ít nhất 3 cuộc gọi;
   từ chối hoặc xin hẹn lại có ít nhất 1 cuộc gọi. `wrong_address` chưa đủ để
   phân biệt lỗi khách và lỗi phân giải địa chỉ nên giữ unknown.
@@ -225,6 +232,15 @@ quy định; cần Huy chốt khi cung cấp ingestion riêng. Không đọc `tr
 4. Chỉ trả forecast khi còn ít nhất 20 mẫu phù hợp tuổi giai đoạn và ít nhất
    5 mẫu đã giao. Không ngoại suy vượt phần đuôi chưa quan sát; ETA có thể None
    nếu chưa xác định được trung vị. Giao đúng nửa đêm ngày kế tiếp được tính trễ.
+
+Độ chậm chặng so với trung vị thời gian chuyển giai đoạn của ít nhất 20 lượt
+đã nhìn thấy. Chỉ tạo slow_safe khi chậm chặng **và** ETA vẫn kịp ngày đảm bảo.
+
+`ProgressTracker` theo dõi giai đoạn/vị trí qua các tick: quan sát đầu là 0,
+sau hai khoảng 30 phút không đổi là 2 (watch). Retry cùng tick không tăng;
+đổi giai đoạn/vị trí, mất trust hoặc bỏ tick thì reset. CLI lưu `progress.json`
+dưới output runtime. Replay lùi cần thư mục `--output` riêng, không dùng state
+của tương lai. Với Python API, caller lưu `tracker.records` sau tick thành công.
 
 Đây là baseline **chưa hiệu chỉnh thống kê**, không phải cam kết giao hàng.
 Confidence chỉ là điểm hỗ trợ dựa trên số mẫu/tỷ lệ đã giao, tối đa 0,8. Nhóm

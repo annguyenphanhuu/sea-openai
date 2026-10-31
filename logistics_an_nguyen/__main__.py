@@ -10,6 +10,7 @@ import sqlite3
 from .adapter import ReleaseAdapter, REQUIRED_FEEDS
 from .models import FeedHealth, parse_instant, utc_iso
 from .replay import ReleaseReader
+from .progress import ProgressTracker
 from .service import assessment_payload, evaluate_tick
 
 
@@ -22,13 +23,17 @@ def runtime_health(state_path: Path, tick_at: datetime) -> tuple[FeedHealth, ...
         return ()
     with sqlite3.connect(state_path.resolve().as_uri() + "?mode=ro", uri=True) as db:
         rows = db.execute(
-            "SELECT feed, status, checked_at FROM feed_health "
+            "SELECT feed, status, checked_at, source_timestamp, last_ingested_at FROM feed_health "
             "WHERE tick_at <= ? ORDER BY tick_at DESC", (utc_iso(tick_at),),
         )
         latest = {}
-        for feed, status, checked_at in rows:
+        for feed, status, checked_at, source_at, ingested_at in rows:
             if feed not in latest:
-                latest[feed] = FeedHealth(feed, status, parse_instant(checked_at, "checked_at"))
+                latest[feed] = FeedHealth(
+                    feed, status, parse_instant(checked_at, "checked_at"),
+                    parse_instant(source_at, "source_timestamp") if source_at else None,
+                    parse_instant(ingested_at, "last_ingested_at") if ingested_at else None,
+                )
         return tuple(latest.values())
 
 
@@ -47,6 +52,9 @@ def main() -> None:
         snapshot = reader.snapshot(tick_at)
     orders = ReleaseAdapter(snapshot).orders()
     health = runtime_health(args.state, tick_at)
+    progress_path = output / "progress.json"
+    tracker = ProgressTracker(json.loads(progress_path.read_text(encoding="utf-8")) if progress_path.exists() else None)
+    orders = tracker.apply(orders, tick_at=tick_at, feed_health=health)
     result = evaluate_tick(orders, tick_at=tick_at, feed_health=health)
     output.mkdir(parents=True, exist_ok=True)
     stamp = utc_iso(tick_at).replace(":", "").replace("-", "")
@@ -68,6 +76,9 @@ def main() -> None:
     (output / f"{stamp}.summary.json").write_text(
         json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
     )
+    temporary = output / "progress.json.tmp"
+    temporary.write_text(json.dumps(tracker.records, sort_keys=True), encoding="utf-8")
+    temporary.replace(progress_path)
     print(json.dumps(summary, ensure_ascii=True, indent=2))
 
 

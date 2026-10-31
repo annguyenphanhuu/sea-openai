@@ -39,7 +39,7 @@ def order(fact):
 
 @pytest.fixture
 def health(tick):
-    return (FeedHealth("core", "healthy", tick), FeedHealth("ops", "healthy", tick))
+    return (FeedHealth("core", "trusted", tick, tick), FeedHealth("ops", "trusted", tick, tick))
 
 
 @pytest.fixture

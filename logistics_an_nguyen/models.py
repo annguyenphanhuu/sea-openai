@@ -6,11 +6,12 @@ from math import isfinite
 from typing import Literal
 
 from contracts.types import Evidence, OrderAssessment
+from contracts.params import feed_stale_max_min
 
 
 # Modern Vietnam replay dates use UTC+07, without an optional tzdata dependency.
 VIETNAM = timezone(timedelta(hours=7), "Asia/Ho_Chi_Minh")
-FeedStatus = Literal["healthy", "degraded", "blocked", "unknown"]
+FeedStatus = Literal["trusted", "stale", "corrupt", "missing"]
 
 
 def aware(value: datetime, name: str) -> datetime:
@@ -77,12 +78,27 @@ class FeedHealth:
     feed: str
     status: FeedStatus
     checked_at: datetime
+    source_timestamp: datetime | None = None
+    last_ingested_at: datetime | None = None
 
     def __post_init__(self) -> None:
         nonempty(self.feed, "feed")
-        if self.status not in ("healthy", "degraded", "blocked", "unknown"):
+        if self.status not in ("trusted", "stale", "corrupt", "missing"):
             raise ValueError("invalid feed status")
         aware(self.checked_at, "checked_at")
+        if self.source_timestamp is not None:
+            aware(self.source_timestamp, "source_timestamp")
+        if self.last_ingested_at is not None:
+            aware(self.last_ingested_at, "last_ingested_at")
+
+    def usable_at(self, tick_at: datetime) -> bool:
+        """Source freshness and audit time are independent of ingestion recency."""
+        return (
+            self.status == "trusted" and self.source_timestamp is not None
+            and self.source_timestamp <= self.checked_at <= tick_at
+            and tick_at - self.source_timestamp <= timedelta(minutes=feed_stale_max_min)
+            and (self.last_ingested_at is None or self.last_ingested_at <= tick_at)
+        )
 
 
 @dataclass(frozen=True, slots=True)

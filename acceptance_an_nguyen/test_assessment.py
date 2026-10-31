@@ -14,11 +14,13 @@ from logistics_an_nguyen import (
 
 @pytest.mark.parametrize("expected", STATUSES)
 def test_status_priority_with_lower_priority_conditions(expected, tick, fact, order, health):
-    evidence = [fact("confidence", 0.9), fact("slow_safe", True)]
+    evidence = [fact("confidence", 0.9), fact("slow_safe", True),
+                fact("revised_eta", "2026-11-01T21:00:00+07:00")]
     probability = 0.1
     promised = date(2026, 11, 1)
     if expected in STATUSES[:5]:
         probability = 0.9
+        evidence[2] = fact("revised_eta", "2026-11-02T01:00:00+07:00")
     elif expected == "watch":
         probability = 0.3
     if expected in STATUSES[:4]:
@@ -28,7 +30,9 @@ def test_status_priority_with_lower_priority_conditions(expected, tick, fact, or
     if expected in STATUSES[:2]:
         health = tuple(item for item in health if item.feed != "core")
     if expected == "exception":
-        evidence.append(fact("exception", True))
+        evidence.append(fact("logistics_stage", "lost"))
+    if expected in STATUSES[:6]:
+        evidence.append(fact("stationary_ticks", 2))
     if expected == "on_track":
         evidence = [fact("confidence", 0.9)]
     evidence.append(fact("late_probability", probability))
@@ -37,14 +41,20 @@ def test_status_priority_with_lower_priority_conditions(expected, tick, fact, or
     assert result.status == expected
 
 
-@pytest.mark.parametrize(("probability", "expected"), [
-    (0.0, "on_track"), (0.199999, "on_track"), (0.2, "watch"),
-    (0.699999, "watch"), (0.7, "at_risk"), (1.0, "at_risk"),
-])
-def test_risk_thresholds_use_probability_not_confidence(probability, expected, tick, fact, order, health):
+@pytest.mark.parametrize("probability", [0.0, 0.199999, 0.2, 0.699999, 0.7, 1.0])
+def test_probability_does_not_replace_eta_or_stationary_predicates(probability, tick, fact, order, health):
     result = assess_order(order(fact("late_probability", probability), fact("confidence", 0.01),
                                 defaults=False), tick_at=tick, feed_health=health)
-    assert result.status == expected
+    assert result.status == "on_track"
+
+
+@pytest.mark.parametrize(("eta", "status"), [
+    ("2026-11-01T23:59:59+07:00", "on_track"),
+    ("2026-11-02T00:00:00+07:00", "at_risk"),
+])
+def test_at_risk_uses_vietnam_eta_day(eta, status, tick, fact, order, health):
+    result = assess_order(order(fact("revised_eta", eta)), tick_at=tick, feed_health=health)
+    assert result.status == status
 
 
 @pytest.mark.parametrize(("instant", "days"), [
@@ -56,7 +66,7 @@ def test_risk_thresholds_use_probability_not_confidence(probability, expected, t
 ])
 def test_vietnam_promised_day_boundary(instant, days, order):
     now = datetime.fromisoformat(instant)
-    health = [FeedHealth(feed, "healthy", now) for feed in ("core", "ops")]
+    health = [FeedHealth(feed, "trusted", now, now) for feed in ("core", "ops")]
     result = assess_order(order(), tick_at=now, feed_health=health)
     assert result.late_days == days
     assert result.status == ("late" if days else "on_track")
@@ -68,7 +78,7 @@ def test_vietnam_promised_day_boundary(instant, days, order):
 ])
 def test_delivery_freezes_lateness_and_removes_forecast(delivered, days, status, tick, fact, order):
     now = tick + timedelta(days=10)
-    health = [FeedHealth(feed, "healthy", now) for feed in ("core", "ops")]
+    health = [FeedHealth(feed, "trusted", now, now) for feed in ("core", "ops")]
     evidence = (fact("delivered_at", delivered, ingested_at=now),
                 fact("revised_eta", "2026-12-01T00:00:00Z"),
                 fact("late_probability", 0.99))
@@ -142,9 +152,9 @@ def test_future_actual_delivery_rejected(tick, fact, order, health):
                      tick_at=tick, feed_health=health)
 
 
-@pytest.mark.parametrize("status", ["degraded", "blocked", "unknown"])
+@pytest.mark.parametrize("status", ["stale", "corrupt", "missing"])
 def test_unhealthy_feed_cannot_supply_eta_or_fault(status, tick, fact, order):
-    health = [FeedHealth("core", "healthy", tick), FeedHealth("ops", status, tick)]
+    health = [FeedHealth("core", "trusted", tick, tick), FeedHealth("ops", status, tick, tick)]
     result = assess_order(order(fact("fault_party", "customer"),
                                 fact("revised_eta", "2026-11-02T00:00:00Z")),
                           tick_at=tick, feed_health=health)
@@ -154,10 +164,10 @@ def test_unhealthy_feed_cannot_supply_eta_or_fault(status, tick, fact, order):
 
 
 @pytest.mark.parametrize(("minutes", "expected"), [
-    (-1, "unknown_feed"), (60, "on_track"), (60.01, "unknown_feed"),
+    (-1, "unknown_feed"), (30, "on_track"), (30.01, "unknown_feed"),
 ])
 def test_feed_snapshot_freshness(minutes, expected, tick, order):
-    health = [FeedHealth(feed, "healthy", tick - timedelta(minutes=minutes))
+    health = [FeedHealth(feed, "trusted", tick, tick - timedelta(minutes=minutes), tick)
               for feed in ("core", "ops")]
     assert assess_order(order(), tick_at=tick, feed_health=health).status == expected
 
@@ -178,9 +188,9 @@ def test_conflicting_facts_are_not_resolved_by_input_order(tick, fact, order, he
     assert "conflicting_fact:fault_party" in first.reason_codes
 
 
-def test_missing_forecast_is_unknown_not_safe(tick, order, health):
+def test_missing_forecast_has_zero_confidence_but_does_not_invent_bad_feed(tick, order, health):
     result = assess_order(order(defaults=False), tick_at=tick, feed_health=health)
-    assert (result.status, result.confidence) == ("unknown_feed", 0)
+    assert (result.status, result.confidence) == ("on_track", 0)
     assert "risk_estimate_missing" in result.reason_codes
 
 

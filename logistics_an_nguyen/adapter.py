@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
+from statistics import median
 
 from contracts.types import Evidence
 
@@ -31,6 +32,7 @@ class ReleaseAdapter:
         self.reports = grouped(snapshot.reports, "trip_id")
         self.histories = {}
         cohorts = defaultdict(list)
+        dwell_times = defaultdict(list)
         for order in snapshot.orders:
             order_id = order["order_id"]
             history = self.scans.get(order_id, [])
@@ -49,6 +51,14 @@ class ReleaseAdapter:
             for row in history:
                 if row["status"] not in TERMINAL:
                     stages[row["status"]] = datetime.fromisoformat(row["event_at"])
+            previous_stage, previous_at = "created", datetime.fromisoformat(order["created_at"])
+            for row in history:
+                event_at = datetime.fromisoformat(row["event_at"])
+                if row["status"] != previous_stage:
+                    dwell_times[(order["carrier_id"], order["service_level"], previous_stage)].append(
+                        (event_at - previous_at).total_seconds()
+                    )
+                    previous_stage, previous_at = row["status"], event_at
             self.histories[order_id] = (history, delivered, stages)
             for stage, started in stages.items():
                 seconds = (end - started).total_seconds()
@@ -57,6 +67,7 @@ class ReleaseAdapter:
                 key = (order["carrier_id"], order["service_level"], stage)
                 cohorts[key].append(Observation(order_id, seconds, delivered is not None))
         self.curves = {key: SurvivalCurve(samples) for key, samples in cohorts.items()}
+        self.stage_medians = {key: median(values) for key, values in dwell_times.items() if len(values) >= 20}
 
     def orders(self) -> tuple[OrderFacts, ...]:
         """Omit cancelled orders; terminal logistics exceptions remain reviewable."""
@@ -77,8 +88,9 @@ class ReleaseAdapter:
                 evidence += [
                     _evidence("scan_events", last["event_id"], seen, "logistics_stage", stage),
                     _evidence("scan_events", last["event_id"], seen, "stage_event_at", last["event_at"]),
+                    _evidence("scan_events", last["event_id"], seen, "stage_location", last["location_id"]),
                 ]
-                if stage in TERMINAL - {"delivered"}:
+                if stage in ("lost", "damaged", "return_failed"):
                     evidence.append(_evidence("scan_events", last["event_id"], seen, "exception", True))
                 if stage in ("lost", "damaged"):
                     fault = "platform" if last["location_type"] == "warehouse" else (
@@ -120,6 +132,9 @@ class ReleaseAdapter:
                               "forecast_sample_count": forecast.sample_count,
                               "forecast_delivered_count": forecast.delivered_count,
                               "forecast_method": "kaplan_meier_carrier_service_stage_v1"}
+                    normal_dwell = self.stage_medians.get((order["carrier_id"], order["service_level"], stage))
+                    if normal_dwell is not None:
+                        values["slow_safe"] = (tick_at - stages[stage]).total_seconds() > normal_dwell
                     # Derived results depend on all three feeds, not just the final scan.
                     for feed in REQUIRED_FEEDS:
                         evidence += [_evidence(feed, forecast.cohort_id, tick_at, code, value,

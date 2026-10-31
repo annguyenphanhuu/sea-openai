@@ -1,20 +1,20 @@
 """Deterministic assessment of replay-visible, normalized logistics facts."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from math import isfinite
 from typing import Iterable, get_args
 
-from contracts.params import guard_heartbeat_max_min, p_contact, p_watch
 from contracts.types import Evidence, FaultParty, OrderAssessment, STATUSES
 
 from .models import (
     FeedHealth, OrderFacts, VIETNAM, aware, nonempty, parse_instant, probability,
 )
+from .replay import STAGES
 
 
 FACT_CODES = frozenset({
     "exception", "fault_party", "delivered_at", "revised_eta",
-    "late_probability", "confidence", "slow_safe",
+    "late_probability", "confidence", "slow_safe", "logistics_stage", "stationary_ticks",
 })
 
 
@@ -60,6 +60,10 @@ def _fact_value(item: Evidence) -> object:
             raise ValueError("invalid fault_party")
     elif code in ("delivered_at", "revised_eta"):
         return parse_instant(value, code)
+    elif code == "logistics_stage" and value not in STAGES:
+        raise ValueError("invalid logistics_stage")
+    elif code == "stationary_ticks" and (type(value) is not int or value < 0):
+        raise ValueError("stationary_ticks must be a nonnegative integer")
     return value
 
 
@@ -87,12 +91,10 @@ def assess_order(
         if item is None:
             reasons.append(f"feed_missing:{feed}")
             unavailable.add(feed)
-        elif item.status != "healthy":
+        elif item.status != "trusted":
             reasons.append(f"feed_{item.status}:{feed}")
             unavailable.add(feed)
-        elif not timedelta(0) <= tick_at - item.checked_at <= timedelta(
-            minutes=guard_heartbeat_max_min
-        ):
+        elif not item.usable_at(tick_at):
             reasons.append(f"feed_snapshot_invalid:{feed}")
             unavailable.add(feed)
 
@@ -161,13 +163,14 @@ def assess_order(
 
     active = delivered_at is None
     predicates = {
-        "exception": facts.get("exception") is True,
-        "unknown_feed": bool(unavailable or conflicts or forecast_missing),
+        "exception": facts.get("logistics_stage") in ("lost", "damaged", "return_failed"),
+        "unknown_feed": bool(unavailable or conflicts),
         "customer_fault": fault_party == "customer",
         "late": late_days > 0,
-        "at_risk": active and late_probability >= p_contact,
-        "watch": active and late_probability >= p_watch,
-        "slow_safe": active and facts.get("slow_safe") is True,
+        "at_risk": active and revised_eta is not None and revised_eta.astimezone(VIETNAM).date() > order.guaranteed_date,
+        "watch": active and (facts.get("stationary_ticks") or 0) >= 2,
+        "slow_safe": active and facts.get("slow_safe") is True and revised_eta is not None
+        and revised_eta.astimezone(VIETNAM).date() <= order.guaranteed_date,
         "on_track": True,
     }
     status = next(status for status in STATUSES if predicates[status])

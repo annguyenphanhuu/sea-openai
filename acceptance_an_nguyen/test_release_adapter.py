@@ -85,17 +85,20 @@ def test_driver_report_reason_code_never_sets_fault():
 def test_delivered_attempt_is_visible_before_delivered_scan():
     result = normalize(attempts=[attempt_row(outcome="delivered", reason_code=None)])[0]
     assert value(result, "delivered_at") == ["2026-10-28T11:00:00+07:00"]
-    health = [FeedHealth(feed, "healthy", NOW) for feed in REQUIRED_FEEDS]
+    health = [FeedHealth(feed, "trusted", NOW, NOW) for feed in REQUIRED_FEEDS]
     assessment = assess_order(result, tick_at=NOW, feed_health=health)
     assert assessment.status == "on_track"
     assert assessment.late_days == 0
 
 
-@pytest.mark.parametrize("status", ["lost", "damaged", "returning", "returned", "waiting_to_return", "return_failed"])
-def test_terminal_logistics_is_exception(status):
+@pytest.mark.parametrize(("status", "expected"), [
+    ("lost", "exception"), ("damaged", "exception"), ("return_failed", "exception"),
+    ("returning", "on_track"), ("returned", "on_track"), ("waiting_to_return", "on_track"),
+])
+def test_exception_requires_one_of_three_confirmed_codes(status, expected):
     result = normalize(scans=[scan_row(status)])[0]
-    health = [FeedHealth(feed, "healthy", NOW) for feed in REQUIRED_FEEDS]
-    assert assess_order(result, tick_at=NOW, feed_health=health).status == "exception"
+    health = [FeedHealth(feed, "trusted", NOW, NOW) for feed in REQUIRED_FEEDS]
+    assert assess_order(result, tick_at=NOW, feed_health=health).status == expected
 
 
 def test_cancelled_orders_excluded_and_missing_forecast_not_fabricated():
@@ -153,11 +156,11 @@ def test_forecast_from_visible_history_and_midnight_boundary():
     assert value(result, "late_probability") == [1.0] * 3
     assert value(result, "revised_eta") == ["2026-10-27T17:00:00.000000Z"] * 3
     assert value(result, "forecast_sample_count") == [25] * 3
-    health = [FeedHealth(feed, "healthy", tick) for feed in REQUIRED_FEEDS]
+    health = [FeedHealth(feed, "trusted", tick, tick) for feed in REQUIRED_FEEDS]
     assessment = assess_order(result, tick_at=tick, feed_health=health)
     assert assessment.status == "at_risk"
     assert assessment.late_days == 0
-    degraded = [FeedHealth(feed, "blocked" if feed == "delivery_attempts" else "healthy", tick)
+    degraded = [FeedHealth(feed, "corrupt" if feed == "delivery_attempts" else "trusted", tick, tick)
                 for feed in REQUIRED_FEEDS]
     assessment = assess_order(result, tick_at=tick, feed_health=degraded)
     assert assessment.status == "unknown_feed"
