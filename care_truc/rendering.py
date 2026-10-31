@@ -7,7 +7,11 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from care_truc.context import assessment_is_current, check_proactive
 from care_truc.models import CareContext, IntentSignals, RenderedReply, normalize_utc
-from care_truc.ports import PhraseSelector
+from typing import Protocol
+
+
+class ClosedPhraseSelector(Protocol):
+    def select(self, template_id: str, allowed_phrase_ids: tuple[str, ...]) -> object: ...
 
 VIETNAM=timezone(timedelta(hours=7))
 PHRASES={'standard':'Xin lỗi vì sự bất tiện này.', 'warm':'Xin lỗi vì trải nghiệm chưa thuận tiện của bạn.'}
@@ -31,7 +35,7 @@ REASONS={'guaranteed_day_exceeded':'Đã qua ngày giao cam kết.', 'delivery_c
 PUBLIC_FACTS={'logistics_stage':{'lost':'Nguồn ghi nhận thất lạc.', 'damaged':'Nguồn ghi nhận hư hỏng.', 'return_failed':'Nguồn ghi nhận hoàn hàng chưa thành công.'}, 'slow_safe':{True:'Nguồn ghi nhận vận chuyển chậm nhưng an toàn.'}}
 
 
-def select_phrases(selector: PhraseSelector | None, template_id: str) -> object | None:
+def select_phrases(selector: ClosedPhraseSelector | None, template_id: str) -> object | None:
     if selector is None:
         return None
     try:
@@ -59,6 +63,15 @@ def render(template_id: str, ctx: CareContext, signals: IntentSignals,
     if template_id not in TEMPLATES:
         codes.append('template_unknown')
     parts=[phrase,TEMPLATES.get(template_id,TEMPLATES['off_topic'])]
+    facts = render_facts(ctx, cutoff=cutoff)
+    return RenderedReply(' '.join(parts) + ' ' + facts.text, source,
+                         facts.evidence_refs, tuple(codes) + facts.decision_codes,
+                         facts.public_evidence)
+
+
+def render_facts(ctx: CareContext, *, cutoff: datetime | None) -> RenderedReply:
+    parts=[]
+    codes=[]
     assessment=ctx.assessment
     refs=[]
     public=[]
@@ -95,4 +108,4 @@ def render(template_id: str, ctx: CareContext, signals: IntentSignals,
             value=item['value']
             if trusted and item['is_structured'] is True and type(value) in (str,bool) and value in mapping:
                 public.append(mapping[value])
-    return RenderedReply(' '.join(parts),source,tuple(refs),tuple(codes),tuple(dict.fromkeys(public)))
+    return RenderedReply(' '.join(parts),'template',tuple(refs),tuple(codes),tuple(dict.fromkeys(public)))

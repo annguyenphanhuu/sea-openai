@@ -1,191 +1,165 @@
-from dataclasses import replace
-from datetime import datetime, timezone
+"""Task 3 invariants ported to the main MemoryStore and effect journal."""
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
+import json
+import sqlite3
 import pytest
-from care_truc.models import Session, Mutation, TurnResponse, DomainError
-from care_truc.store import SqliteSessionStore
+from care_truc.runtime_types import (CareError, CustomerEvent, EffectProposal,
+    PendingCancellation, PolicyOutcome, Receipt, SessionState, TurnResult, canonical, fingerprint)
+from care_truc.store import MemoryStore
+from .helpers import NOW
 
 
-def session(id='s'):
-    return Session(id, 'p', 'run', 'order', 'chat', 'customer', None, None, 'active', 0, 0, 0, None)
+def setup(path):
+    store=MemoryStore.open(path)
+    store.create_session(SessionState('s','run','customer','o1'),'open')
+    return store
 
 
-def transition(s):
-    return Mutation(replace(s, version=s.version + 1, turn_count=s.turn_count + 1),
-                    TurnResponse('m', 'hello', 'accept', None, (), (), (), 'template', None))
+def turn(store, sid='s', key='m', proposals=(), pending=None):
+    state=store.load_session(sid)
+    event=CustomerEvent('message',key,'hello')
+    request=store.begin_request(sid,'customer',event,fingerprint(event))
+    outcome=PolicyOutcome(replace(state,turn_count=state.turn_count+1,pending=pending),
+                          'off_topic','clarify',proposals=proposals)
+    result=TurnResult('committed',sid,'answer',effect_ids=tuple(p.effect_id for p in proposals))
+    return store.commit_turn(request['id'],state.version,outcome,result,'{"private":"trace"}','{}')
 
 
-def test_retry_restart_ownership_and_snapshot(tmp_path):
-    path = tmp_path / 'care.sqlite'
-    a = SqliteSessionStore(path)
-    a.create_session(session(), 'contact')
-    response = a.mutate('p', 's', 'r', 'hash', transition)
-    a.close()
-    a = SqliteSessionStore(path)
-    assert a.mutate('p', 's', 'r', 'hash', lambda s: 1/0) == response
-    assert a.history('p', 's').session.turn_count == 1
-    for principal, digest, code in [('p', 'other', 'request_conflict'), ('other', 'hash', 'session_not_found')]:
-        with pytest.raises(DomainError) as error:
-            a.mutate(principal, 's', 'r', digest, transition)
-        assert error.value.code == code
-    with pytest.raises(DomainError):
-        a.mutate('p', 's', 'r2', 'hash', transition, expected_version=0)
+def effect(key='coin',sid='s',order='o1',kind='coins'):
+    return EffectProposal(key,key,sid,order,'action_request',
+                          canonical({'order_id':order,'kind':kind}),'evidence')
 
 
-def test_atomic_rollback_and_contact_unique(tmp_path):
-    a = SqliteSessionStore(tmp_path / 'care.sqlite')
-    a.create_session(session(), 'contact')
-    with pytest.raises(DomainError):
-        a.create_session(session('s2'), 'contact')
-    def broken(s):
-        raise RuntimeError('broken')
-    with pytest.raises(RuntimeError):
-        a.mutate('p', 's', 'r', 'hash', broken)
-    assert a.history('p', 's').session.version == 0
-    assert a.history('p', 's').responses == ()
+def test_retry_restart_scope_and_version(tmp_path):
+    path=tmp_path/'care.sqlite'; store=setup(path)
+    result=turn(store); store.close(); store=MemoryStore.open(path)
+    request=store.find_request('s','customer','m')
+    assert store.response(request)==result
+    assert turn(store)==result
+    assert store.load_session('s').turn_count==1
+    with pytest.raises(CareError,match='request_conflict'):
+        store.begin_request('s','customer',CustomerEvent('message','m','changed'),'changed')
+    with pytest.raises(CareError):
+        store.begin_request('s','other',CustomerEvent('message','new','hello'),'hash')
+    event=CustomerEvent('message','new','hello')
+    request=store.begin_request('s','customer',event,fingerprint(event))
+    with pytest.raises(CareError,match='state_conflict'):
+        store.commit_turn(request['id'],0,PolicyOutcome(store.load_session('s'),'accept','clarify'),result,'{}','{}')
+    store.close()
 
 
-def test_two_connections_one_mutation(tmp_path):
-    path = tmp_path / 'care.sqlite'
-    a, b = SqliteSessionStore(path), SqliteSessionStore(path)
-    a.create_session(session(), None)
-    with ThreadPoolExecutor(2) as pool:
-        results = list(pool.map(lambda store: store.mutate('p', 's', 'r', 'hash', transition), (a,b)))
-    assert results[0] == results[1]
-    assert a.history('p', 's').session.turn_count == 1
+def test_open_key_identity_is_immutable(tmp_path):
+    store=setup(tmp_path/'care.sqlite')
+    original=store.load_session('s')
+    assert store.create_session(replace(original,session_id='other'),'open')==original
+    with pytest.raises(CareError,match='request_conflict'):
+        store.create_session(replace(original,session_id='other',order_id='o2'),'open')
+    store.close()
 
 
-from contracts.types import Action
-from care_truc.models import PendingDelivery, Receipt, PendingCancel, StoredMessage, StoredEvidence
-from datetime import timedelta
-
-NOW = datetime(2026,10,31,tzinfo=timezone.utc)
-
-
-def with_delivery(s, key='key'):
-    mutation = transition(s)
-    action = Action(key, s.order_id, 'coins', 100, 'a1', NOW, key, 'e', False, 'care')
-    delivery = PendingDelivery(key,s.id,'action',key,action,'pending_delivery',None)
-    return replace(mutation, deliveries=(delivery,),
-                   messages=(StoredMessage('message-'+s.id,'customer','hello',NOW),),
-                   evidence=(StoredEvidence('e-'+s.id,'public','private'),))
+def test_two_connections_commit_one_request(tmp_path):
+    path=tmp_path/'care.sqlite'; setup(path).close()
+    def execute(_):
+        store=MemoryStore.open(path)
+        try: return turn(store)
+        finally: store.close()
+    with ThreadPoolExecutor(2) as pool: results=list(pool.map(execute,range(2)))
+    assert results[0]==results[1]
+    store=MemoryStore.open(path)
+    assert store.load_session('s').turn_count==1
+    assert len(store.events('s'))==2
+    store.close()
 
 
-def test_outbox_lease_receipt_restart_and_coin_uniqueness(tmp_path):
-    path = tmp_path / 'care.sqlite'
-    a,b = SqliteSessionStore(path), SqliteSessionStore(path)
-    a.create_session(session(), None)
-    a.create_session(session('s2'), None)
-    a.mutate('p','s','r','hash',with_delivery)
-    with pytest.raises(DomainError):
-        b.mutate('p','s2','r','hash',lambda s: with_delivery(s,'key2'))
-    assert b.history('p','s2').session.version == 0
-    with ThreadPoolExecutor(2) as pool:
-        claims = list(pool.map(lambda store: store.claim_deliveries(NOW,10),(a,b)))
-    assert sorted(map(len,claims)) == [0,1]
-    a.close()
-    a = SqliteSessionStore(path)
-    assert a.claim_deliveries(NOW,10) == ()
-    assert len(a.claim_deliveries(NOW+timedelta(minutes=1),10)) == 1
-    for receipt in [Receipt('key','external','succeeded',2,'e'),Receipt('key',None,'pending',1,None),Receipt('key',None,'failed',3,None)]:
-        a.record_receipt(receipt)
-    history = a.history('p','s')
-    assert history.receipts[0].status == 'succeeded'
-    assert len(history.events) == 1
-    assert len(history.messages) == 1
-    assert history.deliveries[0].status == 'succeeded'
-    assert a.claim_deliveries(NOW+timedelta(minutes=2),10) == ()
-    assert a.staff_trace('s')[0].trace == 'private'
+def test_effect_claim_receipt_restart_and_coin_uniqueness(tmp_path):
+    path=tmp_path/'care.sqlite'; a=setup(path)
+    a.create_session(SessionState('s2','run','customer','o1'),'open2')
+    proposal=effect(); turn(a,proposals=(proposal,))
+    with pytest.raises(CareError): turn(a,'s2',proposals=(effect('other','s2'),))
+    assert a.load_session('s2').version==0
+    b=MemoryStore.open(path)
+    assert a.claim_effect('coin',1,1,0)==proposal
+    assert b.claim_effect('coin',1,1,0) is None
+    a.close(); a=MemoryStore.open(path)
+    assert a.claim_effect('coin',1,1,100) is None
+    # In-flight work requires reconciliation; elapsed time never permits blind resend.
+    good=Receipt('coin','coin',fingerprint(proposal.payload),2,'succeeded','remote')
+    assert a.record_receipt(good)
+    assert not a.record_receipt(replace(good,revision=1,outcome='accepted'))
+    assert not a.record_receipt(good)
+    with pytest.raises(CareError,match='receipt_terminal_conflict'):
+        a.record_receipt(replace(good,revision=3,outcome='rejected'))
+    assert a.effect('coin')['outcome']=='succeeded'
+    assert len([e for e in a.events('s') if e['kind']=='receipt'])==1
+    assert 'private' in a.db.execute('SELECT data FROM evidence_bundles').fetchone()[0]
+    a.close(); b.close()
 
 
-def test_cancel_durable_and_late_failure_rolls_back_every_table(tmp_path):
-    path = tmp_path / 'care.sqlite'
-    a = SqliteSessionStore(path)
-    a.create_session(session(),None)
-    cancel = PendingCancel('cancel','p','s','order',None,1,'prompt',NOW,'pending')
-    def change(s):
-        return replace(with_delivery(s),pending_cancel=cancel)
-    a.mutate('p','s','r','hash',change)
-    a.close()
-    a = SqliteSessionStore(path)
-    assert a.get_cancellation('p','s','cancel') == cancel
-    before = a.history('p','s')
-
-    # The last delivery conflicts only after fresh messages/evidence, a changed
-    # cancellation and the first outbox row/handoff reservation were written.
-    from care_truc.models import HandoffSummary
-    summary = HandoffSummary('handoff', 's', 'reason', 'need', (), (), (), None, ())
-    handoff = PendingDelivery('fresh-handoff', 's', 'handoff', 'fresh-handoff',
-                              summary, 'pending_delivery', None)
-    def late_conflict(s):
-        mutation = with_delivery(s)
-        return replace(
-            mutation,
-            messages=(StoredMessage('fresh-message', 'customer', 'new text', NOW),),
-            evidence=(StoredEvidence('fresh-evidence', 'new public', 'new trace'),),
-            pending_cancel=replace(cancel, status='confirmed'),
-            deliveries=(handoff, mutation.deliveries[0]),
-        )
-    with pytest.raises(DomainError):
-        a.mutate('p','s','r2','hash',late_conflict)
-    assert a.history('p','s') == before
-    assert a.get_cancellation('p', 's', 'cancel') == cancel
-    assert a.staff_trace('s') == (StoredEvidence('e-s', 'public', 'private'),)
-    for table in ('requests', 'messages', 'evidence', 'cancellations', 'deliveries'):
-        assert a.connection.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 1
-    # Reusing the rolled-back id/key and handoff reservation now succeeds.
-    a.mutate('p', 's', 'r2', 'hash',
-             lambda s: replace(transition(s), deliveries=(handoff,)))
-    assert len(a.history('p', 's').deliveries) == 2
+def test_late_outbox_failure_rolls_back_all_turn_writes(tmp_path):
+    store=setup(tmp_path/'care.sqlite')
+    pending=PendingCancellation('cancel','prompt',NOW)
+    turn(store,proposals=(effect(),),pending=pending)
+    before=store.load_session('s'); events=store.events('s')
+    handoff=EffectProposal('handoff','handoff','s','o1','handoff_request','{}','e')
+    with pytest.raises(CareError):
+        turn(store,key='second',proposals=(handoff,effect('distinct')),pending=None)
+    assert store.load_session('s')==before
+    assert store.events('s')==events
+    assert store.load_session('s').pending==pending
+    assert len(store.effects())==1
+    assert store.db.execute('SELECT count(*) FROM evidence_bundles').fetchone()[0]==1
+    turn(store,key='second',proposals=(handoff,))
+    assert len(store.effects())==2
+    store.close()
 
 
-def test_one_handoff_and_busy_are_conflicts(tmp_path):
-    from care_truc.models import HandoffSummary
-    path = tmp_path / 'care.sqlite'
-    a,b = SqliteSessionStore(path),SqliteSessionStore(path)
-    a.create_session(session(),None)
-    summary = HandoffSummary('h','s','reason','need',(),(),(),None,())
-    a.mutate('p','s','r','hash',lambda s: replace(transition(s),handoff=summary))
-    with pytest.raises(DomainError):
-        b.mutate('p','s','r2','hash',lambda s: replace(transition(s),handoff=summary))
-    a.connection.execute('BEGIN IMMEDIATE')
+def test_handoff_unique_and_writer_busy(tmp_path):
+    path=tmp_path/'care.sqlite'; a=setup(path); b=MemoryStore.open(path)
+    first=EffectProposal('h','h','s','o1','handoff_request','{}','e')
+    turn(a,proposals=(first,))
+    with pytest.raises(CareError): turn(b,key='new',proposals=(replace(first,key='other',effect_id='other'),))
+    a.db.execute('BEGIN IMMEDIATE'); b.db.execute('PRAGMA busy_timeout=1')
     try:
-        with pytest.raises(DomainError) as error:
-            b.mutate('p','s','r2','hash',transition)
-        assert error.value.code == 'store_busy'
-    finally:
-        a.connection.rollback()
+        with pytest.raises(sqlite3.OperationalError,match='locked'): turn(b,key='busy')
+    finally: a.db.rollback()
+    a.close(); b.close()
 
-@pytest.mark.parametrize('kind', ['coins', 'cancel_request', 'eta_notice'])
-def test_action_order_must_match_session(tmp_path, kind):
-    a = SqliteSessionStore(tmp_path / 'care.sqlite')
-    a.create_session(session(), None)
-    def wrong_order(s):
-        mutation = with_delivery(s)
-        delivery = mutation.deliveries[0]
-        action = replace(delivery.payload, order_id='different-order', kind=kind)
-        return replace(mutation, deliveries=(replace(delivery, payload=action),))
-    with pytest.raises(DomainError) as error:
-        a.mutate('p', 's', 'r', 'hash', wrong_order)
-    assert error.value.code == 'invalid_delivery_order'
-    assert a.history('p', 's').session.version == 0
-    assert a.connection.execute('SELECT count(*) FROM deliveries').fetchone()[0] == 0
+@pytest.mark.parametrize('kind',['coins','cancel_request','eta_notice'])
+def test_action_order_must_match_session(tmp_path,kind):
+    store=setup(tmp_path/'care.sqlite')
+    with pytest.raises(CareError,match='invalid_delivery_order'):
+        turn(store,proposals=(effect(order='other',kind=kind),))
+    assert store.load_session('s').version==0 and not store.effects()
+    store.close()
 
 
 def test_distinct_coin_keys_race_across_sessions(tmp_path):
-    path = tmp_path / 'care.sqlite'
-    a, b = SqliteSessionStore(path), SqliteSessionStore(path)
-    a.create_session(session(), None)
-    a.create_session(session('s2'), None)
-    def attempt(args):
-        store, session_id, key = args
+    path=tmp_path/'care.sqlite'; store=setup(path)
+    store.create_session(SessionState('s2','run','customer','o1'),'open2'); store.close()
+    def execute(sid):
+        store=MemoryStore.open(path)
         try:
-            store.mutate('p', session_id, 'r', 'hash', lambda s: with_delivery(s, key))
-            return 'persisted'
-        except DomainError as error:
-            return error.code
-    with ThreadPoolExecutor(2) as pool:
-        results = list(pool.map(attempt, ((a, 's', 'coin-1'), (b, 's2', 'coin-2'))))
-    assert sorted(results) == ['persisted', 'store_conflict']
-    for table in ('requests', 'deliveries', 'messages', 'evidence'):
-        assert a.connection.execute(f'SELECT count(*) FROM {table}').fetchone()[0] == 1
+            turn(store,sid,proposals=(effect('coin-'+sid,sid),)); return 'persisted'
+        except CareError: return 'conflict'
+        finally: store.close()
+    with ThreadPoolExecutor(2) as pool: results=list(pool.map(execute,('s','s2')))
+    assert sorted(results)==['conflict','persisted']
+    store=MemoryStore.open(path)
+    assert len(store.effects())==1
+    assert store.db.execute('SELECT count(*) FROM evidence_bundles').fetchone()[0]==1
+    store.close()
+
+
+@pytest.mark.parametrize('field,value',[('session_id','other'),('run_id','other'),
+    ('principal_id','other'),('order_id','o2'),('channel','web_voice'),('opened_by','a1')])
+def test_commit_cannot_change_session_identity(tmp_path,field,value):
+    store=setup(tmp_path/'care.sqlite')
+    state=store.load_session('s'); event=CustomerEvent('message','m','hello')
+    request=store.begin_request('s','customer',event,fingerprint(event))
+    outcome=PolicyOutcome(replace(state,**{field:value}),'off_topic','clarify')
+    with pytest.raises(CareError):
+        store.commit_turn(request['id'],0,outcome,TurnResult('committed','s'),'{}','{}')
+    assert store.load_session('s')==state
+    assert not store.events('s')
+    store.close()

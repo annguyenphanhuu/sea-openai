@@ -1,248 +1,226 @@
-"""Durable A1 state. Transition callbacks must be pure and perform no adapter IO."""
+"""Single-thread SQLite writer; never keep a transaction open across an await."""
+
 from contextlib import contextmanager
-from dataclasses import fields, is_dataclass, replace
-from datetime import datetime, timedelta
-import hashlib
+from dataclasses import replace
+from datetime import datetime
 import json
 from pathlib import Path
 import sqlite3
-from typing import Callable
-from contracts import types as contracts
-from care_truc import models
-from care_truc.models import DomainError, History, Mutation, PendingDelivery, Receipt, Session, TurnResponse, normalize_utc
+from uuid import uuid4
+
+from .runtime_types import (AttemptToken, CareError, CustomerEvent, PendingCancellation,
+    PolicyOutcome, SessionState, TurnResult, canonical)
 
 
-def _encode(value):
-    if isinstance(value, datetime):
-        return {'$time': normalize_utc(value).isoformat()}
-    if is_dataclass(value):
-        return {'$type': type(value).__name__, 'fields': {f.name: _encode(getattr(value, f.name)) for f in fields(value)}}
-    if isinstance(value, tuple):
-        return {'$tuple': [_encode(v) for v in value]}
-    if isinstance(value, dict):
-        return {k: _encode(v) for k,v in value.items()}
-    return value
+class MemoryStore:
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
 
-
-def _decode(value):
-    if not isinstance(value, dict):
-        return value
-    if '$time' in value:
-        return normalize_utc(datetime.fromisoformat(value['$time']))
-    if '$tuple' in value:
-        return tuple(_decode(v) for v in value['$tuple'])
-    if '$type' in value:
-        cls = getattr(models, value['$type'], None) or getattr(contracts, value['$type'])
-        return cls(**{k: _decode(v) for k,v in value['fields'].items()})
-    return {k:_decode(v) for k,v in value.items()}
-
-
-def _dump(value):
-    return json.dumps(_encode(value), ensure_ascii=False, sort_keys=True, separators=(',', ':'))
-
-
-def _load(value):
-    return _decode(json.loads(value))
-
-
-def payload_hash(operation: str, text: str, reply_to: str | None = None) -> str:
-    return hashlib.sha256(_dump({'operation':operation, 'text':text, 'reply_to':reply_to}).encode('utf-8')).hexdigest()
-
-
-class SqliteSessionStore:
-    def __init__(self, path: Path) -> None:
-        self.connection = sqlite3.connect(str(path), timeout=1, isolation_level=None, check_same_thread=False)
-        self.connection.execute('PRAGMA foreign_keys=ON')
-        self.connection.executescript(Path(__file__).with_name('schema.sql').read_text())
-
-    def close(self) -> None:
-        self.connection.close()
-
-    @contextmanager
-    def _transaction(self):
+    @classmethod
+    def open(cls, path: Path) -> "MemoryStore":
+        path = Path(path)
+        exists = path.exists()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        db = sqlite3.connect(path, isolation_level=None)
+        db.row_factory = sqlite3.Row
         try:
-            self.connection.execute('BEGIN IMMEDIATE')
-            yield
-            self.connection.commit()
-        except Exception as error:
-            if self.connection.in_transaction:
-                self.connection.rollback()
-            if isinstance(error, sqlite3.IntegrityError):
-                raise DomainError('store_conflict', 409) from error
-            if isinstance(error, sqlite3.OperationalError) and ('locked' in str(error) or 'busy' in str(error)):
-                raise DomainError('store_busy', 409) from error
+            db.execute("PRAGMA foreign_keys=ON")
+            if exists:
+                if db.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+                    raise ValueError("database_corrupt")
+                if db.execute("SELECT schema_version FROM runtime_meta").fetchone()[0] != 1:
+                    raise ValueError("unsupported_schema")
+            else:
+                db.executescript(Path(__file__).with_name("schema.sql").read_text())
+            return cls(db)
+        except BaseException:
+            db.close()
             raise
 
-    def _session(self, principal_id: str, session_id: str) -> Session:
-        row = self.connection.execute('SELECT body FROM sessions WHERE id=? AND principal=?', (session_id, principal_id)).fetchone()
-        if row is None:
-            raise DomainError('session_not_found', 404)
-        return _load(row[0])
-
-    def get_session(self, principal_id: str, session_id: str) -> Session:
-        return self._session(principal_id, session_id)
-
-    def create_session(self, session: Session, contact_key: str | None = None) -> Session:
-        with self._transaction():
-            self.connection.execute('INSERT INTO sessions VALUES(?,?,?,?)', (session.id,session.principal_id,contact_key,_dump(session)))
-        return session
-
-    def replay_creation(self, principal_id: str, key: str, payload_hash: str) -> Session | None:
-        row = self.connection.execute('SELECT principal,hash,body FROM creations WHERE key=?', (key,)).fetchone()
-        if row is None:
-            return None
-        if row[0] != principal_id or row[1] != payload_hash:
-            raise DomainError('request_conflict', 409)
-        return _load(row[2])
-
-    def create_once(self, session: Session, key: str, payload_hash: str,
-                    delivery: PendingDelivery | None = None) -> Session:
-        """Atomically reserve an opening key and its optional contact outbox row."""
-        with self._transaction():
-            cached = self.replay_creation(session.principal_id, key, payload_hash)
-            if cached is not None:
-                return cached
-            if delivery is not None and (delivery.session_id != session.id or delivery.kind != 'contact'
-                    or delivery.payload != session.contact or delivery.status != 'pending_delivery'
-                    or delivery.lease_until is not None):
-                raise DomainError('invalid_delivery', 409)
-            self.connection.execute('INSERT INTO sessions VALUES(?,?,?,?)',
-                                    (session.id, session.principal_id, key if delivery else None, _dump(session)))
-            self.connection.execute('INSERT INTO creations VALUES(?,?,?,?)',
-                                    (key, session.principal_id, payload_hash, _dump(session)))
-            if delivery is not None:
-                self.connection.execute('INSERT INTO deliveries VALUES(?,?,?,?,?,?,?,?)',
-                                        (delivery.id, session.id, delivery.key, None, None,
-                                         _dump(delivery), delivery.status, None))
-            return session
-
-    def replay_turn(self, principal_id: str, session_id: str, request_id: str,
-                    payload_hash: str) -> TurnResponse | None:
-        """Owner scoped cache read before provider IO; mutate rechecks atomically."""
-        self._session(principal_id, session_id)
-        row = self.connection.execute('SELECT hash,response FROM requests WHERE principal=? AND session=? AND request=?',
-                                      (principal_id, session_id, request_id)).fetchone()
-        if row is None:
-            return None
-        if row[0] != payload_hash:
-            raise DomainError('request_conflict', 409)
-        return _load(row[1])
-
-    def mutate(self, principal_id: str, session_id: str, request_id: str, payload_hash: str,
-               transition: Callable[[Session], Mutation], *, expected_version: int | None = None) -> TurnResponse:
-        with self._transaction():
-            before = self._session(principal_id, session_id)
-            cached = self.connection.execute('SELECT hash,response FROM requests WHERE principal=? AND session=? AND request=?', (principal_id,session_id,request_id)).fetchone()
-            if cached:
-                if cached[0] != payload_hash:
-                    raise DomainError('request_conflict', 409)
-                return _load(cached[1])
-            if expected_version is not None and before.version != expected_version:
-                raise DomainError('session_version_conflict', 409)
-            mutation = transition(before)
-            after = mutation.session
-            if any(getattr(before,k) != getattr(after,k) for k in ('id','principal_id','run_id','order_id','channel','origin')) or after.version != before.version + 1:
-                raise DomainError('invalid_session_transition',409)
-            self.connection.execute('UPDATE sessions SET body=? WHERE id=?', (_dump(after),session_id))
-            self.connection.execute('INSERT INTO requests VALUES(?,?,?,?,?)', (principal_id,session_id,request_id,payload_hash,_dump(mutation.response)))
-            for message in mutation.messages:
-                self.connection.execute('INSERT INTO messages VALUES(?,?,?)',(message.id,session_id,_dump(message)))
-            for evidence in mutation.evidence:
-                self.connection.execute('INSERT INTO evidence VALUES(?,?,?)',(evidence.id,session_id,_dump(evidence)))
-            if mutation.pending_cancel:
-                cancel = mutation.pending_cancel
-                if (cancel.principal_id,cancel.session_id,cancel.order_id) != (principal_id,session_id,before.order_id):
-                    raise DomainError('invalid_cancellation',409)
-                existing = self.connection.execute('SELECT session FROM cancellations WHERE id=?',(cancel.id,)).fetchone()
-                if existing and existing[0] != session_id:
-                    raise DomainError('store_conflict',409)
-                self.connection.execute('INSERT INTO cancellations VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body',(cancel.id,session_id,_dump(cancel)))
-            if mutation.handoff:
-                if mutation.handoff.session_id != session_id:
-                    raise DomainError('invalid_handoff',409)
-                self.connection.execute('INSERT INTO handoffs VALUES(?,?)',(session_id,_dump(mutation.handoff)))
-            for delivery in mutation.deliveries:
-                if delivery.session_id != session_id or delivery.status != 'pending_delivery' or delivery.lease_until is not None:
-                    raise DomainError('invalid_delivery',409)
-                action = delivery.payload
-                if delivery.kind == 'action' and action.order_id != before.order_id:
-                    raise DomainError('invalid_delivery_order', 409)
-                coin = _dump((before.run_id,before.order_id)) if delivery.kind == 'action' and action.kind == 'coins' else None
-                self.connection.execute('INSERT INTO deliveries VALUES(?,?,?,?,?,?,?,?)', (delivery.id,session_id,delivery.key,coin,session_id if delivery.kind == 'handoff' else None,_dump(delivery),delivery.status,None))
-            return mutation.response
-
-    def history(self, principal_id: str, session_id: str) -> History:
-        # One read transaction prevents a mixed session/message snapshot.
-        self.connection.execute('BEGIN')
+    @contextmanager
+    def transaction(self):
+        self.db.execute("BEGIN IMMEDIATE")
         try:
-            session = self._session(principal_id,session_id)
-            responses = tuple(_load(r[0]) for r in self.connection.execute('SELECT response FROM requests WHERE session=? ORDER BY rowid',(session_id,)))
-            receipts = tuple(_load(r[0]) for r in self.connection.execute('SELECT r.body FROM receipts r JOIN deliveries d ON d.key=r.key WHERE d.session=? ORDER BY d.rowid',(session_id,)))
-            messages = tuple(_load(r[0]) for r in self.connection.execute('SELECT body FROM messages WHERE session=? ORDER BY rowid',(session_id,)))
-            pending = tuple(self._delivery(r) for r in self.connection.execute('SELECT body,status,lease_until FROM deliveries WHERE session=? ORDER BY rowid',(session_id,)))
-            deliveries = tuple(models.DeliveryState(item.id, item.kind, item.key, item.status) for item in pending)
-            events = tuple(models.SystemEvent(*r) for r in self.connection.execute('SELECT key,revision,status FROM system_events WHERE session=? ORDER BY rowid',(session_id,)))
-            return History(session,responses,receipts,messages,events,deliveries)
-        finally:
-            self.connection.rollback()
+            yield
+            self.db.execute("COMMIT")
+        except BaseException:
+            self.db.execute("ROLLBACK")
+            raise
 
-    def get_cancellation(self, principal_id: str, session_id: str, cancellation_id: str):
-        self._session(principal_id,session_id)
-        row = self.connection.execute('SELECT body FROM cancellations WHERE id=? AND session=?',(cancellation_id,session_id)).fetchone()
-        return _load(row[0]) if row else None
+    def create_session(self, state: SessionState, open_key: str) -> SessionState:
+        with self.transaction():
+            row = self.db.execute("SELECT id FROM sessions WHERE open_key=?", (open_key,)).fetchone()
+            if row:
+                existing = self.load_session(row[0])
+                if (existing.run_id, existing.principal_id, existing.order_id,
+                    existing.channel, existing.opened_by, existing.contact_id, existing.open_fingerprint) != (
+                    state.run_id, state.principal_id, state.order_id,
+                    state.channel, state.opened_by, state.contact_id, state.open_fingerprint):
+                    raise CareError("request_conflict")
+                return existing
+            self.db.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)",
+                (state.session_id, state.run_id, state.principal_id, state.order_id,
+                 open_key, canonical(state), state.version))
+        return state
 
-    def staff_trace(self, session_id: str):
-        """Internal only: caller must authorize staff before invoking."""
-        return tuple(_load(r[0]) for r in self.connection.execute('SELECT body FROM evidence WHERE session=? ORDER BY rowid',(session_id,)))
+    def load_session(self, session_id: str) -> SessionState:
+        row = self.db.execute("SELECT data,version FROM sessions WHERE id=?", (session_id,)).fetchone()
+        if row is None:
+            raise CareError("not_found", 404)
+        data = json.loads(row[0])
+        if data["pending"]:
+            pending = data["pending"]
+            pending["expires_at"] = datetime.fromisoformat(pending["expires_at"])
+            data["pending"] = PendingCancellation(**pending)
+        if data.get("last_cutoff"):
+            data["last_cutoff"] = datetime.fromisoformat(data["last_cutoff"])
+        data["version"] = row[1]
+        return SessionState(**data)
+
+    def find_request(self, session_id: str, principal: str, client_id: str):
+        return self.db.execute("SELECT * FROM requests WHERE session_id=? AND principal=? AND client_id=?",
+                               (session_id, principal, client_id)).fetchone()
+
+    def request(self, request_id: str):
+        return self.db.execute("SELECT * FROM requests WHERE id=?", (request_id,)).fetchone()
+
+    def begin_request(self, session_id: str, principal_id: str, event: CustomerEvent, fingerprint: str):
+        with self.transaction():
+            state = self.load_session(session_id)
+            if state.principal_id != principal_id:
+                raise CareError("not_found", 404)
+            existing = self.find_request(session_id, principal_id, event.request_id)
+            if existing:
+                if existing["fingerprint"] != fingerprint:
+                    raise CareError("request_conflict")
+                return existing
+            state = self.load_session(session_id)
+            internal_id = uuid4().hex
+            self.db.execute("INSERT INTO requests(id,run_id,session_id,principal,client_id,fingerprint,payload,phase,base_version) VALUES(?,?,?,?,?,?,?,'processing',?)",
+                (internal_id, state.run_id, session_id, principal_id, event.request_id,
+                 fingerprint, canonical(event), state.version))
+        return self.request(internal_id)
+
+    def _event(self, session_id: str, event_id: str, kind: str, content: str,
+               visibility: str = "customer") -> None:
+        sequence = self.db.execute("SELECT coalesce(max(sequence),0)+1 FROM events WHERE session_id=?",
+                                   (session_id,)).fetchone()[0]
+        self.db.execute("INSERT INTO events VALUES(?,?,?,?,?,?)",
+                        (event_id, session_id, sequence, visibility, kind, content))
+
+    def commit_turn(self, request_id: str, expected_version: int, outcome: PolicyOutcome,
+                    response: TurnResult, evidence: str, trace: str) -> TurnResult:
+        with self.transaction():
+            request = self.request(request_id)
+            if request["phase"] == "committed":
+                return self.response(request)
+            current = self.load_session(request["session_id"])
+            identity = ("session_id", "run_id", "principal_id", "order_id", "channel",
+                        "opened_by", "contact_id", "open_fingerprint")
+            if any(getattr(current, name) != getattr(outcome.state, name) for name in identity):
+                raise CareError("session_identity_conflict")
+            state = replace(outcome.state, version=expected_version + 1)
+            changed = self.db.execute("UPDATE sessions SET data=?,version=? WHERE id=? AND version=?",
+                (canonical(state), state.version, state.session_id, expected_version)).rowcount
+            if not changed:
+                raise CareError("state_conflict")
+            self.db.execute("INSERT INTO evidence_bundles VALUES(?,?,?,?)",
+                            (request_id, request_id, evidence, trace))
+            opening = json.loads(request["payload"])["kind"] == "open_contact"
+            self._event(state.session_id, request_id + ":customer", "opening" if opening else "customer",
+                        request["payload"], "staff" if opening else "customer")
+            self._event(state.session_id, request_id + ":response", "response", canonical(response))
+            if outcome.invalidate_unsent:
+                self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait') AND json_extract(proposal,'$.kind')!='handoff_request'", (state.session_id,))
+            for proposal in outcome.proposals:
+                self._save_proposal(proposal, request_id, state)
+            self.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
+                            (canonical(response), evidence, request_id))
+        return response
+
+    def _save_proposal(self, proposal, request_id, state) -> None:
+        from .effect_store import save_proposal
+        save_proposal(self, proposal, request_id, state)
+
+    def reserve_processing(self, request_id: str, boot_generation: int, now: float = 0):
+        with self.transaction():
+            row = self.request(request_id)
+            if row["phase"] not in ("processing", "retry_wait") or row["next_at"] > now:
+                return None
+            if row["processing_attempts"] >= 3:
+                self.fail_request(request_id, "processing_exhausted")
+                return None
+            state = self.load_session(row["session_id"])
+            self.db.execute("UPDATE requests SET processing_attempts=processing_attempts+1,phase='processing',base_version=? WHERE id=?", (state.version, request_id))
+            return AttemptToken(request_id, state.version, boot_generation)
+
+    def reserve_model(self, request_id: str):
+        with self.transaction():
+            row = self.request(request_id)
+            if row["phase"] != "processing" or row["model_attempts"]:
+                return None
+            self.db.execute("UPDATE requests SET model_attempts=1 WHERE id=?", (request_id,))
+            return AttemptToken(request_id, row["base_version"], self.boot_generation)
+
+    @property
+    def boot_generation(self) -> int:
+        return self.db.execute("SELECT boot_generation FROM runtime_meta").fetchone()[0]
+
+    def retry_request(self, request_id: str, now: float) -> None:
+        row = self.request(request_id)
+        if row["processing_attempts"] >= 3:
+            self.fail_request(request_id, "processing_exhausted")
+        else:
+            delay = 1 if row["processing_attempts"] == 1 else 5
+            self.db.execute("UPDATE requests SET phase='retry_wait',next_at=? WHERE id=?", (now + delay, request_id))
+
+    def fail_request(self, request_id: str, code: str) -> None:
+        self.db.execute("UPDATE requests SET phase='failed_terminal',error=? WHERE id=?", (code, request_id))
+
+    def effects(self) -> list:
+        return list(self.db.execute("SELECT * FROM pending_effects ORDER BY rowid"))
+
+    def effect(self, effect_id: str):
+        return self.db.execute("SELECT * FROM pending_effects WHERE id=?", (effect_id,)).fetchone()
+
+    def set_effect(self, effect_id: str, **changes) -> None:
+        if not changes.keys() <= {"state", "outcome", "next_at", "lookups", "manual"}:
+            raise ValueError("invalid_effect_update")
+        columns = ",".join(f"{name}=?" for name in changes)
+        self.db.execute(f"UPDATE pending_effects SET {columns} WHERE id=?", (*changes.values(), effect_id))
+
+    def revise_proposal(self, key, source_request, proposal) -> int:
+        from .effect_store import revise_proposal
+        with self.transaction():
+            return revise_proposal(self, key, source_request, proposal)
+
+    def claim_effect(self, effect_id, expected_session_version, expected_revision, now: float):
+        from .effect_store import claim_effect
+        with self.transaction():
+            return claim_effect(self, effect_id, expected_session_version, expected_revision, now)
+
+    def record_receipt(self, receipt) -> bool:
+        from .effect_store import record_receipt
+        with self.transaction():
+            return record_receipt(self, receipt)
+
+    def events(self, session_id: str) -> list[dict]:
+        return [dict(row) for row in self.db.execute("SELECT * FROM events WHERE session_id=? ORDER BY sequence", (session_id,))]
+
+    def record_hook_event(self, session_id, phase, result, reference):
+        with self.transaction():
+            self._event(session_id, uuid4().hex, "runtime_hook", canonical({
+                "phase": phase, "action": result.action, "codes": result.codes,
+                "reference": reference}), "staff")
 
     @staticmethod
-    def _delivery(row):
-        return replace(_load(row[0]),status=row[1],lease_until=datetime.fromisoformat(row[2]) if row[2] else None)
+    def response(row) -> TurnResult:
+        data = json.loads(row["response"])
+        data["codes"] = tuple(data["codes"])
+        data["effect_ids"] = tuple(data["effect_ids"])
+        for name in ("evidence_refs", "public_evidence"):
+            data[name] = tuple(data.get(name, ()))
+        return TurnResult(**data)
 
-    def claim_deliveries(self, cutoff: datetime, limit: int) -> tuple[PendingDelivery,...]:
-        cutoff = normalize_utc(cutoff)
-        if type(limit) is not int or limit < 1:
-            raise DomainError('invalid_limit')
-        with self._transaction():
-            rows = self.connection.execute("SELECT body,status,lease_until FROM deliveries WHERE status IN ('pending_delivery','accepted','pending','unknown') AND (lease_until IS NULL OR lease_until<=?) ORDER BY rowid LIMIT ?",(cutoff.isoformat(),limit)).fetchall()
-            lease = cutoff + timedelta(seconds=60)
-            result = tuple(replace(self._delivery(row),lease_until=lease) for row in rows)
-            for delivery in result:
-                self.connection.execute('UPDATE deliveries SET lease_until=? WHERE key=?',(lease.isoformat(),delivery.key))
-            return result
-
-    def record_receipt(self, receipt: Receipt) -> None:
-        with self._transaction():
-            delivery = self.connection.execute('SELECT session,status FROM deliveries WHERE key=?',(receipt.delivery_key,)).fetchone()
-            if delivery is None:
-                raise DomainError('delivery_not_found',404)
-            previous = self.connection.execute('SELECT revision,body FROM receipts WHERE key=?',(receipt.delivery_key,)).fetchone()
-            if previous:
-                old = _load(previous[1])
-                if receipt.revision <= old.revision or old.status in ('succeeded','failed','blocked'):
-                    return
-            self.connection.execute('INSERT INTO receipts VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET revision=excluded.revision,body=excluded.body',(receipt.delivery_key,receipt.revision,_dump(receipt)))
-            self.connection.execute('UPDATE deliveries SET status=?,lease_until=NULL WHERE key=?',(receipt.status,receipt.delivery_key))
-            self.connection.execute('INSERT INTO system_events VALUES(?,?,?,?)',(delivery[0],receipt.delivery_key,receipt.revision,receipt.status))
-            session_row = self.connection.execute('SELECT body FROM sessions WHERE id=?',(delivery[0],)).fetchone()
-            session = _load(session_row[0])
-            body = self.connection.execute('SELECT body FROM deliveries WHERE key=?',(receipt.delivery_key,)).fetchone()
-            pending = _load(body[0])
-            changes = {'version':session.version + 1}
-            if pending.kind == 'contact':
-                changes['contact_delivery_status'] = receipt.status
-            if pending.kind == 'handoff' and receipt.status == 'succeeded' and session.state == 'handoff_pending':
-                changes['state'] = 'transferred'
-            self.connection.execute('UPDATE sessions SET body=? WHERE id=?',(_dump(replace(session,**changes)),session.id))
-
-
-
-    def public_evidence(self, principal_id: str, session_id: str) -> tuple[tuple[str, str], ...]:
-        """Ownership-scoped public evidence; internal trace never crosses this API."""
-        self._session(principal_id, session_id)
-        return tuple((item.id, item.public_text) for item in self.staff_trace(session_id))
-
-    def get_handoff(self, session_id: str):
-        """Internal staff/dispatcher API; authorize at service boundary."""
-        row = self.connection.execute('SELECT body FROM handoffs WHERE session=?', (session_id,)).fetchone()
-        return _load(row[0]) if row else None
+    def close(self) -> None:
+        self.db.close()

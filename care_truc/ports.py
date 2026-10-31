@@ -1,36 +1,54 @@
-"""Framework-free host adapter protocols. Gateways own authoritative receipts."""
+"""Server adapter contracts. No provider or fake gateway is selected implicitly."""
 
+import asyncio
+from datetime import datetime, timezone
+import time
 from typing import Protocol
 
-from contracts.types import Action
-from care_truc.models import (
-    AssessmentRef, CareContext, HandoffSummary, PendingDelivery, Receipt, TrustedContext,
-)
+from .runtime_types import (ContextSnapshot, EffectProposal, GateDecision, Receipt,
+                            TrustedRequestContext)
 
 
-class ContextReader(Protocol):
-    def read(self, trusted: TrustedContext, order_id: str,
-             assessment_ref: AssessmentRef | None = None) -> CareContext: ...
+class RuntimeClock(Protocol):
+    def monotonic(self) -> float: ...
+    def utcnow(self) -> datetime: ...
+    async def wait_until(self, deadline: float) -> None: ...
 
 
-class ContactGateway(Protocol):
-    """Host atomically checks current guard/controls before dispatch; fail closed."""
+class SystemClock:
+    def monotonic(self) -> float:
+        return time.monotonic()
 
-    def dispatch_checked(self, trusted: TrustedContext, delivery: PendingDelivery) -> Receipt: ...
-    def lookup(self, key: str) -> Receipt | None: ...
+    def utcnow(self) -> datetime:
+        return datetime.now(timezone.utc)
 
-
-class ActionGateway(Protocol):
-    """Only route to the platform executor; host enforces durable uniqueness."""
-
-    def submit(self, trusted: TrustedContext, action: Action) -> Receipt: ...
-    def lookup(self, key: str) -> Receipt | None: ...
+    async def wait_until(self, deadline: float) -> None:
+        await asyncio.sleep(max(0, deadline - self.monotonic()))
 
 
-class HandoffSink(Protocol):
-    def submit(self, trusted: TrustedContext, summary: HandoffSummary, key: str) -> Receipt: ...
-    def lookup(self, key: str) -> Receipt | None: ...
+class ContextProvider(Protocol):
+    supports_deadlines: bool
+    async def authorize(self, ctx: TrustedRequestContext, order_id: str) -> None: ...
+    async def load(self, ctx: TrustedRequestContext, order_id: str) -> ContextSnapshot: ...
 
 
 class PhraseSelector(Protocol):
-    def select(self, template_id: str, allowed_phrase_ids: tuple[str, ...]) -> object: ...
+    supports_deadlines: bool
+    async def select(self, context: bytes, *, deadline: float) -> bytes: ...
+
+
+class DispatchGate(Protocol):
+    supports_deadlines: bool
+    async def check(self, proposal: EffectProposal, ctx: TrustedRequestContext,
+                    *, deadline: float) -> GateDecision: ...
+
+
+class EffectGateway(Protocol):
+    supports_deadlines: bool
+    idempotent: bool
+    async def submit(self, proposal: EffectProposal, *, deadline: float) -> Receipt: ...
+    async def lookup(self, key: str, *, deadline: float) -> Receipt | None: ...
+
+
+class EvidenceResolver(Protocol):
+    async def resolve(self, ref: str, server_ctx: TrustedRequestContext) -> str: ...

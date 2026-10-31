@@ -1,1 +1,1 @@
-"""Customer care A1 package; platform adapters are supplied by the host."""
+"""Framework-independent A1 care runtime."""
