@@ -22,7 +22,7 @@ Nguồn của toàn bộ đoạn tóm tắt: [S1, mục 4–9](https://help.shop
 
 ## 3. Đối chiếu quyết định dự án
 
-Các căn cứ nội bộ đã đọc: [AGENTS.md](../../../AGENTS.md), [thiết kế platform](../specs/2026-10-31-huy-platform-design.md), [nghiên cứu executor, mục 8](2026-10-31-huy-execution.md), `contracts/types.py`.
+Các căn cứ nội bộ đã đọc: [AGENTS.md](../../AGENTS.md), [thiết kế platform](../specs/2026-10-31-huy-platform-design.md), [nghiên cứu executor, mục 8](2026-10-31-huy-execution.md), `contracts/types.py`.
 
 - Scope đã duyệt trước steering mới là coins + cancel. Thiết kế hiện nhận diện voucher nhưng trả `policy_not_configured`.
 - Matrix hiện chỉ cho `voucher` từ `source='rule'`. LLM/A2/A3 không tự chọn số tiền hay trực tiếp phát voucher; source phải do server xác thực, không tin JSON caller.

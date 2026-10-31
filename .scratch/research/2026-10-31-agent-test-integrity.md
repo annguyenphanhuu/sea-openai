@@ -30,7 +30,7 @@ pytest chính thức phân biệt exit 0 với exit 5 “không collect test”.
 
 ## Hiện trạng đã đọc trong repo
 
-Nguồn nội bộ: [`AGENTS.md`](../../../AGENTS.md), [`docs/team_plan.md`](../../team_plan.md), [`pytest.ini`](../../../pytest.ini), [`requirements/dev.txt`](../../../requirements/dev.txt) và các test/README trong ba acceptance folders.
+Nguồn nội bộ: [`AGENTS.md`](../../AGENTS.md), [`docs/team_plan.md`](../../docs/team_plan.md), [`pytest.ini`](../../pytest.ini), [`requirements/dev.txt`](../../requirements/dev.txt) và các test/README trong ba acceptance folders.
 
 - `pytest.ini`: `testpaths = acceptance_huy acceptance_an_nguyen acceptance_truc`, `pythonpath = .`. Thêm unit tests bên ngoài ba folder **chưa đủ** để `pytest -q` mặc định chạy chúng.
 - `requirements/dev.txt` pin `pytest==9.0.3`; runtime scaffold dùng standard library. Không thấy cấu hình coverage hoặc dependency mutation testing trong các file đã đọc.
