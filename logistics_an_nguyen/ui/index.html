@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="Danh sách đơn hàng và bằng chứng đánh giá logistics A2.">
+    <title>Danh sách đơn hàng · Chợ Phố</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.js"></script>
+</head>
+<body>
+    <a class="skip-link" href="#orders-region">Đến danh sách đơn</a>
+    <header class="masthead">
+        <div class="brand">chợ phố<span>.</span></div>
+        <span class="workspace">Quản lý vận hành</span>
+        <span class="source-badge" id="source-label">Dữ liệu mẫu · 20 đơn</span>
+    </header>
+    <main>
+        <div class="page-heading">
+            <div>
+                <h1>Danh sách đơn hàng</h1>
+                <p>Theo dõi cam kết giao hàng và đối chiếu bằng chứng của từng đơn.</p>
+            </div>
+            <button id="reload" class="secondary" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.5-1L20 9M4 15l2.4 3A7 7 0 0 0 18 17"/></svg>
+                Tải lại dữ liệu
+            </button>
+        </div>
+        <div class="snapshot-line">
+            <span id="snapshot">Đang đọc thời điểm đánh giá…</span>
+            <span>Giờ Việt Nam · UTC+7</span>
+        </div>
+        <section class="orders-section" id="orders-region" aria-label="Danh sách đơn hàng" tabindex="-1">
+            <form id="filters" class="toolbar" role="search">
+                <label class="search-field">
+                    <span>Tìm đơn hàng</span>
+                    <span class="input-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
+                        <input id="search" type="search" placeholder="Mã đơn hoặc mã khách hàng" autocomplete="off">
+                    </span>
+                </label>
+                <label>Trạng thái<select id="status-filter"><option value="">Tất cả trạng thái</option></select></label>
+                <label>Thanh toán<select id="payment-filter"><option value="">Tất cả hình thức</option><option value="COD">COD</option><option value="PREPAID">Trả trước</option><option value="unknown">Chưa rõ</option></select></label>
+                <label>Sắp xếp<select id="sort"><option value="priority">Ưu tiên xử lý</option><option value="late_days">Số ngày trễ giảm dần</option><option value="order_id">Mã đơn</option></select></label>
+            </form>
+            <div class="result-bar">
+                <p id="result-count" role="status" aria-live="polite">Đang tải danh sách…</p>
+                <button id="clear-filters" class="text-button" type="button" hidden>Xóa bộ lọc</button>
+            </div>
+            <div id="load-error" class="error-state" role="alert" hidden></div>
+            <div id="loading" class="loading-state" aria-hidden="true"><span></span><span></span><span></span></div>
+            <div class="table-wrap" id="table-wrap" hidden>
+                <table class="orders-table">
+                    <caption class="sr-only">Đơn hàng với các ngày cam kết và dự kiến được tách riêng. Dữ liệu đánh giá A2.</caption>
+                    <thead><tr>
+                        <th scope="col">Đơn hàng</th><th scope="col">Trạng thái</th>
+                        <th scope="col">Ngày cam kết</th><th scope="col">Dự kiến mới</th>
+                        <th scope="col">Nguyên nhân</th><th scope="col">Bên chịu trách nhiệm</th>
+                        <th scope="col">Ngày trễ</th><th scope="col">Thanh toán</th><th scope="col">Bằng chứng</th>
+                    </tr></thead>
+                    <tbody id="orders-body"></tbody>
+                </table>
+            </div>
+            <div id="empty" class="empty-state" hidden><h2>Không tìm thấy đơn phù hợp</h2><p>Thử mã đơn khác hoặc xóa bộ lọc để xem toàn bộ danh sách.</p></div>
+        </section>
+        <footer class="page-footer"><span id="footer-count"></span><p>Ngày cam kết được giữ nguyên. Dự kiến mới là ước tính tại thời điểm đánh giá.</p></footer>
+        <noscript><p class="error-state">Bật JavaScript để đọc danh sách đơn hàng và xem bằng chứng.</p></noscript>
+    </main>
+</body>
+</html>

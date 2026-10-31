@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-31T05:17:36.797Z",
+  "title": "Design System: Chợ Phố logistics",
+  "extensions": {
+    "colorMeta": {
+      "green": {
+        "role": "primary",
+        "displayName": "Operational green",
+        "tonalRamp": [
+          "oklch(15% 0.0764 163.56)",
+          "oklch(26.43% 0.0764 163.56)",
+          "oklch(37.86% 0.0764 163.56)",
+          "oklch(49.29% 0.0764 163.56)",
+          "oklch(60.71% 0.0764 163.56)",
+          "oklch(72.14% 0.0764 163.56)",
+          "oklch(83.57% 0.0764 163.56)",
+          "oklch(95% 0.0764 163.56)"
+        ]
+      },
+      "forest": {
+        "role": "primary",
+        "displayName": "Masthead forest",
+        "tonalRamp": [
+          "oklch(15% 0.0488 167.75)",
+          "oklch(26.43% 0.0488 167.75)",
+          "oklch(37.86% 0.0488 167.75)",
+          "oklch(49.29% 0.0488 167.75)",
+          "oklch(60.71% 0.0488 167.75)",
+          "oklch(72.14% 0.0488 167.75)",
+          "oklch(83.57% 0.0488 167.75)",
+          "oklch(95% 0.0488 167.75)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Primary ink",
+        "tonalRamp": [
+          "oklch(15% 0.0285 166.56)",
+          "oklch(26.43% 0.0285 166.56)",
+          "oklch(37.86% 0.0285 166.56)",
+          "oklch(49.29% 0.0285 166.56)",
+          "oklch(60.71% 0.0285 166.56)",
+          "oklch(72.14% 0.0285 166.56)",
+          "oklch(83.57% 0.0285 166.56)",
+          "oklch(95% 0.0285 166.56)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted green-gray",
+        "tonalRamp": [
+          "oklch(15% 0.0277 158.44)",
+          "oklch(26.43% 0.0277 158.44)",
+          "oklch(37.86% 0.0277 158.44)",
+          "oklch(49.29% 0.0277 158.44)",
+          "oklch(60.71% 0.0277 158.44)",
+          "oklch(72.14% 0.0277 158.44)",
+          "oklch(83.57% 0.0277 158.44)",
+          "oklch(95% 0.0277 158.44)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Quiet divider",
+        "tonalRamp": [
+          "oklch(15% 0.0131 141.81)",
+          "oklch(26.43% 0.0131 141.81)",
+          "oklch(37.86% 0.0131 141.81)",
+          "oklch(49.29% 0.0131 141.81)",
+          "oklch(60.71% 0.0131 141.81)",
+          "oklch(72.14% 0.0131 141.81)",
+          "oklch(83.57% 0.0131 141.81)",
+          "oklch(95% 0.0131 141.81)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "White work surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 0.00)",
+          "oklch(26.43% 0.0000 0.00)",
+          "oklch(37.86% 0.0000 0.00)",
+          "oklch(49.29% 0.0000 0.00)",
+          "oklch(60.71% 0.0000 0.00)",
+          "oklch(72.14% 0.0000 0.00)",
+          "oklch(83.57% 0.0000 0.00)",
+          "oklch(95% 0.0000 0.00)"
+        ]
+      },
+      "ivory": {
+        "role": "neutral",
+        "displayName": "Ivory canvas",
+        "tonalRamp": [
+          "oklch(15% 0.0054 117.92)",
+          "oklch(26.43% 0.0054 117.92)",
+          "oklch(37.86% 0.0054 117.92)",
+          "oklch(49.29% 0.0054 117.92)",
+          "oklch(60.71% 0.0054 117.92)",
+          "oklch(72.14% 0.0054 117.92)",
+          "oklch(83.57% 0.0054 117.92)",
+          "oklch(95% 0.0054 117.92)"
+        ]
+      },
+      "table-head": {
+        "role": "neutral",
+        "displayName": "Table header",
+        "tonalRamp": [
+          "oklch(15% 0.0082 121.63)",
+          "oklch(26.43% 0.0082 121.63)",
+          "oklch(37.86% 0.0082 121.63)",
+          "oklch(49.29% 0.0082 121.63)",
+          "oklch(60.71% 0.0082 121.63)",
+          "oklch(72.14% 0.0082 121.63)",
+          "oklch(83.57% 0.0082 121.63)",
+          "oklch(95% 0.0082 121.63)"
+        ]
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Control hover",
+        "tonalRamp": [
+          "oklch(15% 0.0123 137.78)",
+          "oklch(26.43% 0.0123 137.78)",
+          "oklch(37.86% 0.0123 137.78)",
+          "oklch(49.29% 0.0123 137.78)",
+          "oklch(60.71% 0.0123 137.78)",
+          "oklch(72.14% 0.0123 137.78)",
+          "oklch(83.57% 0.0123 137.78)",
+          "oklch(95% 0.0123 137.78)"
+        ]
+      },
+      "selected": {
+        "role": "neutral",
+        "displayName": "Expanded order",
+        "tonalRamp": [
+          "oklch(15% 0.0147 132.47)",
+          "oklch(26.43% 0.0147 132.47)",
+          "oklch(37.86% 0.0147 132.47)",
+          "oklch(49.29% 0.0147 132.47)",
+          "oklch(60.71% 0.0147 132.47)",
+          "oklch(72.14% 0.0147 132.47)",
+          "oklch(83.57% 0.0147 132.47)",
+          "oklch(95% 0.0147 132.47)"
+        ]
+      },
+      "evidence": {
+        "role": "neutral",
+        "displayName": "Evidence surface",
+        "tonalRamp": [
+          "oklch(15% 0.0082 121.63)",
+          "oklch(26.43% 0.0082 121.63)",
+          "oklch(37.86% 0.0082 121.63)",
+          "oklch(49.29% 0.0082 121.63)",
+          "oklch(60.71% 0.0082 121.63)",
+          "oklch(72.14% 0.0082 121.63)",
+          "oklch(83.57% 0.0082 121.63)",
+          "oklch(95% 0.0082 121.63)"
+        ]
+      },
+      "focus": {
+        "role": "secondary",
+        "displayName": "Amber focus",
+        "tonalRamp": [
+          "oklch(15% 0.1146 70.14)",
+          "oklch(26.43% 0.1146 70.14)",
+          "oklch(37.86% 0.1146 70.14)",
+          "oklch(49.29% 0.1146 70.14)",
+          "oklch(60.71% 0.1146 70.14)",
+          "oklch(72.14% 0.1146 70.14)",
+          "oklch(83.57% 0.1146 70.14)",
+          "oklch(95% 0.1146 70.14)"
+        ]
+      },
+      "late-ink": {
+        "role": "secondary",
+        "displayName": "Late text",
+        "tonalRamp": [
+          "oklch(15% 0.1236 32.63)",
+          "oklch(26.43% 0.1236 32.63)",
+          "oklch(37.86% 0.1236 32.63)",
+          "oklch(49.29% 0.1236 32.63)",
+          "oklch(60.71% 0.1236 32.63)",
+          "oklch(72.14% 0.1236 32.63)",
+          "oklch(83.57% 0.1236 32.63)",
+          "oklch(95% 0.1236 32.63)"
+        ]
+      },
+      "late-surface": {
+        "role": "secondary",
+        "displayName": "Late surface",
+        "tonalRamp": [
+          "oklch(15% 0.0203 40.53)",
+          "oklch(26.43% 0.0203 40.53)",
+          "oklch(37.86% 0.0203 40.53)",
+          "oklch(49.29% 0.0203 40.53)",
+          "oklch(60.71% 0.0203 40.53)",
+          "oklch(72.14% 0.0203 40.53)",
+          "oklch(83.57% 0.0203 40.53)",
+          "oklch(95% 0.0203 40.53)"
+        ]
+      },
+      "risk-ink": {
+        "role": "secondary",
+        "displayName": "Risk text",
+        "tonalRamp": [
+          "oklch(15% 0.0992 68.48)",
+          "oklch(26.43% 0.0992 68.48)",
+          "oklch(37.86% 0.0992 68.48)",
+          "oklch(49.29% 0.0992 68.48)",
+          "oklch(60.71% 0.0992 68.48)",
+          "oklch(72.14% 0.0992 68.48)",
+          "oklch(83.57% 0.0992 68.48)",
+          "oklch(95% 0.0992 68.48)"
+        ]
+      },
+      "risk-surface": {
+        "role": "secondary",
+        "displayName": "Risk surface",
+        "tonalRamp": [
+          "oklch(15% 0.0365 86.17)",
+          "oklch(26.43% 0.0365 86.17)",
+          "oklch(37.86% 0.0365 86.17)",
+          "oklch(49.29% 0.0365 86.17)",
+          "oklch(60.71% 0.0365 86.17)",
+          "oklch(72.14% 0.0365 86.17)",
+          "oklch(83.57% 0.0365 86.17)",
+          "oklch(95% 0.0365 86.17)"
+        ]
+      },
+      "customer-ink": {
+        "role": "secondary",
+        "displayName": "Customer fault text",
+        "tonalRamp": [
+          "oklch(15% 0.0542 52.17)",
+          "oklch(26.43% 0.0542 52.17)",
+          "oklch(37.86% 0.0542 52.17)",
+          "oklch(49.29% 0.0542 52.17)",
+          "oklch(60.71% 0.0542 52.17)",
+          "oklch(72.14% 0.0542 52.17)",
+          "oklch(83.57% 0.0542 52.17)",
+          "oklch(95% 0.0542 52.17)"
+        ]
+      },
+      "customer-surface": {
+        "role": "secondary",
+        "displayName": "Customer fault surface",
+        "tonalRamp": [
+          "oklch(15% 0.0142 74.42)",
+          "oklch(26.43% 0.0142 74.42)",
+          "oklch(37.86% 0.0142 74.42)",
+          "oklch(49.29% 0.0142 74.42)",
+          "oklch(60.71% 0.0142 74.42)",
+          "oklch(72.14% 0.0142 74.42)",
+          "oklch(83.57% 0.0142 74.42)",
+          "oklch(95% 0.0142 74.42)"
+        ]
+      },
+      "unknown-ink": {
+        "role": "secondary",
+        "displayName": "Unknown feed text",
+        "tonalRamp": [
+          "oklch(15% 0.0474 251.03)",
+          "oklch(26.43% 0.0474 251.03)",
+          "oklch(37.86% 0.0474 251.03)",
+          "oklch(49.29% 0.0474 251.03)",
+          "oklch(60.71% 0.0474 251.03)",
+          "oklch(72.14% 0.0474 251.03)",
+          "oklch(83.57% 0.0474 251.03)",
+          "oklch(95% 0.0474 251.03)"
+        ]
+      },
+      "unknown-surface": {
+        "role": "secondary",
+        "displayName": "Unknown feed surface",
+        "tonalRamp": [
+          "oklch(15% 0.0103 247.94)",
+          "oklch(26.43% 0.0103 247.94)",
+          "oklch(37.86% 0.0103 247.94)",
+          "oklch(49.29% 0.0103 247.94)",
+          "oklch(60.71% 0.0103 247.94)",
+          "oklch(72.14% 0.0103 247.94)",
+          "oklch(83.57% 0.0103 247.94)",
+          "oklch(95% 0.0103 247.94)"
+        ]
+      },
+      "watch-ink": {
+        "role": "secondary",
+        "displayName": "Watch text",
+        "tonalRamp": [
+          "oklch(15% 0.0712 115.83)",
+          "oklch(26.43% 0.0712 115.83)",
+          "oklch(37.86% 0.0712 115.83)",
+          "oklch(49.29% 0.0712 115.83)",
+          "oklch(60.71% 0.0712 115.83)",
+          "oklch(72.14% 0.0712 115.83)",
+          "oklch(83.57% 0.0712 115.83)",
+          "oklch(95% 0.0712 115.83)"
+        ]
+      },
+      "watch-surface": {
+        "role": "secondary",
+        "displayName": "Watch surface",
+        "tonalRamp": [
+          "oklch(15% 0.0277 109.13)",
+          "oklch(26.43% 0.0277 109.13)",
+          "oklch(37.86% 0.0277 109.13)",
+          "oklch(49.29% 0.0277 109.13)",
+          "oklch(60.71% 0.0277 109.13)",
+          "oklch(72.14% 0.0277 109.13)",
+          "oklch(83.57% 0.0277 109.13)",
+          "oklch(95% 0.0277 109.13)"
+        ]
+      },
+      "track-ink": {
+        "role": "secondary",
+        "displayName": "On-track text",
+        "tonalRamp": [
+          "oklch(15% 0.0838 153.37)",
+          "oklch(26.43% 0.0838 153.37)",
+          "oklch(37.86% 0.0838 153.37)",
+          "oklch(49.29% 0.0838 153.37)",
+          "oklch(60.71% 0.0838 153.37)",
+          "oklch(72.14% 0.0838 153.37)",
+          "oklch(83.57% 0.0838 153.37)",
+          "oklch(95% 0.0838 153.37)"
+        ]
+      },
+      "track-surface": {
+        "role": "secondary",
+        "displayName": "On-track surface",
+        "tonalRamp": [
+          "oklch(15% 0.0192 133.08)",
+          "oklch(26.43% 0.0192 133.08)",
+          "oklch(37.86% 0.0192 133.08)",
+          "oklch(49.29% 0.0192 133.08)",
+          "oklch(60.71% 0.0192 133.08)",
+          "oklch(72.14% 0.0192 133.08)",
+          "oklch(83.57% 0.0192 133.08)",
+          "oklch(95% 0.0192 133.08)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "table-body": {
+        "displayName": "Operational facts",
+        "purpose": "Compact order rows with a 1.5 line-height."
+      },
+      "code": {
+        "displayName": "Source codes",
+        "purpose": "Raw record identifiers and fact codes."
+      }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      {
+        "name": "toolbar-wrap",
+        "value": "1000px"
+      },
+      {
+        "name": "labelled-records",
+        "value": "680px"
+      }
+    ],
+    "focus": {
+      "value": "3px solid #a26a19",
+      "offset": "3px",
+      "targets": "buttons, inputs, selects, links, summary"
+    },
+    "tonalRampBasis": "Synthesized OKLCH previews only; these are not implemented palette tokens.",
+    "sourceFiles": [
+      "styles.css",
+      "index.html",
+      "app.js"
+    ],
+    "verification": {
+      "basis": "Source inspection only",
+      "visualVerification": false,
+      "screenshots": [],
+      "reviewerVerdict": "ship",
+      "limitations": "Browser host unavailable; native Computer Use stopped on an uncertain URL. No material fixes identified by code inspection."
+    }
+  },
+  "components": [
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Reload and close controls.",
+      "html": "<button class=\"ds-control ds-secondary\">Tải lại dữ liệu</button>",
+      "css": ".ds-control{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);font-weight:600;cursor:pointer;border:1px solid var(--line,#dce3db);border-radius:6px;background:var(--paper,#fff);}.ds-control:hover{background:#edf3eb;border-color:#8ba994;}.ds-control:disabled{cursor:wait;opacity:.6;}.ds-control:focus-visible{outline:3px solid #a26a19;outline-offset:3px;}.ds-secondary{min-height:40px;padding:9px 13px;font-size:13px;}"
+    },
+    {
+      "name": "Text button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Clear active filters.",
+      "html": "<button class=\"ds-control ds-text\">Xóa bộ lọc</button>",
+      "css": ".ds-control{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);font-weight:600;cursor:pointer;border:1px solid var(--line,#dce3db);border-radius:6px;background:var(--paper,#fff);}.ds-control:hover{background:#edf3eb;border-color:#8ba994;}.ds-control:disabled{cursor:wait;opacity:.6;}.ds-control:focus-visible{outline:3px solid #a26a19;outline-offset:3px;}.ds-text{min-height:30px;padding:5px 8px;font-size:13px;color:var(--green,#236148);border:0;background:transparent;}.ds-text:hover{background:#edf3eb;}"
+    },
+    {
+      "name": "Evidence button",
+      "kind": "button",
+      "refersTo": "button-evidence",
+      "description": "Open inline evidence for an order.",
+      "html": "<button class=\"ds-control ds-evidence-button\" aria-expanded=\"false\">Xác minh bằng chứng</button>",
+      "css": ".ds-control{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);font-weight:600;cursor:pointer;border:1px solid var(--line,#dce3db);border-radius:6px;background:var(--paper,#fff);}.ds-control:hover{background:#edf3eb;border-color:#8ba994;}.ds-control:disabled{cursor:wait;opacity:.6;}.ds-control:focus-visible{outline:3px solid #a26a19;outline-offset:3px;}.ds-evidence-button{color:var(--green,#236148);background:transparent;border-color:#bfd0c0;padding:6px 8px;font-size:11px;line-height:1.45;width:100%;min-height:36px;}.ds-evidence-button:hover{background:#edf3eb;border-color:#8ba994;}@media(max-width:680px){.ds-evidence-button{min-height:44px;font-size:13px;}}"
+    },
+    {
+      "name": "Expanded evidence button",
+      "kind": "button",
+      "refersTo": "button-evidence-expanded",
+      "description": "The same control while its evidence is expanded.",
+      "html": "<button class=\"ds-control ds-evidence-open\" aria-expanded=\"true\">Đóng bằng chứng</button>",
+      "css": ".ds-control{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);font-weight:600;cursor:pointer;border:1px solid var(--line,#dce3db);border-radius:6px;background:var(--paper,#fff);}.ds-control:hover{background:#edf3eb;border-color:#8ba994;}.ds-control:disabled{cursor:wait;opacity:.6;}.ds-control:focus-visible{outline:3px solid #a26a19;outline-offset:3px;}.ds-evidence-open,.ds-evidence-open:hover{color:white;background:var(--green,#236148);border-color:var(--green,#236148);padding:6px 8px;font-size:11px;line-height:1.45;width:100%;min-height:36px;}@media(max-width:680px){.ds-evidence-open{min-height:44px;font-size:13px;}}"
+    },
+    {
+      "name": "Search field",
+      "kind": "input",
+      "refersTo": "search",
+      "description": "Persistent label, inset stroke icon and native search input.",
+      "html": "<label class=\"ds-label\">Tìm đơn hàng<span class=\"ds-input-wrap\"><svg class=\"ds-search-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 4 4\"/></svg><input class=\"ds-search\" type=\"search\" placeholder=\"Mã đơn hoặc mã khách hàng\"></span></label>",
+      "css": ".ds-label{font-family:\"Segoe UI\",Arial,sans-serif;display:flex;flex-direction:column;gap:7px;color:var(--muted,#596b60);font-size:12px;font-weight:600;}.ds-input-wrap{position:relative;display:flex;}.ds-search-icon{position:absolute;left:12px;top:12px;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;}.ds-search{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);width:100%;min-width:0;height:42px;padding:9px 12px 9px 39px;border:1px solid var(--line,#dce3db);border-radius:6px;background:var(--paper,#fff);font-size:14px;font-weight:400;}.ds-search::placeholder{color:#68766c;}.ds-search:focus-visible{outline:3px solid #a26a19;outline-offset:3px;}@media(max-width:680px){.ds-search{font-size:16px;}}"
+    },
+    {
+      "name": "Late status",
+      "kind": "chip",
+      "refersTo": "status-late",
+      "description": "Labelled noninteractive status; exception uses the same colors.",
+      "html": "<span class=\"ds-status\">Trễ hạn</span>",
+      "css": ".ds-status{font-family:\"Segoe UI\",Arial,sans-serif;display:inline-block;padding:4px 7px;border-radius:4px;font-size:11px;font-weight:650;line-height:1.4;color:#973e2d;background:#fae9e3;}"
+    },
+    {
+      "name": "Order container",
+      "kind": "card",
+      "refersTo": "orders-section",
+      "description": "The single white work surface, grouped by a quiet border.",
+      "html": "<section class=\"ds-orders\"><div class=\"ds-result\">Hiển thị 20 / 20 đơn hàng</div></section>",
+      "css": ".ds-orders{font-family:\"Segoe UI\",Arial,sans-serif;color:var(--ink,#24372f);border:1px solid var(--line,#dce3db);border-radius:8px;background:var(--paper,#fff);overflow:hidden;}.ds-result{min-height:49px;padding:10px 20px;display:flex;align-items:center;font-size:13px;font-weight:600;}"
+    },
+    {
+      "name": "Inline evidence",
+      "kind": "custom",
+      "refersTo": "evidence-panel",
+      "description": "Tonal inset within the order list; no floating elevation.",
+      "html": "<section class=\"ds-evidence\"><h2 class=\"ds-evidence-title\">Bằng chứng</h2><p class=\"ds-evidence-note\">Đối chiếu dữ kiện nguồn với kết luận A2. Mở xem không ghi nhận phê duyệt hay thay đổi đánh giá.</p></section>",
+      "css": ".ds-evidence{font-family:\"Segoe UI\",Arial,sans-serif;padding:24px;color:var(--ink,#24372f);background:#f6f8f2;border-top:1px solid #cbdac8;}.ds-evidence-title{font-size:18px;margin:0 0 8px;}.ds-evidence-note{font-size:13px;line-height:1.55;color:var(--muted,#596b60);max-width:75ch;margin:0;}@media(max-width:680px){.ds-evidence{padding:18px 16px;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Chợ Phố operations desk",
+    "overview": "The implemented surface inherits Chợ Phố's green and ivory operational identity. Compact rows, restrained status fills and visible separators support repeated comparison; evidence opens directly under its order.",
+    "keyCharacteristics": [
+      "Green identity with quiet ivory and white surfaces.",
+      "Dense, explicitly labelled operational facts.",
+      "Flat containers and evidence shown in context."
+    ],
+    "rules": [
+      {
+        "name": "The Labelled Status Rule",
+        "body": "Every status color is accompanied by a readable status label.",
+        "section": "colors"
+      },
+      {
+        "name": "The Separate Dates Rule",
+        "body": "Keep the guaranteed date and revised ETA visibly separate at every breakpoint.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Do preserve Chợ Phố's green and ivory identity.",
+      "Do retain textual status labels and explicit field labels on phones.",
+      "Do show evidence in the context of its order."
+    ],
+    "donts": [
+      "Don't merge guaranteed dates and revised estimates into one value.",
+      "Don't present evidence inspection as an approval or trust grant.",
+      "Don't introduce a new visual identity for this manager surface."
+    ]
+  }
+}
