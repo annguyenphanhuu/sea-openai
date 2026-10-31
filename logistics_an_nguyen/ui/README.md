@@ -5,7 +5,8 @@ Plain HTML/CSS/JavaScript; no framework, build step or additional dependency.
 From the repository root:
 
 ```powershell
-.venv/Scripts/python.exe -m logistics_an_nguyen.ui --port 8766
+conda activate seaopenai
+python -m logistics_an_nguyen.ui --port 8766
 ```
 
 Open `http://127.0.0.1:8766/ui/`. This loopback launcher serves only the UI assets
@@ -19,6 +20,13 @@ Asia/Ho_Chi_Minh. Missing ETA is displayed as unknown. Cause, fault and late day
 are independent columns; the UI does not recalculate an assessment. Priority is
 only a list sort. Opening evidence does not persist verification or grant action
 authority. A persistent review action needs a real owner-provided API first.
+
+COD risk badges use the A2 `reason_codes` only: `cod_refusal_risk:high` is red
+and `cod_refusal_risk:medium` is amber. Neither replaces the status badge or
+changes fault. The current 20-order sample has two high and two medium cases;
+filter by status `late` and payment `COD` to inspect the red badges. The browser
+does not infer risk from payment, amount or source text. The Python rule uses
+the confirmed 1,000,000 VND threshold and visible failed delivery attempts.
 
 ## API handoff
 
@@ -40,5 +48,5 @@ source text and uses textContent for all data values.
 ```powershell
 node --test logistics_an_nguyen/ui/data.test.mjs
 node --check logistics_an_nguyen/ui/app.js
-.venv/Scripts/python.exe -m pytest -q
+conda run -n seaopenai python -m pytest -q
 ```
