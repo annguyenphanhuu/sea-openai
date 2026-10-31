@@ -39,4 +39,4 @@ Use pytest; name files `test_*.py` and functions `test_*` inside your acceptance
 
 ## Commits & Pull Requests
 
-Commit on task branches `<type>/<lowercase-kebab-description>`, e.g. `feat/order-tracking`. Allowed types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `perf`, `build`, `ci`, `revert`. Keep branch checks enabled. The user authorizes publishing each completed, verified Huy unit to the team integration branch `huy` (`upstream` here), and main merges when requested. Personal integration targets do not change the task-branch convention or folder ownership. Use short descriptive commit subjects. PRs describe behavior, contracts, test results, relevant issues, and UI screenshots.
+Use personal branches `huy`, `an-nguyen`, `truc`. Fetch the team remote and merge updates before work or push; integrate main into your personal branch. Do not install hooks or enforce task-branch names. Commit and push each completed, verified Huy unit to `upstream/huy`; merge/push main when requested. Use descriptive commit subjects. PRs explain behavior, contracts, tests, and UI changes.

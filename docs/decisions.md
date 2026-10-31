@@ -2,14 +2,6 @@
 
 Huy chốt các quyết định này ngày 31/10/2026; chúng thay thế các mặc định trước đây. Xem mục 6 của [team_plan.md](team_plan.md). Đây là đặc tả, chưa phải logic agent đã triển khai.
 
-## Repository checks — 2026-10-31
-
-- Use standard-library Git hooks: staged path/conflict/whitespace checks before commit; tracked-file checks, contract imports, and all acceptance tests before push.
-- Repeat checks in GitHub Actions for pull requests and team branch pushes. Each clone installs hooks with `python scripts/install_hooks.py`; see `docs/guardrails.md` for limits and branch-rule enforcement.
-- Keep the local CodeGraph index untracked. Hook setup does not push, open a PR, or change remote branch rules.
-- Keep `docs/superpowers/` local. Shared absolute hooks use `post-checkout` to copy ignored files from the installing checkout into new worktrees without overwriting existing files. Normal branch switches do not copy files.
-- Replace personal branch names with `<type>/<lowercase-kebab-description>` task branches. Commit/push hooks and PR CI enforce the convention; folder ownership remains unchanged. This supersedes the personal-branch default in D5.
-
 ## D1 — Ngày cam kết
 
 Lấy duy nhất `orders.guaranteed_date`, múi giờ `Asia/Ho_Chi_Minh`, hết ngày lúc **23:59:59**. Không dùng `promised_at`, `estimated_date` hoặc ETA mới thay ngày cam kết. Chậm vài giờ trong cùng ngày không phải trễ ngày. Thiếu ngày cam kết phải báo thiếu dữ liệu, không tự lấy ETA thay.

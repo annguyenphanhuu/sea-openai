@@ -86,7 +86,9 @@ Mutation phải chống retry bằng idempotency, kiểm ownership/quyền serve
 
 ## 3. Chia việc theo 7 giờ, 3 nhánh
 
-Giờ tính từ lúc team bắt đầu thực thi plan. Nhánh tích hợp cá nhân: Huy `huy`, An Nguyen `an-nguyen`, Trúc `truc`. Guardrail mới trên main yêu cầu checkout nhánh tác vụ `<type>/<lowercase-kebab-description>` để commit/push, ví dụ `feat/huy-replay`; nhánh cá nhân vẫn là đích tích hợp khi được yêu cầu. Giữ các kiểm tra tên nhánh, không sửa test để bỏ qua chúng. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
+Giờ tính từ lúc team bắt đầu thực thi plan. Huy dùng `huy`, An Nguyen dùng `an-nguyen`, Trúc dùng `truc`. Lấy nền từ main đã thống nhất; giữ branch đang làm, không xóa/recreate để cập nhật.
+
+Trước mỗi phần việc và trước khi push: fetch repo team, merge cập nhật remote của nhánh cá nhân nếu có, rồi merge main vào nhánh cá nhân. Trong checkout của Huy, repo team là `upstream`; với clone trực tiếp repo team thường là `origin`. Không cài hook, không ép tên nhánh feat/chore. Chạy import, pytest và diff check thủ công trước commit/push. Khi được yêu cầu merge main, fetch lại rồi tích hợp thay đổi mới nhất; không force push.
 
 | Giờ | Huy — platform/A3 | An Nguyen — A2 | Trúc — A1 |
 | --- | --- | --- | --- |
