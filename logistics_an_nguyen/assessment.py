@@ -67,6 +67,36 @@ def _fact_value(item: Evidence) -> object:
     return value
 
 
+def _cod_refusal_reason(status: str, evidence: tuple[Evidence, ...], unavailable: set[str]) -> str | None:
+    """Add a rule-based signal without changing the logistics decision or fault."""
+    if status not in ("late", "at_risk"):
+        return None
+    metadata = {}
+    for code in ("payment_method", "items_value_vnd"):
+        candidates = [item for item in evidence if item["is_structured"] and item["fact_code"] == code]
+        if not candidates:
+            continue
+        latest_at = max(item["ingested_at"] for item in candidates)
+        latest = [item for item in candidates if item["ingested_at"] == latest_at]
+        # Never resurrect an older value when the newest one is untrusted/conflicting.
+        if any(item["feed"] in unavailable for item in latest):
+            continue
+        value = latest[0]["value"]
+        if all(type(item["value"]) is type(value) and item["value"] == value for item in latest):
+            metadata[code] = value
+    if metadata.get("payment_method") != "COD":
+        return None
+    amount = metadata.get("items_value_vnd")
+    high_value = type(amount) is int and amount >= 1_000_000
+    failed_attempt = any(
+        item["is_structured"] and item["feed"] not in unavailable
+        and item["fact_code"] == "failed_delivery_attempt" and item["value"] is True
+        for item in evidence
+    )
+    level = "high" if status == "late" and (high_value or failed_attempt) else "medium"
+    return f"cod_refusal_risk:{level}"
+
+
 def assess_order(
     order: OrderFacts, *, tick_at: datetime, feed_health: Iterable[FeedHealth],
 ) -> OrderAssessment:
@@ -174,6 +204,9 @@ def assess_order(
         "on_track": True,
     }
     status = next(status for status in STATUSES if predicates[status])
+    risk_reason = _cod_refusal_reason(status, evidence, unavailable)
+    if risk_reason is not None:
+        reasons.append(risk_reason)
     reasons.insert(0, f"status:{status}")
     return OrderAssessment(
         order_id=order.order_id, assessed_at=tick_at.astimezone(timezone.utc),

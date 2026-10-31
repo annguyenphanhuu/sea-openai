@@ -22,6 +22,8 @@ const REASONS = Object.freeze({
     confidence_missing: "Chưa có mức tin cậy",
     risk_estimate_missing: "Chưa đủ dữ liệu ước tính nguy cơ",
     unstructured_text_unverified: "Có nội dung chưa được xác minh",
+    "cod_refusal_risk:high": "Nguy cơ từ chối nhận COD: cao",
+    "cod_refusal_risk:medium": "Nguy cơ từ chối nhận COD: vừa",
 });
 const FORMAT_DATE = new Intl.DateTimeFormat("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric",
@@ -57,6 +59,17 @@ export function reasonLabel(code) {
 export function causeLabels(order) {
     const codes = order.cause.reason_codes.filter((code) => !code.startsWith("status:") && !code.startsWith("fault:"));
     return codes.length ? codes.map(reasonLabel) : ["Chưa có nguyên nhân được xác định"];
+}
+
+export function codRefusalBadge(order) {
+    // Display the assessed reason; the browser never reimplements the risk rule.
+    if (order.reason_codes.includes("cod_refusal_risk:high")) {
+        return { level: "high", label: "Nguy cơ từ chối COD: cao" };
+    }
+    if (order.reason_codes.includes("cod_refusal_risk:medium")) {
+        return { level: "medium", label: "Nguy cơ từ chối COD: vừa" };
+    }
+    return null;
 }
 
 export function resolveEvidence(payload, order) {

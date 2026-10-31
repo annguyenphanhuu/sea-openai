@@ -30,7 +30,8 @@ def _authority(action: Action, context: ServerContext) -> bool:
     return (bool(context.principal_id) and bool(context.customer_id)
             and context.source == action.source
             and action.source in ALLOWED_SOURCES.get(action.kind, frozenset())
-            and f'actions:{action.kind}' in context.capabilities)
+            and (f'actions:{action.kind}' in context.capabilities
+                 or (action.kind == 'cancel_request' and 'cancel:request' in context.capabilities)))
 
 
 def _request_hash(action: Action, context: ServerContext) -> str:
@@ -167,6 +168,39 @@ def _eligible(action: Action, *, store: StateStore, context: ServerContext,
         return 'evidence_untrusted', None
 
 
+def _cancel_eligible(action, *, store, context, now):
+    bundle = store.evidence(action.evidence_ref)
+    if bundle is None:
+        return 'evidence_missing', None
+    try:
+        evidence, contact, message, run = (bundle[key] for key in ('evidence', 'contact', 'message', 'run'))
+        facts = json.loads(evidence['payload_json'])
+        order, confirmation = facts['order'], facts['cancellation']
+        if (contact is None or message is None or run is None or not store.trusts(evidence, message)
+                or hashlib.sha256(evidence['payload_json'].encode('utf-8')).hexdigest() != evidence['sha256']
+                or evidence['policy_version'] != 'huy-demo-v1' or facts['schema_version'] != 1
+                or facts['run_id'] != run['run_id'] or facts['source_identity'] != json.loads(run['source_identity_json'])
+                or _instant(evidence['assessment_at']) != now or _instant(evidence['visible_at']) != now
+                or evidence['order_id'] != action.order_id or order['order_id'] != action.order_id):
+            return 'evidence_untrusted', None
+        if order['customer_id'] != context.customer_id or (context.seller_id is not None and order['seller_id'] != context.seller_id):
+            return 'not_found', None
+        if (contact['contact_id'] != evidence['contact_id'] or message['message_id'] != evidence['message_id']
+                or message['contact_id'] != contact['contact_id'] or message['customer_id'] != context.customer_id
+                or contact['order_id'] != action.order_id or message['order_id'] != action.order_id
+                or contact['initiated_by'] != 'A1' or contact['channel'] != 'chat' or contact['status'] != 'active'
+                or not contact['provider_session_id'] or message['origin'] != 'text' or not message['body'].strip()
+                or not (_instant(contact['requested_at']) <= _instant(contact['opened_at']) <= _instant(message['created_at']) <= now)
+                or confirmation['confirmed'] is not True or confirmation['confirmation_id'] != action.confirmation_id
+                or not confirmation['request_id'] or not confirmation['reply_to'] or now >= _instant(confirmation['expires_at'])):
+            return 'invalid_request_provenance', None
+        if order.get('cancelled_at') is not None or order.get('delivered_at') is not None:
+            return 'cancellation_not_available', None
+        return None, contact['contact_id']
+    except (KeyError, ValueError, TypeError, AttributeError, PlatformError):
+        return 'evidence_untrusted', None
+
+
 def execute_action(action: Action, *, store: StateStore, context: ServerContext) -> ExecutionResult:
     """Atomically evaluate and grant one independently keyed local entitlement.
 
@@ -184,12 +218,23 @@ def execute_action(action: Action, *, store: StateStore, context: ServerContext)
 
         if not _shape_valid(action):
             return deny('validation_error')
-        if action.kind not in ('coins', 'voucher'):
+        cancellation = action.kind == 'cancel_request'
+        if action.kind not in ('coins', 'voucher', 'cancel_request'):
+            return deny('policy_not_configured')
+        # Preserve fail-closed behavior for legacy cancellation payloads that
+        # never supplied the explicit confirmation/approval workflow.
+        if cancellation and (action.amount_vnd != 0 or not action.needs_approval or not action.confirmation_id):
             return deny('policy_not_configured')
         if not _authority(action, context):
             return deny('permission_denied')
         expected_key = f'{"xu" if action.kind == "coins" else "voucher"}:{action.order_id}'
-        if action.idempotency_key != expected_key:
+        if cancellation:
+            run = store.evidence(action.evidence_ref)
+            run_id = run['run']['run_id'] if run and run.get('run') else ''
+            valid_keys = {f'{run_id}:cancel:{action.confirmation_id}', f'cancel:{action.order_id}:{action.confirmation_id}'}
+        else:
+            valid_keys = {expected_key}
+        if action.idempotency_key not in valid_keys:
             return deny('invalid_idempotency_key')
         request_hash = _request_hash(action, context)
         record = store.lookup(action.idempotency_key)
@@ -204,11 +249,11 @@ def execute_action(action: Action, *, store: StateStore, context: ServerContext)
             return deny('idempotency_conflict')
         if action.requested_at > now:
             return deny('validation_error')
-        if action.needs_approval:
+        if action.needs_approval and not cancellation:
             return deny('approval_required')
         if not store.guard_allows(now):
             return deny('proactive_gate_closed')
-        reason, contact_id = _eligible(action, store=store, context=context, now=now)
+        reason, contact_id = (_cancel_eligible if cancellation else _eligible)(action, store=store, context=context, now=now)
         if reason is not None:
             return deny(reason)
         effect_id = str(uuid4())
@@ -216,6 +261,10 @@ def execute_action(action: Action, *, store: StateStore, context: ServerContext)
                                  action.amount_vnd if action.kind == 'coins' else None,
                                  effect_id if action.kind == 'coins' else None,
                                  action.amount_vnd if action.kind == 'voucher' else None,
-                                 effect_id if action.kind == 'voucher' else None, None, False)
-        store.grant(action, context, request_hash, result, contact_id, now)
+                                 effect_id if action.kind == 'voucher' else None,
+                                 effect_id if cancellation else None, False)
+        if cancellation:
+            store.queue_cancellation(action, context, request_hash, result, now)
+        else:
+            store.grant(action, context, request_hash, result, contact_id, now)
         return result

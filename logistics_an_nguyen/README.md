@@ -25,10 +25,23 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 ## UI danh sách đơn
 
 Trang quản lý danh sách 20 đơn bằng HTML/CSS/JS thuần nằm trong
-[`ui/`](ui/README.md). Chạy `.venv/Scripts/python.exe -m logistics_an_nguyen.ui`
+[`ui/`](ui/README.md). Kích hoạt `conda activate seaopenai`, chạy `python -m logistics_an_nguyen.ui`
 rồi mở `http://127.0.0.1:8766/ui/`. Mặc định đọc `sample_orders.json`; adapter
 `?source=api` dành cho HTTP API của Trúc khi sẵn sàng. Nút xác minh mở bằng chứng
 để đối chiếu, chưa ghi nhận phê duyệt.
+
+Huy hiệu **Nguy cơ từ chối COD: cao** màu đỏ lấy từ reason
+`cod_refusal_risk:high`; mức vừa màu vàng lấy từ `cod_refusal_risk:medium`.
+Rule đã chốt: COD + nhãn `late` có giá trị hàng từ **1.000.000đ** hoặc ít nhất
+một lần giao thất bại đã nhìn thấy → high; COD + `late` còn lại hoặc `at_risk`
+→ medium. PREPAID và các nhãn khác không gắn cờ. Cờ chỉ bổ sung lý do theo
+nhãn cuối cùng của A2, không đổi status/fault, không kết luận khách đã từ chối
+và không cấp quyền liên hệ/tiền. Text tài xế không được dùng để bật cờ.
+
+Ba ca literal của người dùng nằm trong
+`acceptance_an_nguyen/test_cod_refusal_risk.py`; kiểm tra ngưỡng, nguồn và cutoff
+nằm trong `test_cod_refusal_boundaries.py`. Mẫu hiện có 2 high, 2 medium, 16 đơn
+không gắn cờ; cùng 20 ID và cutoff trước đó, được đánh giá lại từ DB chỉ đọc.
 
 ## Python API
 
@@ -305,9 +318,11 @@ tra; cutoff được đổi về cùng định dạng. Không dùng SQLite `date
 
 Đọc bảng không có `ingested_at` dùng thời điểm availability theo D5 của Huy.
 Không đọc `truth_main.sqlite`,
-`main/`, `heldout/`, ledger, ticket, số tiền, tên, số điện thoại hay địa chỉ khách.
-Reader chỉ bổ sung `customer_id` và `payment_method` từ orders để bàn giao UI;
-hai trường này không đi vào mô hình ETA hoặc quy lỗi.
+`main/`, `heldout/`, ledger, ticket, tên, số điện thoại hay địa chỉ khách.
+Reader bổ sung `customer_id`, `payment_method` và `items_value_vnd` từ orders;
+giá trị hàng chỉ dùng cho cờ COD theo rule, không đi vào mô hình ETA, quy lỗi
+hay thực thi tiền. Các lần giao thất bại được giữ bằng record ID và timestamp
+nguồn trong evidence; một lần đã thất bại không bị xóa bởi lần giao mới hơn.
 `ops_14d.sqlite` dành cho A3; adapter A2 chưa tự kết luận feed khỏe từ telemetry.
 
 - Lọc ingestion trước; chọn scan cuối theo **event time**, tie theo thứ tự vòng

@@ -18,6 +18,8 @@ Managers inspecting assessed logistics orders and their supporting evidence.
 
 Show the 20 committed sample orders with separate status, guarantee, revised
 ETA, cause, fault party, late days and payment. Support evidence inspection.
+Display the supplementary A2 COD refusal risk reason: high in red and medium
+in amber, without changing logistics status or attributing customer fault.
 
 ## Capabilities and Constraints
 

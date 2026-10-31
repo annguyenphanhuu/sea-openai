@@ -42,3 +42,5 @@ Huy explicitly removed MongoDB from the project. Revert merge PR #8 with `git re
 StateStore has only a SQLite implementation; do not implement MongoStateStore or add a remote persistence backend. Runtime state lives on the Space's local disk. Returning to the baseline after a Space restart is acceptable for this demo; persistence across Space restarts is not a requirement. This does not weaken transactions, retry protection or receipts within an active run and does not permit changing source databases.
 
 Huy clarified that step 2 (the revert and tests) and step 5 (remove MongoStateStore entirely) refer to his message, not a plan file. No plan path is missing or required. The canonical lunch decision record is [decisions-lunch.md](../plans/decisions-lunch.md). Do not replace Task 2 or Task 5 of the separate nine-task platform plan, which concern the reader and provenance respectively.
+
+2026-10-31: Huy explicitly confirmed manual UI verification before issuing coins for candidate 261021ZS7E76FW. Source-only evidence remains unknown for force majeure; never seed a favorable review.

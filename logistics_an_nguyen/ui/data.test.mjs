@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { filterOrders, formatDay, formatInstant, loadOrders, resolveEvidence, validatePayload } from "./data.mjs";
+import { codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, resolveEvidence, validatePayload } from "./data.mjs";
 
 const sample = JSON.parse(await readFile(new URL("../sample_orders.json", import.meta.url), "utf8"));
 
@@ -11,6 +11,9 @@ test("the committed 20-order envelope renders without invented values", () => {
     assert.ok(sample.orders.some((order) => order.revised_eta === null));
     assert.equal(filterOrders(sample.orders, { payment: "COD" }).length, 10);
     assert.equal(filterOrders(sample.orders, { payment: "PREPAID" }).length, 10);
+    assert.ok(sample.orders.some((order) => codRefusalBadge(order)?.level === "high"));
+    assert.ok(sample.orders.some((order) => codRefusalBadge(order)?.level === "medium"));
+    assert.ok(sample.orders.filter((order) => order.payment === "PREPAID").every((order) => codRefusalBadge(order) === null));
 });
 
 test("Vietnam calendar dates and ETA instants remain distinct across midnight", () => {
@@ -75,4 +78,13 @@ test("API success and an empty list use the same validated contract", async () =
     const empty = { ...sample, orders: [] };
     assert.equal(await loadOrders({ mode: "api", fetcher: async () => ({ ok: true, json: async () => empty }) }), empty);
     await assert.rejects(loadOrders({ mode: "api", fetcher: async () => ({ ok: true, json: async () => ({ orders: [] }) }) }), /cấu trúc A2/);
+});
+
+test("COD badges display the literal A2 reason without recomputing payment or fault", () => {
+    assert.deepEqual(codRefusalBadge({ reason_codes: ["status:late", "cod_refusal_risk:high"] }),
+        { level: "high", label: "Nguy cơ từ chối COD: cao" });
+    assert.deepEqual(codRefusalBadge({ reason_codes: ["status:at_risk", "cod_refusal_risk:medium"] }),
+        { level: "medium", label: "Nguy cơ từ chối COD: vừa" });
+    assert.equal(codRefusalBadge({ reason_codes: ["status:late"], payment: "COD", items_value_vnd: 1_200_000 }), null);
+    assert.equal(codRefusalBadge({ reason_codes: ["cod_refusal_risk:unknown"] }), null);
 });
