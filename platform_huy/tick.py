@@ -25,6 +25,7 @@ def _finish(timing, status='completed'):
 
 
 def _save_timing(flow, now, ordinal, timing):
+    timing.update(tick_at=utc(now), ordinal=ordinal)
     flow.conn.execute('INSERT OR REPLACE INTO demo_tick_timings VALUES (?,?,?,?,?,?,?,?)',
         (utc(now), ordinal, timing['agent'], timing['started_at'], timing['finished_at'],
          timing['duration_ms'], timing['status'], canonical({})))
@@ -41,6 +42,7 @@ async def run_tick(now, *, flow):
     tracker = ProgressTracker(flow.progress.records)
     timings = []
     a3 = _start('A3')
+    flow._publish_progress('A3', timings)
     world = flow.reader.snapshot(now)
     with immediate(flow.conn):
         sysguard.run(world, flow.conn, now)
@@ -49,6 +51,8 @@ async def run_tick(now, *, flow):
         _save_timing(flow, now, 1, timings[-1])
 
         a2 = _start('A2')
+        flow._publish_progress('A2', timings,
+            orders_to_assess=sum(1 for order in world.orders if not order['cancelled_at']))
         facts = tracker.apply(ReleaseAdapter(world).orders(), tick_at=now, feed_health=health)
         result = evaluate_tick(facts, tick_at=now, feed_health=health)
         handoff = assessed_orders_payload(world, result, feed_health=health)
@@ -76,14 +80,17 @@ async def run_tick(now, *, flow):
         flow.selected_order_id = queue[0]['order_id'] if queue else None
 
     a1 = _start('A1')
+    flow._publish_progress('A1', timings, committed=('A3', 'A2'))
     try:
         flow.auto_contact = await flow._auto_contact(limit=30)
         await flow.care.harness.drain_pending()
     except BaseException:
         timing = _finish(a1, 'failed')
         _save_timing(flow, now, 3, timing)
+        flow._publish_progress(None, timings + [timing], committed=('A3', 'A2'))
         raise
     timings.append(_finish(a1))
     _save_timing(flow, now, 3, timings[-1])
     flow.phase_trace.append('A1')
+    flow._publish_progress(None, timings, committed=('A3', 'A2', 'A1'))
     return timings

@@ -4,13 +4,14 @@ Both SQLite writers live on one event loop thread. HTTP threads never touch
 connections, authenticated contexts, or producer allowlists directly.
 """
 import asyncio
+from copy import deepcopy
 from dataclasses import asdict, fields, replace
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
 import sqlite3
-from threading import Thread
+from threading import Lock, Thread
 import time
 from uuid import uuid4
 
@@ -37,6 +38,7 @@ _VN = timezone(timedelta(hours=7))
 _START = datetime(2026, 10, 24, 14, tzinfo=_VN)
 _CANDIDATE = '261021ZS7E76FW'
 _LOST_CANDIDATE = '261019QY8UDYNZ'
+_CUSTOMER_FAULT_CANDIDATE = '2610181FZM7I7I'
 
 
 def _customer_reply(text, codes, effect_ids):
@@ -249,6 +251,12 @@ class DemoFlow:
             raise ValueError('Runtime must be outside data directories')
         self.start_at = start_at
         self.closed = False
+        self._snapshot_lock = Lock()
+        self._status_snapshot = {}
+        self._tick_progress = {'busy': False, 'current_phase': None, 'status': 'idle',
+            'run_id': None, 'from_at': None, 'to_at': None, 'elapsed_seconds': 0,
+            'phase_trace': [], 'timings': [], 'committed_phases': []}
+        self._tick_started = None
         self.loop = asyncio.new_event_loop()
         self.thread = Thread(target=self._run_loop, name='sea-demo-flow', daemon=True)
         self.thread.start()
@@ -335,6 +343,59 @@ class DemoFlow:
         self.care = await CareRuntime.start(self.run_id,
             {'context_provider': self.context, 'gateway': self.gateway, 'gate': _Gate(self), 'clock': SystemClock()},
             root=self.state_path.parent / 'care', background=False)
+        self._cache_view(await self._view({}))
+
+    def _cache_view(self, view):
+        # Called only on the owner event loop, after runtime operations finish.
+        snapshot = json.loads(canonical(view))
+        with self._snapshot_lock:
+            self._status_snapshot = snapshot
+
+    def _publish_progress(self, phase, timings, *, committed=(), orders_to_assess=None):
+        # This cache contains timing metadata only, never uncommitted source rows.
+        with self._snapshot_lock:
+            self._tick_progress.update(current_phase=phase,
+                phase_trace=[row['agent'] for row in timings if row['status'] == 'completed'],
+                timings=deepcopy(timings), committed_phases=list(committed))
+            if orders_to_assess is not None:
+                self._tick_progress['orders_to_assess'] = orders_to_assess
+
+    def _cached_status(self):
+        with self._snapshot_lock:
+            return self._cached_status_locked()
+
+    def _cached_status_locked(self):
+        view = deepcopy(self._status_snapshot)
+        progress = deepcopy(self._tick_progress)
+        if progress['busy']:
+            progress['elapsed_seconds'] = time.perf_counter() - self._tick_started
+        view.update(busy=progress['busy'], current_phase=progress['current_phase'], progress=progress)
+        if progress['run_id'] is not None:
+            view.update(phase_trace=progress['phase_trace'], timings=progress['timings'],
+                        tick_timings=progress['timings'])
+        return view
+
+    async def _reserved_next(self, payload):
+        try:
+            result = await self._request('next', payload)
+        except BaseException:
+            # A1 can fail after A2 committed; keep the cache aligned with the
+            # durable clock before allowing another NEXT reservation.
+            try:
+                async with self.lock:
+                    self._cache_view(await self._view({}))
+            except Exception:
+                pass
+            with self._snapshot_lock:
+                self._tick_progress.update(busy=False, current_phase=None, status='failed',
+                    elapsed_seconds=time.perf_counter() - self._tick_started)
+            raise
+        with self._snapshot_lock:
+            self._tick_progress.update(busy=False, current_phase=None, status='completed',
+                elapsed_seconds=time.perf_counter() - self._tick_started)
+            # Copy before another HTTP thread can reserve the following tick.
+            result.update(self._cached_status_locked())
+        return result
 
     def _inspect(self, order_id):
         if not isinstance(order_id, str) or not order_id:
@@ -454,6 +515,39 @@ class DemoFlow:
         cursor = self.conn.execute(f'SELECT * FROM {table} ORDER BY rowid DESC')
         return [dict(zip((column[0] for column in cursor.description), row)) for row in cursor]
 
+    def _demo_scenarios(self, queue):
+        """Describe only scenarios established by the current real A2 handoff."""
+        cod = self.assessments.get(_CANDIDATE)
+        cod_id = (_CANDIDATE if cod is not None and cod.status == 'late'
+                  and self.handoff_orders.get(_CANDIDATE, {}).get('payment') == 'COD' else None)
+        lost_id = (_LOST_CANDIDATE if self._lost(_LOST_CANDIDATE) else
+                   next((order_id for order_id in sorted(self.assessments) if self._lost(order_id)), None))
+        fault_ids = sorted(a.order_id for a in self.assessments.values()
+                           if a.status == 'customer_fault' and a.fault_party == 'customer')
+        fault_id = (_CUSTOMER_FAULT_CANDIDATE if _CUSTOMER_FAULT_CANDIDATE in fault_ids else
+                    next(iter(fault_ids), None))
+        contact_ids = {row['order_id'] for row in queue}
+        scenarios = []
+        for scenario, label, order_id in (
+                ('cod_late', 'COD late', cod_id),
+                ('lost', 'Structured LOST', lost_id),
+                ('customer_fault', 'Customer fault', fault_id)):
+            if order_id is None:
+                reason = ('no_assessment_at_current_tick' if not self.assessments else
+                          'no_matching_order_at_current_tick')
+            elif order_id not in contact_ids:
+                reason = 'order_not_in_contact_queue'
+            elif not self._allowed():
+                reason = 'proactive_blocked'
+            else:
+                reason = None
+            scenarios.append({'scenario': scenario, 'label': label, 'order_id': order_id,
+                'status': None if order_id is None else self.assessments[order_id].status,
+                'available': order_id is not None,
+                'contact_available': order_id is not None and reason is None,
+                'reason': reason, 'as_of': self.now.isoformat()})
+        return scenarios
+
     async def _view(self, payload):
         order_id = payload.get('order_id') or self.selected_order_id
         session_id = payload.get('session_id')
@@ -486,9 +580,10 @@ class DemoFlow:
         if selected and all(a['order_id'] != order_id for a in orders):
             orders.append(dict(self.handoff_orders.get(order_id, assessment_payload(selected)),
                                evidence_ref=f'#/orders/{len(orders)}/evidence'))
-        for row in orders:
+        for row in orders + queue:
             row['cod_refusal_risk'] = next((level for level in ('high', 'medium')
                 if f'cod_refusal_risk:{level}' in row['reason_codes']), None)
+            row['lsr_exempt'] = bool(self.handoff_orders.get(row['order_id'], {}).get('lsr_exemption'))
         # Evidence remains scoped to the explicitly selected order.
         verification = self._inspect(order_id) if order_id else None
         if verification:
@@ -524,12 +619,15 @@ class DemoFlow:
             'killed': json.loads(controls.get('a3_killed', 'false')) is not False,
             'resume_pending': json.loads(controls.get('a3_resume_pending', 'false')) is not False,
             'phase_trace': self.phase_trace, 'orders': orders, 'contact_queue': queue,
+            'tasks': queue, 'chats': active_chats, 'timings': timings,
             'orders_total': len(self.assessments), 'contact_queue_total': len(full_queue),
             'label_counts': label_counts, 'tick_timings': timings, 'active_chats': active_chats,
-            'demo_candidates': candidates, 'auto_contact': self.auto_contact,
+            'demo_candidates': candidates, 'demo_scenarios': self._demo_scenarios(full_queue),
+            'auto_contact': self.auto_contact,
             'selected_order_id': order_id, 'chat': chat, 'pending_verification': verification,
             'outbox': outbox[:20], 'ledger': ledger[:20], 'outbox_total': len(outbox), 'ledger_total': len(ledger),
             'cancellations': self._rows('cancel_requests'), 'contacts': self._rows('contact_log'),
+            'contacts_total': self.conn.execute('SELECT count(*) FROM contact_log').fetchone()[0],
             'handoffs': self._rows('demo_handoffs'),
             'inbox': self._rows('demo_inbox'), 'gateway_errors': self.gateway_errors,
             'mode': 'local_integrated_web_inbox', 'actions': []}
@@ -568,7 +666,12 @@ class DemoFlow:
                 self.selected_order_id = state.order_id
                 self.proof_cache.clear()
             elif action == 'verify-order':
-                self.evidence.verify(payload['order_id'], self.now, reviewed_by='local-authorized-staff',
+                # Legacy API callers keep the existing local authorization actor;
+                # explicit operator identities are validated and audited verbatim.
+                staff_name = payload.get('staff_name', 'local-authorized-staff')
+                if not isinstance(staff_name, str) or not staff_name.strip():
+                    raise CareError('staff_name_required', 400)
+                self.evidence.verify(payload['order_id'], self.now, reviewed_by=staff_name.strip(),
                     reason=payload['reason'], responsibility=payload['responsibility'],
                     force_majeure=payload['force_majeure'], evidence_refs=payload['evidence_refs'])
                 self.proof_cache.clear()
@@ -599,12 +702,34 @@ class DemoFlow:
                                   'used_llm': result.source not in ('template', 'fallback'),
                                   'codes': list(result.codes),
                                   'dispatch': [self.gate_decisions[e] for e in result.effect_ids if e in self.gate_decisions]}
-            return json.loads(canonical(view))
+            self._cache_view(view)
+            response = json.loads(canonical(view))
+            cached = self._cached_status()
+            response.update(busy=cached['busy'], current_phase=cached['current_phase'], progress=cached['progress'])
+            return response
 
     def request(self, action='status', payload=None):
         if self.closed:
             raise RuntimeError('Demo flow is closed')
-        return asyncio.run_coroutine_threadsafe(self._request(action, {} if payload is None else payload), self.loop).result(timeout=120)
+        payload = {} if payload is None else payload
+        if not isinstance(payload, dict):
+            raise CareError('invalid_payload', 400)
+        with self._snapshot_lock:
+            busy = self._tick_progress['busy']
+            if action == 'next':
+                if busy:
+                    raise CareError('next_in_progress', 409)
+                start = self._status_snapshot['now']
+                target = datetime.fromisoformat(start) + timedelta(minutes=30)
+                self._tick_started = time.perf_counter()
+                self._tick_progress = {'busy': True, 'current_phase': None, 'status': 'running',
+                    'run_id': uuid4().hex, 'from_at': start, 'to_at': target.isoformat(),
+                    'elapsed_seconds': 0, 'phase_trace': [], 'timings': [], 'committed_phases': []}
+        if action == 'status' and (busy or not payload):
+            return self._cached_status()
+        operation = self._reserved_next(payload) if action == 'next' else self._request(action, payload)
+        # A caller timeout does not cancel the coroutine or release the NEXT reservation.
+        return asyncio.run_coroutine_threadsafe(operation, self.loop).result(timeout=120)
 
     async def _close(self):
         await self.care.shutdown()

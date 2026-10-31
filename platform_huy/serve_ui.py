@@ -148,7 +148,7 @@ def create_server(*, core_path: Path, state_path: Path,
                 self.path = '/' + name
                 super().do_GET()
             else:
-                if integrated and path == '/':
+                if integrated and path in ('/', '/overview', '/contacts', '/chat', '/money'):
                     self.path = '/live.html'
                 super().do_GET()
 
