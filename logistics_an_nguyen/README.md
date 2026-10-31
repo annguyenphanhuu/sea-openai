@@ -53,10 +53,12 @@ là quá hạn. Dùng thời điểm xảy ra scan, không dùng thời điểm 
 theo ngày. Không dùng nhầm `seller_handover_days=3` của quy tắc tự hủy.
 
 Khi bàn giao đúng hạn và đơn thực sự trễ, fault chưa xác định được quy về
-`carrier`, kèm reason `lsr_exempt:seller_handover_on_time` và bằng chứng nguồn.
+`carrier`, kèm reason chính xác `lsr_exempt:carrier` và bằng chứng nguồn.
 Lỗi `customer`, `platform`, `force_majeure` đã xác định được giữ nguyên và không
-sinh dòng miễn trừ theo quy tắc carrier này. Thứ tự status không đổi. Bàn giao
-quá hạn không tự quy lỗi cho shop; `FaultParty` và `OrderAssessment` không đổi.
+sinh dòng miễn trừ theo quy tắc carrier này. Bàn giao quá hạn chuẩn bị hàng chuyển
+fault chưa xác định thành `seller`, không miễn trừ; bằng chứng lỗi khác đã xác định
+được giữ nguyên. Thứ tự status và `OrderAssessment` không đổi. Huy đã duyệt bổ sung
+literal `seller` vào đúng dòng `FaultParty` trong contract.
 
 `assessment_payload` và từng đơn của `assessed_orders_payload` đều bổ sung:
 
@@ -67,8 +69,13 @@ quá hạn không tự quy lỗi cho shop; `FaultParty` và `OrderAssessment` kh
 | `lsr_exemption` | `Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.` khi đủ điều kiện, ngược lại `null` |
 
 `evidence` chứa `created_at` từ orders, `handed_over_at` với record ID/event time/
-ingestion của scan, `seller_prepare_days` từ bảng policy và kết quả suy ra
-`handover_on_time` từ `a2_seller_protection_v1`. Các reason tương ứng là
+ingestion của scan, toàn bộ dòng scan đó trong `handed_over_scan`,
+`seller_prepare_days` từ bảng policy và kết quả suy ra `handover_on_time` từ
+`a2_seller_protection_v1`. Báo cáo `linehaul_report` liên kết qua `linehaul_trip_id`
+của lịch sử scan, vẫn được giữ khi đơn đã tới bưu cục; dòng report lưu JSON nguồn
+và `is_structured=false`, không quyết định fault. Thiếu report thì giữ kết luận
+carrier từ scan/policy và ghi `linehaul_report_missing`, không dựng report thay thế.
+Các reason bàn giao tương ứng là
 `seller_handover_on_time`, `seller_handover_late`, `seller_handover_unverified`.
 Scan chưa được ingest không chứng minh shop đúng hạn; text tài xế không thay
 fault hoặc bật miễn trừ. Khi thiếu bằng chứng, không suy đoán bất lợi cho shop.
@@ -83,8 +90,11 @@ cập nhật policy; adapter ngoài phải cấp policy tin cậy phù hợp sna
 Dòng miễn trừ là **đề xuất có bằng chứng của A2 trong payload nội bộ**, chưa ghi
 thay đổi mức phạt/LSR trên hệ thống bên ngoài. Trúc có thể dùng các trường này
 cho API/trang shop; không phát sinh quyền liên hệ hay hành động tiền.
-Kiểm thử mới do An sở hữu nằm tại
-`acceptance_huy/test_seller_lsr_protection.py`; không sửa bộ test A2 của Trúc.
+Ba ca literal theo review nằm tại `acceptance_an_nguyen/test_seller_lsr_protection.py`:
+carrier có `lsr_exempt:carrier`, seller không miễn trừ, customer từ chối với một
+lần gọi. Kiểm thử biên được giữ tại `test_seller_lsr_boundaries.py` cùng thư mục.
+UI hiển thị nhãn Người bán cho `seller` và huy hiệu **Miễn trừ LSR** khi có đúng
+reason `lsr_exempt:carrier`; trình duyệt không tự suy kết luận từ ngày bàn giao.
 
 ## Python API
 

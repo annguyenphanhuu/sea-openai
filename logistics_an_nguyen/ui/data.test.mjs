@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, resolveEvidence, validatePayload } from "./data.mjs";
+import { FAULTS, codRefusalBadge, filterOrders, formatDay, formatInstant, loadOrders, lsrExemptionBadge, reasonLabel, resolveEvidence, validatePayload } from "./data.mjs";
 
 const sample = JSON.parse(await readFile(new URL("../sample_orders.json", import.meta.url), "utf8"));
 
@@ -87,4 +87,22 @@ test("COD badges display the literal A2 reason without recomputing payment or fa
         { level: "medium", label: "Nguy cơ từ chối COD: vừa" });
     assert.equal(codRefusalBadge({ reason_codes: ["status:late"], payment: "COD", items_value_vnd: 1_200_000 }), null);
     assert.equal(codRefusalBadge({ reason_codes: ["cod_refusal_risk:unknown"] }), null);
+});
+
+test("LSR badge requires the exact assessed carrier exemption reason", () => {
+    assert.equal(lsrExemptionBadge({ reason_codes: ["lsr_exempt:carrier"] }), "Miễn trừ LSR");
+    assert.equal(lsrExemptionBadge({ reason_codes: ["fault:carrier"], handover_on_time: true }), null);
+    assert.equal(lsrExemptionBadge({ reason_codes: ["fault:seller"] }), null);
+    assert.equal(lsrExemptionBadge({ reason_codes: ["lsr_exempt:seller_handover_on_time"] }), null);
+    assert.equal(reasonLabel("lsr_exempt:carrier"), "Miễn trừ LSR");
+});
+
+test("seller fault is accepted and labelled without an exemption", () => {
+    const payload = structuredClone(sample);
+    const order = payload.orders[0];
+    order.fault_party = order.cause.fault_party = "seller";
+    order.reason_codes = order.cause.reason_codes = ["status:late", "fault:seller", "seller_handover_late"];
+    assert.equal(validatePayload(payload), payload);
+    assert.equal(FAULTS.seller, "Người bán");
+    assert.equal(lsrExemptionBadge(order), null);
 });

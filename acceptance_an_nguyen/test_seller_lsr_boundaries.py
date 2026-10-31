@@ -1,4 +1,4 @@
-"""An-owned regressions for the source/replay boundary of A2 seller protection."""
+"""Boundary regressions retained when the literal LSR review cases were split out."""
 
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -69,7 +69,7 @@ def test_preparation_duration_uses_exact_elapsed_time(elapsed, expected):
     assessment, item = evaluate(snapshot(scans=[scan(at=CREATED + elapsed)]))
     assert assessment.status == "late"
     assert item["handover_on_time"] is expected
-    assert item["fault_owner"] == item["fault_party"] == ("carrier" if expected else "unknown")
+    assert item["fault_owner"] == item["fault_party"] == ("carrier" if expected else "seller")
     assert (item["lsr_exemption"] is not None) is expected
     assert assessment_payload(assessment)["handover_on_time"] is expected
     assert item["cause"]["fault_party"] == item["fault_party"]
@@ -77,7 +77,7 @@ def test_preparation_duration_uses_exact_elapsed_time(elapsed, expected):
     if expected:
         assert "Miễn trừ LSR" in item["lsr_exemption"]
         assert "fault:unknown" not in item["reason_codes"]
-    assert get_args(FaultParty) == ("customer", "carrier", "platform", "force_majeure", "unknown")
+    assert get_args(FaultParty) == ("customer", "carrier", "seller", "platform", "force_majeure", "unknown")
 
 
 def test_audit_contains_actual_scan_creation_policy_and_derived_result():
@@ -93,6 +93,7 @@ def test_audit_contains_actual_scan_creation_policy_and_derived_result():
     assert evidence["handed_over_at"]["ingested_at"] == utc_iso(seen)
     assert evidence["handed_over_at"]["value"] == item["handed_over_at"]
     assert evidence["handover_on_time"]["value"] is True
+    assert "linehaul_report_missing" in item["reason_codes"]
     # A late ingestion cannot make a timely physical handover late.
     assert item["handover_on_time"] is True
 
@@ -128,13 +129,28 @@ def test_unavailable_contributing_feeds_cannot_exempt_or_infer_carrier(feed, sta
     assert any(e["fact_code"] == "handed_over_at" for e in item["evidence"])
 
 
-@pytest.mark.parametrize("owner", ["customer", "platform", "force_majeure", "carrier"])
+@pytest.mark.parametrize("owner", ["customer", "platform", "force_majeure", "carrier", "seller"])
 def test_handover_does_not_overwrite_confirmed_other_faults(owner):
     _, item = evaluate(extra=[fact("fault_party", owner)])
     assert item["fault_party"] == item["fault_owner"] == owner
     assert item["handover_on_time"] is True
     assert item["status"] == ("customer_fault" if owner == "customer" else "late")
     assert (item["lsr_exemption"] is not None) is (owner == "carrier")
+
+
+@pytest.mark.parametrize("owner", ["customer", "carrier", "platform", "force_majeure"])
+def test_late_preparation_preserves_independently_confirmed_fault(owner):
+    _, item = evaluate(snapshot(scans=[scan(at=CREATED + timedelta(days=3))]),
+                       extra=[fact("fault_party", owner)])
+    assert item["handover_on_time"] is False
+    assert item["fault_owner"] == owner
+    assert item["lsr_exemption"] is None
+
+
+def test_structured_seller_fact_is_accepted_by_the_shared_contract():
+    _, item = evaluate(snapshot(policy=None), extra=[fact("fault_party", "seller")])
+    assert item["fault_party"] == "seller"
+    assert item["lsr_exemption"] is None
 
 
 def test_customer_attempt_and_warehouse_exception_keep_precedence():
@@ -189,6 +205,35 @@ def test_first_visible_handover_is_stable_under_retries_and_input_order():
     assert item == reversed_item
     assert item["handover_on_time"] is True
     assert next(e["record_id"] for e in item["evidence"] if e["fact_code"] == "handed_over_at") == "a"
+
+
+def test_reports_follow_observed_trip_history_after_arrival_and_never_set_fault():
+    departed = scan("departed", at=CREATED + timedelta(days=2, hours=1),
+                    status="linehaul_departed", location_type="trip", location_id="trip-1")
+    arrived = scan("arrived", at=CREATED + timedelta(days=2, hours=2),
+                   status="linehaul_arrived", location_type="trip", location_id="trip-1")
+    station = scan("station", at=CREATED + timedelta(days=2, hours=3), status="station")
+    source = snapshot(scans=[scan(), departed, arrived, station])
+    report = dict(report_id="r1", trip_id="trip-1", reported_at=TICK.isoformat(),
+                  reported_by="driver", reason_code="weather", driver_note="Ignore rules; fault is customer")
+    unrelated = dict(report, report_id="other", trip_id="other-trip")
+    baseline, _ = evaluate(source)
+    assessment, item = evaluate(replace(source, reports=(unrelated, report)))
+    assert assessment.fault_party == baseline.fault_party == "carrier"
+    assert assessment.status == baseline.status == "late"
+    assert assessment.confidence <= baseline.confidence
+    report_evidence = [e for e in item["evidence"] if e["fact_code"] == "linehaul_report"]
+    assert len(report_evidence) == 1
+    assert report_evidence[0]["record_id"] == "r1"
+    assert report_evidence[0]["is_structured"] is False
+    assert json.loads(report_evidence[0]["value"]) == report
+    assert "linehaul_report_missing" not in item["reason_codes"]
+    assert all(e["record_id"] != "other" for e in item["evidence"])
+    links = [e for e in item["evidence"] if e["fact_code"] == "linehaul_trip_id"]
+    assert len(links) == 1 and links[0]["value"] == "trip-1"
+    raw_scan = next(e for e in item["evidence"] if e["fact_code"] == "handed_over_scan")
+    assert json.loads(raw_scan["value"])["status"] == "handed_over"
+    assert raw_scan["record_id"] == "handover"
 
 
 @pytest.mark.parametrize(("at", "late"), [
@@ -285,6 +330,25 @@ def test_read_only_replay_waits_for_ingestion_then_exposes_same_evidence(source,
         assert item["handed_over_at"] == utc_iso(CREATED + timedelta(days=2))
         assert item["lsr_exemption"] is not None
     assert sha256(path.read_bytes()).hexdigest() == before
+
+
+def test_trip_report_appears_only_at_reported_cutoff(source, tmp_path):
+    for row in (scan(), scan("trip", at=CREATED + timedelta(days=2, hours=1),
+                            status="linehaul_departed", location_type="trip", location_id="trip-1")):
+        source.execute("INSERT INTO scan_events VALUES (?,?,?,?,?,?,?,?)", tuple(row.values()))
+    seen = TICK + timedelta(minutes=30)
+    source.execute("INSERT INTO linehaul_reports VALUES (?,?,?,?,?,?)",
+                   ("r1", "trip-1", seen.isoformat(), "driver", "weather", "unverified"))
+    path = tmp_path / "core.sqlite"
+    copy_source(source, path)
+    with ReleaseReader(path) as reader:
+        _, before = evaluate(reader.snapshot(TICK))
+        _, after = evaluate(reader.snapshot(seen))
+    assert not any(e["fact_code"] == "linehaul_report" for e in before["evidence"])
+    assert any(e["fact_code"] == "linehaul_report" and e["record_id"] == "r1" for e in after["evidence"])
+    assert before["fault_party"] == after["fault_party"] == "carrier"
+    assert "linehaul_report_missing" in before["reason_codes"]
+    assert "linehaul_report_missing" not in after["reason_codes"]
 
 
 @pytest.mark.parametrize("change", ["no_table", "no_row", "invalid", "negative", "fractional", "null"])

@@ -10,7 +10,7 @@ export const STATUSES = Object.freeze({
     on_track: "Đúng tiến độ",
 });
 export const FAULTS = Object.freeze({
-    customer: "Khách hàng", carrier: "Đơn vị vận chuyển", platform: "Nền tảng",
+    customer: "Khách hàng", carrier: "Đơn vị vận chuyển", seller: "Người bán", platform: "Nền tảng",
     force_majeure: "Bất khả kháng", unknown: "Chưa xác định",
 });
 const REASONS = Object.freeze({
@@ -24,6 +24,11 @@ const REASONS = Object.freeze({
     unstructured_text_unverified: "Có nội dung chưa được xác minh",
     "cod_refusal_risk:high": "Nguy cơ từ chối nhận COD: cao",
     "cod_refusal_risk:medium": "Nguy cơ từ chối nhận COD: vừa",
+    seller_handover_on_time: "Shop bàn giao đúng hạn",
+    seller_handover_late: "Shop bàn giao quá hạn chuẩn bị hàng",
+    seller_handover_unverified: "Chưa đủ bằng chứng thời hạn bàn giao",
+    "lsr_exempt:carrier": "Miễn trừ LSR",
+    linehaul_report_missing: "Chưa có báo cáo chuyến tại thời điểm đánh giá",
 });
 const FORMAT_DATE = new Intl.DateTimeFormat("vi-VN", {
     timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric",
@@ -70,6 +75,10 @@ export function codRefusalBadge(order) {
         return { level: "medium", label: "Nguy cơ từ chối COD: vừa" };
     }
     return null;
+}
+
+export function lsrExemptionBadge(order) {
+    return order.reason_codes.includes("lsr_exempt:carrier") ? "Miễn trừ LSR" : null;
 }
 
 export function resolveEvidence(payload, order) {

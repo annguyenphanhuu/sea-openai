@@ -102,6 +102,24 @@
           "is_structured": true
         },
         {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000109664",
+          "ingested_at": "2026-10-19T04:50:24.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-19T11:50:07+07:00\", \"event_id\": \"EV000109664\", \"ingested_at\": \"2026-10-19T11:50:24+07:00\", \"location_id\": \"SH1897580\", \"location_type\": \"seller\", \"order_id\": \"26101800VWCQ8J\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000822713",
+          "ingested_at": "2026-10-19T12:50:03.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-HN-HCM_CC-261019R",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA23636607",
@@ -290,6 +308,24 @@
           "ingested_at": "2026-10-19T04:23:30.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-19T04:23:17.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000361863",
+          "ingested_at": "2026-10-19T04:23:30.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"NVI-c4c301cd8f78\", \"event_at\": \"2026-10-19T11:23:17+07:00\", \"event_id\": \"EV000361863\", \"ingested_at\": \"2026-10-19T11:23:30+07:00\", \"location_id\": \"SH1583979\", \"location_type\": \"seller\", \"order_id\": \"26101802ZPABQE\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001661541",
+          "ingested_at": "2026-10-20T13:50:55.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-NVI-BN-HCM_CC-261020R",
           "is_structured": true
         },
         {
@@ -484,6 +520,15 @@
           "ingested_at": "2026-10-20T07:03:48.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-20T07:03:11.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000099835",
+          "ingested_at": "2026-10-20T07:03:48.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"NVI-693728147f0f\", \"event_at\": \"2026-10-20T14:03:11+07:00\", \"event_id\": \"EV000099835\", \"ingested_at\": \"2026-10-20T14:03:48+07:00\", \"location_id\": \"SH4573773\", \"location_type\": \"seller\", \"order_id\": \"2610180BP00VSA\", \"status\": \"handed_over\"}",
           "is_structured": true
         },
         {
@@ -738,6 +783,15 @@
           "is_structured": true
         },
         {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000287754",
+          "ingested_at": "2026-10-19T07:34:44.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-19T14:34:15+07:00\", \"event_id\": \"EV000287754\", \"ingested_at\": \"2026-10-19T14:34:44+07:00\", \"location_id\": \"SH9136337\", \"location_type\": \"seller\", \"order_id\": \"2610180GSJAZVD\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA99843097",
@@ -971,6 +1025,15 @@
           "is_structured": true
         },
         {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001534535",
+          "ingested_at": "2026-10-20T09:42:58.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-20T16:41:49+07:00\", \"event_id\": \"EV001534535\", \"ingested_at\": \"2026-10-20T16:42:58+07:00\", \"location_id\": \"SH3050598\", \"location_type\": \"seller\", \"order_id\": \"2610180NM62DZO\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
           "feed": "delivery_attempts",
           "source_table": "delivery_attempts",
           "record_id": "DA64737481",
@@ -1127,7 +1190,8 @@
         "guaranteed_day_exceeded",
         "delivery_confirmed",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
+        "linehaul_report_missing",
         "fault:carrier",
         "cod_refusal_risk:high"
       ],
@@ -1184,6 +1248,24 @@
           "ingested_at": "2026-10-19T07:18:43.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-19T07:17:26.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000825530",
+          "ingested_at": "2026-10-19T07:18:43.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"BNP-d441824efcfd\", \"event_at\": \"2026-10-19T14:17:26+07:00\", \"event_id\": \"EV000825530\", \"ingested_at\": \"2026-10-19T14:18:43+07:00\", \"location_id\": \"SH7979767\", \"location_type\": \"seller\", \"order_id\": \"2610182F1K1SGO\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000398574",
+          "ingested_at": "2026-10-21T13:48:03.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-BNP-BN-HN-261021R",
           "is_structured": true
         },
         {
@@ -1328,7 +1410,8 @@
           "guaranteed_day_exceeded",
           "delivery_confirmed",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
+          "linehaul_report_missing",
           "fault:carrier",
           "cod_refusal_risk:high"
         ]
@@ -1354,7 +1437,8 @@
         "seller_handover_late",
         "fault:carrier",
         "eta_missing",
-        "confidence_missing"
+        "confidence_missing",
+        "unstructured_text_unverified"
       ],
       "evidence": [
         {
@@ -1410,6 +1494,42 @@
           "fact_code": "handed_over_at",
           "value": "2026-10-20T09:01:58.000000Z",
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001543356",
+          "ingested_at": "2026-10-20T09:02:54.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"NVI-2c62569bfbb8\", \"event_at\": \"2026-10-20T16:01:58+07:00\", \"event_id\": \"EV001543356\", \"ingested_at\": \"2026-10-20T16:02:54+07:00\", \"location_id\": \"SH4091752\", \"location_type\": \"seller\", \"order_id\": \"2610184ZP2TJSA\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000979595",
+          "ingested_at": "2026-10-21T13:37:03.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-NVI-HN-CT-261021R",
+          "is_structured": true
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR12835839",
+          "ingested_at": "2026-10-22T11:48:53.000000Z",
+          "fact_code": "driver_report",
+          "value": "weather: mưa bão, công ty yêu cầu dừng xe vào bãi",
+          "is_structured": false
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR12835839",
+          "ingested_at": "2026-10-22T11:48:53.000000Z",
+          "fact_code": "linehaul_report",
+          "value": "{\"driver_note\": \"mưa bão, công ty yêu cầu dừng xe vào bãi\", \"reason_code\": \"weather\", \"report_id\": \"LR12835839\", \"reported_at\": \"2026-10-22T18:48:53+07:00\", \"reported_by\": \"driver\", \"trip_id\": \"LH-NVI-HN-CT-261021R\"}",
+          "is_structured": false
         },
         {
           "feed": "scan_events",
@@ -1518,7 +1638,8 @@
           "seller_handover_late",
           "fault:carrier",
           "eta_missing",
-          "confidence_missing"
+          "confidence_missing",
+          "unstructured_text_unverified"
         ]
       },
       "evidence_ref": "#/orders/6/evidence"
@@ -1540,10 +1661,11 @@
         "status:late",
         "guaranteed_day_exceeded",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
         "fault:carrier",
         "eta_missing",
         "confidence_missing",
+        "unstructured_text_unverified",
         "cod_refusal_risk:high"
       ],
       "evidence": [
@@ -1600,6 +1722,42 @@
           "fact_code": "handed_over_at",
           "value": "2026-10-19T10:26:22.000000Z",
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000468762",
+          "ingested_at": "2026-10-19T10:27:13.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-19T17:26:22+07:00\", \"event_id\": \"EV000468762\", \"ingested_at\": \"2026-10-19T17:27:13+07:00\", \"location_id\": \"SH6344866\", \"location_type\": \"seller\", \"order_id\": \"2610185FIXZUFU\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001376942",
+          "ingested_at": "2026-10-20T12:52:05.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-HCM_CC-HN-261020R",
+          "is_structured": true
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR84390527",
+          "ingested_at": "2026-10-21T13:21:45.000000Z",
+          "fact_code": "driver_report",
+          "value": "linehaul_traffic: ",
+          "is_structured": false
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR84390527",
+          "ingested_at": "2026-10-21T13:21:45.000000Z",
+          "fact_code": "linehaul_report",
+          "value": "{\"driver_note\": null, \"reason_code\": \"linehaul_traffic\", \"report_id\": \"LR84390527\", \"reported_at\": \"2026-10-21T20:21:45+07:00\", \"reported_by\": \"driver\", \"trip_id\": \"LH-SAO-HCM_CC-HN-261020R\"}",
+          "is_structured": false
         },
         {
           "feed": "delivery_attempts",
@@ -1760,10 +1918,11 @@
           "status:late",
           "guaranteed_day_exceeded",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
           "fault:carrier",
           "eta_missing",
           "confidence_missing",
+          "unstructured_text_unverified",
           "cod_refusal_risk:high"
         ]
       },
@@ -1843,6 +2002,15 @@
           "ingested_at": "2026-10-18T07:13:40.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-18T07:11:43.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000942470",
+          "ingested_at": "2026-10-18T07:13:40.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-18T14:11:43+07:00\", \"event_id\": \"EV000942470\", \"ingested_at\": \"2026-10-18T14:13:40+07:00\", \"location_id\": \"WH_BT\", \"location_type\": \"warehouse\", \"order_id\": \"261018JRHBR0E8\", \"status\": \"handed_over\"}",
           "is_structured": true
         },
         {
@@ -2038,7 +2206,8 @@
         "guaranteed_day_exceeded",
         "delivery_confirmed",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
+        "linehaul_report_missing",
         "fault:carrier"
       ],
       "evidence": [
@@ -2094,6 +2263,24 @@
           "ingested_at": "2026-10-19T08:08:48.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-19T08:07:57.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000898719",
+          "ingested_at": "2026-10-19T08:08:48.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-19T15:07:57+07:00\", \"event_id\": \"EV000898719\", \"ingested_at\": \"2026-10-19T15:08:48+07:00\", \"location_id\": \"SH4608051\", \"location_type\": \"seller\", \"order_id\": \"261018LZFT8L9X\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001593640",
+          "ingested_at": "2026-10-21T12:39:16.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-DN-NA-261021R",
           "is_structured": true
         },
         {
@@ -2220,7 +2407,8 @@
           "guaranteed_day_exceeded",
           "delivery_confirmed",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
+          "linehaul_report_missing",
           "fault:carrier"
         ]
       },
@@ -2234,7 +2422,7 @@
       "revised_eta": null,
       "late_days": 2,
       "late_probability": 1.0,
-      "confidence": 1.0,
+      "confidence": 0.5,
       "fault_party": "carrier",
       "fault_owner": "carrier",
       "handover_on_time": true,
@@ -2244,8 +2432,9 @@
         "guaranteed_day_exceeded",
         "delivery_confirmed",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
-        "fault:carrier"
+        "lsr_exempt:carrier",
+        "fault:carrier",
+        "unstructured_text_unverified"
       ],
       "evidence": [
         {
@@ -2301,6 +2490,42 @@
           "fact_code": "handed_over_at",
           "value": "2026-10-19T04:35:49.000000Z",
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000968817",
+          "ingested_at": "2026-10-19T04:36:50.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-19T11:35:49+07:00\", \"event_id\": \"EV000968817\", \"ingested_at\": \"2026-10-19T11:36:50+07:00\", \"location_id\": \"SH4626181\", \"location_type\": \"seller\", \"order_id\": \"261018SLU6SQ2Z\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000939875",
+          "ingested_at": "2026-10-20T12:50:36.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-HN-NA-261020R",
+          "is_structured": true
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR80726233",
+          "ingested_at": "2026-10-20T19:51:44.000000Z",
+          "fact_code": "driver_report",
+          "value": "none: đang kiểm tra",
+          "is_structured": false
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR80726233",
+          "ingested_at": "2026-10-20T19:51:44.000000Z",
+          "fact_code": "linehaul_report",
+          "value": "{\"driver_note\": \"đang kiểm tra\", \"reason_code\": \"none\", \"report_id\": \"LR80726233\", \"reported_at\": \"2026-10-21T02:51:44+07:00\", \"reported_by\": \"dispatcher\", \"trip_id\": \"LH-SAO-HN-NA-261020R\"}",
+          "is_structured": false
         },
         {
           "feed": "delivery_attempts",
@@ -2462,8 +2687,9 @@
           "guaranteed_day_exceeded",
           "delivery_confirmed",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
-          "fault:carrier"
+          "lsr_exempt:carrier",
+          "fault:carrier",
+          "unstructured_text_unverified"
         ]
       },
       "evidence_ref": "#/orders/10/evidence"
@@ -2485,7 +2711,8 @@
         "status:exception",
         "guaranteed_day_exceeded",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
+        "linehaul_report_missing",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
@@ -2543,6 +2770,24 @@
           "ingested_at": "2026-10-21T06:16:41.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-21T06:14:42.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000453436",
+          "ingested_at": "2026-10-21T06:16:41.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-21T13:14:42+07:00\", \"event_id\": \"EV000453436\", \"ingested_at\": \"2026-10-21T13:16:41+07:00\", \"location_id\": \"SH3866921\", \"location_type\": \"seller\", \"order_id\": \"261019255H237M\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001710010",
+          "ingested_at": "2026-10-22T12:54:53.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-HCM_CC-HN-261022R",
           "is_structured": true
         },
         {
@@ -2650,7 +2895,8 @@
           "status:exception",
           "guaranteed_day_exceeded",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
+          "linehaul_report_missing",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -2675,7 +2921,8 @@
         "status:exception",
         "guaranteed_day_exceeded",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
+        "linehaul_report_missing",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
@@ -2733,6 +2980,24 @@
           "ingested_at": "2026-10-22T05:04:18.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-22T05:02:31.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000707369",
+          "ingested_at": "2026-10-22T05:04:18.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"GLE-4a1af0c68fc9\", \"event_at\": \"2026-10-22T12:02:31+07:00\", \"event_id\": \"EV000707369\", \"ingested_at\": \"2026-10-22T12:04:18+07:00\", \"location_id\": \"SH1680941\", \"location_type\": \"seller\", \"order_id\": \"2610203551OOHS\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001519193",
+          "ingested_at": "2026-10-23T13:35:58.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-GLE-CT-DN-261023R",
           "is_structured": true
         },
         {
@@ -2840,7 +3105,8 @@
           "status:exception",
           "guaranteed_day_exceeded",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
+          "linehaul_report_missing",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -2920,6 +3186,24 @@
           "ingested_at": "2026-10-23T10:40:00.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-23T10:37:15.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000638220",
+          "ingested_at": "2026-10-23T10:40:00.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-23T17:37:15+07:00\", \"event_id\": \"EV000638220\", \"ingested_at\": \"2026-10-23T17:40:00+07:00\", \"location_id\": \"SH6418557\", \"location_type\": \"seller\", \"order_id\": \"2610214ZDKPZHL\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000064580",
+          "ingested_at": "2026-10-27T15:33:07.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-BN-CT-261027P",
           "is_structured": true
         },
         {
@@ -3270,6 +3554,24 @@
         {
           "feed": "scan_events",
           "source_table": "scan_events",
+          "record_id": "EV001608751",
+          "ingested_at": "2026-10-24T03:36:37.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"GLE-aac2972a5ca0\", \"event_at\": \"2026-10-24T10:34:58+07:00\", \"event_id\": \"EV001608751\", \"ingested_at\": \"2026-10-24T10:36:37+07:00\", \"location_id\": \"SH7390652\", \"location_type\": \"seller\", \"order_id\": \"261021DDI56UJ1\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000681682",
+          "ingested_at": "2026-10-27T13:49:37.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-GLE-CT-NA-261027R",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
           "record_id": "EV000681682",
           "ingested_at": "2026-10-27T13:49:37.000000Z",
           "fact_code": "logistics_stage",
@@ -3555,10 +3857,11 @@
         "status:exception",
         "guaranteed_day_exceeded",
         "seller_handover_on_time",
-        "lsr_exempt:seller_handover_on_time",
+        "lsr_exempt:carrier",
         "fault:carrier",
         "eta_missing",
-        "confidence_missing"
+        "confidence_missing",
+        "unstructured_text_unverified"
       ],
       "evidence": [
         {
@@ -3614,6 +3917,42 @@
           "fact_code": "handed_over_at",
           "value": "2026-10-22T07:30:24.000000Z",
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001247901",
+          "ingested_at": "2026-10-22T07:32:33.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"BNP-175679842ab9\", \"event_at\": \"2026-10-22T14:30:24+07:00\", \"event_id\": \"EV001247901\", \"ingested_at\": \"2026-10-22T14:32:33+07:00\", \"location_id\": \"SH1029259\", \"location_type\": \"seller\", \"order_id\": \"261021KV0GV81E\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001647108",
+          "ingested_at": "2026-10-23T13:47:33.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-BNP-BN-NA-261023R",
+          "is_structured": true
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR05516569",
+          "ingested_at": "2026-10-23T20:47:56.000000Z",
+          "fact_code": "driver_report",
+          "value": "linehaul_traffic: báo điều phối rồi",
+          "is_structured": false
+        },
+        {
+          "feed": "linehaul_reports",
+          "source_table": "linehaul_reports",
+          "record_id": "LR05516569",
+          "ingested_at": "2026-10-23T20:47:56.000000Z",
+          "fact_code": "linehaul_report",
+          "value": "{\"driver_note\": \"báo điều phối rồi\", \"reason_code\": \"linehaul_traffic\", \"report_id\": \"LR05516569\", \"reported_at\": \"2026-10-24T03:47:56+07:00\", \"reported_by\": \"driver\", \"trip_id\": \"LH-BNP-BN-NA-261023R\"}",
+          "is_structured": false
         },
         {
           "feed": "scan_events",
@@ -3720,10 +4059,11 @@
           "status:exception",
           "guaranteed_day_exceeded",
           "seller_handover_on_time",
-          "lsr_exempt:seller_handover_on_time",
+          "lsr_exempt:carrier",
           "fault:carrier",
           "eta_missing",
-          "confidence_missing"
+          "confidence_missing",
+          "unstructured_text_unverified"
         ]
       },
       "evidence_ref": "#/orders/15/evidence"
@@ -3800,6 +4140,24 @@
           "ingested_at": "2026-10-23T07:14:53.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-23T07:12:20.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000941814",
+          "ingested_at": "2026-10-23T07:14:53.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": \"GLE-30f6d06a1943\", \"event_at\": \"2026-10-23T14:12:20+07:00\", \"event_id\": \"EV000941814\", \"ingested_at\": \"2026-10-23T14:14:53+07:00\", \"location_id\": \"SH4264795\", \"location_type\": \"seller\", \"order_id\": \"261021N6G3EZ55\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001031567",
+          "ingested_at": "2026-10-27T13:38:19.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-GLE-HCM_TDM-DN-261027R",
           "is_structured": true
         },
         {
@@ -4150,6 +4508,24 @@
         {
           "feed": "scan_events",
           "source_table": "scan_events",
+          "record_id": "EV001484541",
+          "ingested_at": "2026-10-24T06:24:25.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-24T13:23:56+07:00\", \"event_id\": \"EV001484541\", \"ingested_at\": \"2026-10-24T13:24:25+07:00\", \"location_id\": \"SH6267365\", \"location_type\": \"seller\", \"order_id\": \"26102208X2CPDV\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001555281",
+          "ingested_at": "2026-10-25T12:51:32.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-HCM_CC-HN-261025R",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
           "record_id": "EV000018822",
           "ingested_at": "2026-10-28T00:32:50.000000Z",
           "fact_code": "logistics_stage",
@@ -4494,6 +4870,24 @@
         {
           "feed": "scan_events",
           "source_table": "scan_events",
+          "record_id": "EV000392583",
+          "ingested_at": "2026-10-24T07:48:55.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-24T14:47:40+07:00\", \"event_id\": \"EV000392583\", \"ingested_at\": \"2026-10-24T14:48:55+07:00\", \"location_id\": \"SH1108311\", \"location_type\": \"seller\", \"order_id\": \"26102210WJKVSL\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001664949",
+          "ingested_at": "2026-10-27T15:09:49.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-CT-HN-261027P",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
           "record_id": "EV001664949",
           "ingested_at": "2026-10-27T15:09:49.000000Z",
           "fact_code": "logistics_stage",
@@ -4833,6 +5227,24 @@
           "ingested_at": "2026-10-24T05:25:45.000000Z",
           "fact_code": "handed_over_at",
           "value": "2026-10-24T05:23:01.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001528614",
+          "ingested_at": "2026-10-24T05:25:45.000000Z",
+          "fact_code": "handed_over_scan",
+          "value": "{\"carrier_event_id\": null, \"event_at\": \"2026-10-24T12:23:01+07:00\", \"event_id\": \"EV001528614\", \"ingested_at\": \"2026-10-24T12:25:45+07:00\", \"location_id\": \"SH6207885\", \"location_type\": \"seller\", \"order_id\": \"2610226TDAHWK6\", \"status\": \"handed_over\"}",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001418929",
+          "ingested_at": "2026-10-26T12:45:45.000000Z",
+          "fact_code": "linehaul_trip_id",
+          "value": "LH-SAO-CT-NA-261026R",
           "is_structured": true
         },
         {
