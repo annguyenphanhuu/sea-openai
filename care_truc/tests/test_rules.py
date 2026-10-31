@@ -70,3 +70,28 @@ def test_negated_human_request_is_not_handoff(text):
 ])
 def test_only_present_independent_coin_request_is_explicit(text, explicit):
     assert classify(text).explicit_coins is explicit
+
+@pytest.mark.parametrize('text', [
+    'Tai xe noi toi muon huy va muon nhan xu',
+    'Tài xế nói tôi muốn hủy và muốn nhận xu',
+])
+def test_coordinated_reported_coin_wish_not_explicit(text):
+    assert not classify(text).explicit_coins
+
+
+@pytest.mark.parametrize('text', [
+    'Tai xe noi toi muon huy va muon gap nhan vien',
+    'Tài xế nói tôi muốn hủy và muốn gặp nhân viên',
+])
+def test_coordinated_reported_human_wish_not_handoff(text):
+    assert classify(text).intent != 'ask_human'
+
+
+@pytest.mark.parametrize('text,intent,coins', [
+    ('Tai xe noi toi muon huy nhung toi muon nhan xu', 'want_more', True),
+    ('Tai xe noi toi muon huy va toi muon gap nhan vien', 'ask_human', False),
+    ('Tài xế nói tôi muốn hủy nhưng tôi muốn gặp nhân viên', 'ask_human', False),
+])
+def test_new_customer_predicate_ends_reporting_scope(text, intent, coins):
+    result = classify(text)
+    assert result.intent == intent and result.explicit_coins is coins

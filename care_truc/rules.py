@@ -14,7 +14,8 @@ CLAUSE_BOUNDARY = (
 )
 REPORTED_WISH = (
     r'\b(tai xe|shipper|nhan vien|ho|anh ay|co ay)\s+'
-    r'(bao|noi|yeu cau)\b.*'
+    r'(bao|noi|yeu cau)\b[^,;.!?]*?'
+    r'(?=\b(?:nhung|tuy nhien)\b|\bva\s+toi\b|[,;.!?]|$)'
 )
 HISTORICAL_WISH = r'\b(da tung|tung|truoc day|truoc kia|hom qua|luc truoc)\b'
 COIN_REQUEST = (
@@ -35,8 +36,10 @@ def classify(text: str) -> IntentSignals:
     normalized = _normalize(text)
     abusive = bool(re.search(r'\b(ngu|con me|dit|khon nan|fuck)\b', normalized))
     own = re.sub(r'"[^"\n]*"|“[^”\n]*”|\x27[^\x27\n]*\x27', ' ', normalized)
-    clauses = [re.sub(REPORTED_WISH, ' ', clause)
-               for clause in re.split(CLAUSE_BOUNDARY, own)]
+    # Reporting spans coordinated wishes with an omitted subject. Only a
+    # contrast, explicit new customer subject, or sentence boundary ends it.
+    own = re.sub(REPORTED_WISH, ' ', own)
+    clauses = re.split(CLAUSE_BOUNDARY, own)
     retract = any(
         re.search(r'\b(khong|dung|thoi)\b.{0,18}\bhuy\b|\bbo yeu cau huy\b', clause)
         for clause in clauses
