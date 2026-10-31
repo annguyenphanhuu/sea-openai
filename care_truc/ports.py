@@ -46,12 +46,18 @@ class DispatchGate(Protocol):
 class EffectGateway(Protocol):
     """Platform-owned submission, with atomic final permission/control and D4 recheck.
 
+    atomic_final_validation must be exactly True to submit. It asserts the
+    adapter performs final server permission, current controls/guard and D4
+    validation atomically with acceptance; a separate DispatchGate is insufficient.
+    The adapter must bind the proposal to its durable principal/run/evidence.
+
     Coin grants must enforce global once-per-order ledger uniqueness across runs,
     validate the durable evidence/current text and immutable amount, and return
     authoritative durable receipts. Local reservation is never grant authority.
     """
     supports_deadlines: bool
     idempotent: bool
+    atomic_final_validation: bool
     async def submit(self, proposal: EffectProposal, *, deadline: float) -> Receipt: ...
     async def lookup(self, key: str, *, deadline: float) -> Receipt | None: ...
 

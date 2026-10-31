@@ -69,6 +69,8 @@ class ContextAdapter:
 
 
 class ScriptedGateway:
+    # Test-only simulated platform acceptance capability.
+    atomic_final_validation = True
     supports_deadlines = True
     idempotent = True
     def __init__(self):

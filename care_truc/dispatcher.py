@@ -60,7 +60,9 @@ class EffectDispatcher:
                     snapshot = await self.harness.snapshot(state, ctx)
                     decision = self.harness.guards.validate_dispatch(proposal, snapshot)
                     adapters = (self.gateway, self.gate)
-                    if not decision.allowed or not all(a and getattr(a, "supports_deadlines", False) for a in adapters):
+                    if (not decision.allowed
+                            or getattr(self.gateway, "atomic_final_validation", None) is not True
+                            or not all(a and getattr(a, "supports_deadlines", False) for a in adapters)):
                         self.store.set_effect(row["id"], state="blocked")
                         continue
                     if state.status in ("handoff_pending", "transferred", "completed") and proposal.kind != "handoff_request":
@@ -85,6 +87,8 @@ class EffectDispatcher:
                 started += 1
                 try:
                     receipt = await bounded(self.gateway.submit(claimed, deadline=self.clock.monotonic() + 2), self.clock, 2)
+                    if receipt.effect_id != claimed.effect_id:
+                        raise CareError("receipt_binding_invalid")
                     self.store.record_receipt(receipt)
                 except Exception:
                     self.store.set_effect(row["id"], state="needs_reconciliation")
@@ -113,6 +117,8 @@ class EffectDispatcher:
         try:
             receipt = await bounded(lookup(row["effect_key"], deadline=self.clock.monotonic() + 2), self.clock, 2)
             if receipt is not None:
+                if receipt.effect_id != effect_id:
+                    raise CareError("receipt_binding_invalid")
                 self.store.record_receipt(receipt)
                 self.store.set_effect(effect_id, lookups=0)
                 observed = await self.harness.hooks.run("after_action", {"receipt": receipt})
