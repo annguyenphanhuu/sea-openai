@@ -1,7 +1,10 @@
 """Actual release integration: automatic contacts, timings and five A1 turns."""
 from datetime import datetime
 import asyncio
+import json
 from pathlib import Path
+
+import pytest
 
 from platform_huy.demo_flow import DemoFlow
 from platform_huy.tick import run_tick
@@ -34,7 +37,9 @@ def test_actual_tick_automatic_contacts_timings_and_five_customer_turns(tmp_path
         assert [row['order_id'] for row in tick['demo_candidates']] == ['261021ZS7E76FW', '261019QY8UDYNZ']
         assert sum(tick['label_counts'].values()) == tick['orders_total']
         assert tick['contact_queue'][0]['payment'] == 'COD'
-        assert tick['contact_queue'][0]['cause']['fault_party'] == 'unknown'
+        assert tick['contact_queue'][0]['cause']['fault_party'] == 'carrier'
+        assert tick['contact_queue'][0]['handover_on_time'] is True
+        assert tick['contact_queue'][0]['lsr_exemption']
         assert tick['chat']['opened_by'] == 'a1'
         session = tick['chat']['session_id']
         reviewed = flow.request('verify-order', {
@@ -122,16 +127,29 @@ def test_previous_day_active_sessions_do_not_consume_new_contact_budget(tmp_path
         flow.close()
 
 
-def test_restart_trace_uses_completed_phase_audit_not_a2_snapshot(tmp_path):
+@pytest.mark.parametrize('legacy_snapshot', [False, True])
+def test_restart_trace_uses_completed_phase_audit_not_a2_snapshot(tmp_path, legacy_snapshot):
     state_path = tmp_path / 'runtime/platform.sqlite'
     start = datetime.fromisoformat('2026-10-24T14:00:00+07:00')
     flow = DemoFlow(CORE, state_path, start)
     try:
-        assert flow.request('next')['phase_trace'] == ['A3', 'A2', 'A1']
+        tick = flow.request('next')
+        assert tick['phase_trace'] == ['A3', 'A2', 'A1']
+        expected_assessment = flow.assessments['261021ZS7E76FW']
+        expected_order = tick['contact_queue'][0]
 
         async def mark_interrupted_a1_phase():
             # The durable A2 snapshot remains, but A1 did not finish this tick.
             flow.conn.execute("UPDATE demo_tick_timings SET status='failed' WHERE agent='A1'")
+            if legacy_snapshot:
+                saved = json.loads(flow.conn.execute(
+                    'SELECT payload FROM demo_flow_snapshot WHERE singleton=1'
+                ).fetchone()[0])
+                for item in saved:
+                    for key in ('fault_owner', 'handover_on_time', 'lsr_exemption'):
+                        item.pop(key)
+                flow.conn.execute('UPDATE demo_flow_snapshot SET payload=? WHERE singleton=1',
+                                  (json.dumps(saved),))
 
         asyncio.run_coroutine_threadsafe(mark_interrupted_a1_phase(), flow.loop).result()
     finally:
@@ -141,6 +159,9 @@ def test_restart_trace_uses_completed_phase_audit_not_a2_snapshot(tmp_path):
         status = restarted.request('status')
         assert status['now'] == '2026-10-24T14:30:00+07:00'
         assert status['orders_total'] > 0
+        assert restarted.assessments['261021ZS7E76FW'] == expected_assessment
+        assert status['contact_queue'][0] == expected_order
+        assert status['contact_queue'][0]['lsr_exemption']
         assert status['phase_trace'] == ['A3', 'A2']
         assert [row['status'] for row in status['tick_timings']] == ['completed', 'completed', 'failed']
     finally:

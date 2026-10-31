@@ -57,3 +57,35 @@ Local validation artifacts are ignored under `runs/seller-lsr-protection/`.
 Shared contracts/dependencies and other owners' tests/UI/API were not edited.
 This change emits A2 facts and a reviewable recommendation. It does not execute a
 penalty exemption, contact, payment or other external business effect.
+
+## Follow-up integration with main
+
+At the user's request, integrated `origin/main` at `4e71562` into the feature
+branch. Git merged without textual conflicts. Integration checks identified:
+
+- The demo checkpoint loader passed additive `fault_owner`, `handover_on_time`
+  and `lsr_exemption` export fields into `OrderAssessment`, breaking restart.
+  The loader now reconstructs exactly the shared dataclass fields. Saved payloads
+  and order-list metadata retain all LSR information; shared contracts stay intact.
+- An-owned release integration tests expected unknown fault for demo order
+  `261021ZS7E76FW`. Its timely scan now supports carrier attribution. Expectations
+  include the handover/exemption proof, while unreviewed coin requests must still
+  return `coins_evidence_unavailable` with an empty ledger. Staff review must not
+  mutate the exported A2 order.
+- Main's A1 test `test_local_reservation_refuses_new_message_and_durable_evidence`
+  still inspected the former synchronous harness store. It now inspects the raw
+  runtime SQLite store, matching existing harness tests. No business assertion
+  or storage deadline requirement was removed.
+
+The necessary cross-module follow-up is limited to the checkpoint loader and
+that one test call. Added restart coverage checks old and extended checkpoint
+shapes, exact assessment/order restoration, and the persisted incomplete A1 phase.
+
+Final merged verification:
+
+- `python -X utf8 -m pytest -q --tb=short`: **770 passed** (151.80 seconds),
+  including real-release ticks, HTTP presenter checks and both checkpoint shapes.
+- `python -X utf8 -m pytest -q care_truc/tests`: **501 passed**.
+- `node --test logistics_an_nguyen/ui/data.test.mjs`: **9 passed**.
+- Focused affected end-to-end cases: **5 passed** before the full acceptance run.
+- Contract import, staged diff check and `python scripts/guardrails.py --all` passed.
