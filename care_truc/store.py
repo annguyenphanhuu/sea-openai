@@ -58,7 +58,7 @@ class MemoryStore:
         return state
 
     def load_session(self, session_id: str) -> SessionState:
-        row = self.db.execute("SELECT data FROM sessions WHERE id=?", (session_id,)).fetchone()
+        row = self.db.execute("SELECT data,version FROM sessions WHERE id=?", (session_id,)).fetchone()
         if row is None:
             raise CareError("not_found", 404)
         data = json.loads(row[0])
@@ -66,6 +66,7 @@ class MemoryStore:
             pending = data["pending"]
             pending["expires_at"] = datetime.fromisoformat(pending["expires_at"])
             data["pending"] = PendingCancellation(**pending)
+        data["version"] = row[1]
         return SessionState(**data)
 
     def find_request(self, session_id: str, principal: str, client_id: str):
@@ -179,6 +180,11 @@ class MemoryStore:
         from .effect_store import claim_effect
         with self.transaction():
             return claim_effect(self, effect_id, expected_session_version, expected_revision, now)
+
+    def record_receipt(self, receipt) -> bool:
+        from .effect_store import record_receipt
+        with self.transaction():
+            return record_receipt(self, receipt)
 
     def events(self, session_id: str) -> list[dict]:
         return [dict(row) for row in self.db.execute("SELECT * FROM events WHERE session_id=? ORDER BY sequence", (session_id,))]

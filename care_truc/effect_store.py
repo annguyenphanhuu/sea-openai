@@ -4,7 +4,7 @@ from dataclasses import replace
 import json
 from uuid import uuid4
 
-from .runtime_types import CareError, EffectProposal, canonical
+from .runtime_types import CareError, EffectProposal, canonical, fingerprint
 
 
 def save_proposal(store, proposal, request_id, state) -> None:
@@ -51,3 +51,20 @@ def claim_effect(store, effect_id, expected_version, revision, now):
     store.db.execute("INSERT INTO effect_attempts(id,effect_id,revision,kind,started_at,deadline) VALUES(?,?,?,'submit',?,?)",
                       (uuid4().hex, effect_id, revision, now, now + 2))
     return EffectProposal(**json.loads(row["proposal"]))
+
+
+def record_receipt(store, receipt) -> bool:
+    row = store.effect(receipt.effect_id)
+    proposal = EffectProposal(**json.loads(row["proposal"]))
+    if (not receipt.authoritative or receipt.key != proposal.key
+            or receipt.payload_hash != fingerprint(proposal.payload)):
+        raise CareError("receipt_binding_invalid")
+    if store.db.execute("SELECT 1 FROM receipts WHERE effect_id=? AND revision=?",
+                        (receipt.effect_id, receipt.revision)).fetchone():
+        return False
+    store.db.execute("INSERT INTO receipts VALUES(?,?,?)",
+                      (receipt.effect_id, receipt.revision, canonical(receipt)))
+    store.set_effect(receipt.effect_id, state="delivered", outcome=receipt.outcome, lookups=0)
+    store._event(proposal.session_id, f"receipt:{receipt.effect_id}:{receipt.revision}",
+                 "receipt", canonical({"effect_id": receipt.effect_id, "outcome": receipt.outcome}))
+    return True
