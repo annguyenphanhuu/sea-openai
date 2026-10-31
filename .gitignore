@@ -16,3 +16,7 @@ __pycache__/
 venv/
 .coverage
 htmlcov/
+.codegraph/
+.cursor/
+docs/superpowers/
+.worktrees/
