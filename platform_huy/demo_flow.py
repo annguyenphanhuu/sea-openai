@@ -311,7 +311,10 @@ class DemoFlow:
                     evidence['ingested_at'] = parse_instant(evidence['ingested_at'], 'evidence_at')
                 payload['evidence'] = tuple(payload['evidence'])
                 payload['reason_codes'] = tuple(payload['reason_codes'])
-                self.assessments[payload['order_id']] = OrderAssessment(**payload)
+                # A2 export metadata is additive; the shared assessment stays v0.
+                self.assessments[payload['order_id']] = OrderAssessment(**{
+                    field.name: payload[field.name] for field in fields(OrderAssessment)
+                })
         self.phase_trace = [row[0] for row in self.conn.execute(
             "SELECT agent FROM demo_tick_timings WHERE tick_at=? AND status='completed' ORDER BY ordinal",
             (utc(self.now),))]

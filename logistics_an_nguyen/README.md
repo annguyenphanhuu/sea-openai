@@ -16,6 +16,7 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 | Lọc dữ liệu theo `ingested_at`, kiểm tra dữ liệu đầu vào | Đã triển khai trên snapshot do platform cung cấp |
 | Câu hỏi quản lý, lưu/đọc/trả lời và chống trùng khi retry | Đã triển khai trong `service.py` và `questions.py` |
 | Đầu ra JSON cho API orders/shop và review | Đã có Python API và serializer để Trúc gắn HTTP route/UI |
+| Bảo vệ shop khỏi phạt LSR oan | Đã đối chiếu bàn giao với policy, quy lỗi carrier khi đủ bằng chứng và xuất đề xuất miễn trừ |
 | Danh sách ngày đặt/bàn giao cho Trúc | Đã có `assessed_orders_payload` và file `*.orders.json`, kèm bằng chứng as-of và health |
 | Kiểm thử biên và lỗi A2 | Đã có trong `acceptance_an_nguyen/` |
 | Adapter đọc DB release | Đã nối schema `release_main`, đọc as-of và chỉ đọc |
@@ -42,6 +43,48 @@ Ba ca literal của người dùng nằm trong
 `acceptance_an_nguyen/test_cod_refusal_risk.py`; kiểm tra ngưỡng, nguồn và cutoff
 nằm trong `test_cod_refusal_boundaries.py`. Mẫu hiện có 2 high, 2 medium, 16 đơn
 không gắn cờ; cùng 20 ID và cutoff trước đó, được đánh giá lại từ DB chỉ đọc.
+
+## Bảo vệ shop khỏi phạt LSR oan
+
+Với mỗi đơn có `late_days > 0`, A2 so sánh thời điểm scan `handed_over` sớm
+nhất đã nhìn thấy trừ `orders.created_at` với `policy.seller_prepare_days`.
+Release hiện đặt **2 ngày**: đúng 48 giờ vẫn đúng hạn; 48 giờ cộng 1 microsecond
+là quá hạn. Dùng thời điểm xảy ra scan, không dùng thời điểm ingest hay làm tròn
+theo ngày. Không dùng nhầm `seller_handover_days=3` của quy tắc tự hủy.
+
+Khi bàn giao đúng hạn và đơn thực sự trễ, fault chưa xác định được quy về
+`carrier`, kèm reason `lsr_exempt:seller_handover_on_time` và bằng chứng nguồn.
+Lỗi `customer`, `platform`, `force_majeure` đã xác định được giữ nguyên và không
+sinh dòng miễn trừ theo quy tắc carrier này. Thứ tự status không đổi. Bàn giao
+quá hạn không tự quy lỗi cho shop; `FaultParty` và `OrderAssessment` không đổi.
+
+`assessment_payload` và từng đơn của `assessed_orders_payload` đều bổ sung:
+
+| Trường | Ý nghĩa |
+| --- | --- |
+| `handover_on_time` | `true`/`false` khi đơn thực sự trễ và đủ bằng chứng; `null` nếu chưa trễ, thiếu scan/policy, feed không dùng được hoặc facts xung đột |
+| `fault_owner` | Alias của `fault_party`, luôn khớp kết luận assessment và `cause.fault_party` |
+| `lsr_exemption` | `Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.` khi đủ điều kiện, ngược lại `null` |
+
+`evidence` chứa `created_at` từ orders, `handed_over_at` với record ID/event time/
+ingestion của scan, `seller_prepare_days` từ bảng policy và kết quả suy ra
+`handover_on_time` từ `a2_seller_protection_v1`. Các reason tương ứng là
+`seller_handover_on_time`, `seller_handover_late`, `seller_handover_unverified`.
+Scan chưa được ingest không chứng minh shop đúng hạn; text tài xế không thay
+fault hoặc bật miễn trừ. Khi thiếu bằng chứng, không suy đoán bất lợi cho shop.
+
+`ReplaySnapshot.seller_prepare_days` là field tùy chọn, mặc định `None` để
+projection cũ vẫn dùng được. `ReleaseReader` đọc đúng key trong policy chỉ đọc;
+thiếu bảng/key thì để unknown, giá trị sai định dạng bị từ chối. Policy release
+là cấu hình tĩnh, không có timestamp hay lịch sử phiên bản. Evidence policy dùng
+feed `orders` và thời điểm đơn được biết như mốc khả dụng, không phải timestamp
+cập nhật policy; adapter ngoài phải cấp policy tin cậy phù hợp snapshot.
+
+Dòng miễn trừ là **đề xuất có bằng chứng của A2 trong payload nội bộ**, chưa ghi
+thay đổi mức phạt/LSR trên hệ thống bên ngoài. Trúc có thể dùng các trường này
+cho API/trang shop; không phát sinh quyền liên hệ hay hành động tiền.
+Kiểm thử mới do An sở hữu nằm tại
+`acceptance_huy/test_seller_lsr_protection.py`; không sửa bộ test A2 của Trúc.
 
 ## Python API
 
