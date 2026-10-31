@@ -1,6 +1,6 @@
 # Integrated local operations console
 
-The default Next.js page reads A2 assessments and A3 gates from the Python pipeline. NEXT runs A3, A2 and A1. Chat messages, cancellation confirmations and staff handoffs use the real local runtime. Ledger records are local, not external wallet payments. Web voice is not implemented.
+The default Next.js page reads A2 assessments and A3 gates from the Python pipeline. NEXT runs A3, A2 and A1. Chat messages, cancellation confirmations and staff handoffs use the real local runtime. Ledger records are local, not external wallet payments. Web voice uses OpenAI Realtime through WebRTC.
 
 Start the backend from the repository root. Keep runtime state outside any ancestor folder named data because the current platform path validator rejects those paths.
 
@@ -41,3 +41,11 @@ npm run test:e2e
 ```
 
 The real integration browser tests require an isolated, running release-fed backend. They mutate that runtime through chat, handoff and A3 controls. Use a fresh state path for each run. The presentation tests intercept runtime snapshots to verify responsive geometry, navigation, pagination and closed-session behavior without creating operational records. Set `PIPELINE_URL` in the test shell and `PLAYWRIGHT_CHANNEL=chrome` if Chromium is unavailable.
+
+## Voice conversation
+
+In an active chat, select Nói chuyện với AI and allow microphone access. OpenAI Realtime hears speech and calls A1; A1 supplies the order-grounded reply for spoken readback. Use Tắt micro to mute or Kết thúc voice to end the call. Voice has a separate transcript and a server-bound web_voice session for the same order. It cannot grant coins or turn speech into text-chat compensation evidence. Leaving the chat or closing the page stops local media.
+
+Start the Python backend with --integrated --llm and the existing root OPENAI_API_KEY. The browser receives only a short-lived OpenAI credential. The model is gpt-realtime with the marin voice. The existing server allowance limits a call to four minutes; its accounting budget is not a provider billing cap. No extra browser key or voice code is required.
+
+Verified a real two-turn WebRTC conversation with generated speech, real A1 API replies and non-silent returned OpenAI audio. Browser tests separately cover microphone denial, tool deduplication and cleanup races. These checks do not claim a physical user microphone was tested.

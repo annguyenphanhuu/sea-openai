@@ -345,6 +345,7 @@ class DemoFlow:
             self.handoff_orders = {row['order_id']: row for row in json.loads(saved_handoff[0])['orders']}
         progress = self.conn.execute('SELECT records_json FROM a2_progress WHERE singleton=1').fetchone()
         self.progress = ProgressTracker(None if progress is None else json.loads(progress[0]))
+        self.conn.execute('CREATE TABLE IF NOT EXISTS demo_voice_links(session_id TEXT PRIMARY KEY,parent_session_id TEXT NOT NULL)')
         self.context = _Context(self)
         self.gateway = _Gateway(self)
         self.care = await CareRuntime.start(self.run_id,
@@ -504,7 +505,7 @@ class DemoFlow:
             raise CareError('proactive_blocked', 409)
         proof = self._inspect(order_id)
         ctx = TrustedRequestContext(self._principal(proof), frozenset({'care_contact'}))
-        existing = self.care.store.db.execute('SELECT id FROM sessions WHERE order_id=? ORDER BY rowid DESC LIMIT 1', (order_id,)).fetchone()
+        existing = self.care.store.db.execute("SELECT id FROM sessions WHERE order_id=? AND json_extract(data,'$.channel')='chat' ORDER BY rowid DESC LIMIT 1", (order_id,)).fetchone()
         if existing:
             state = self.care.store.load_session(existing[0])
             if state.opened_by == 'a1' and state.status in ('active', 'awaiting_cancel_confirmation', 'handoff_pending'):
@@ -564,7 +565,7 @@ class DemoFlow:
             state = self.care.store.load_session(session_id)
             order_id = state.order_id
         elif order_id:
-            row = self.care.store.db.execute('SELECT id FROM sessions WHERE order_id=? ORDER BY rowid DESC LIMIT 1', (order_id,)).fetchone()
+            row = self.care.store.db.execute("SELECT id FROM sessions WHERE order_id=? AND json_extract(data,'$.channel')='chat' ORDER BY rowid DESC LIMIT 1", (order_id,)).fetchone()
             session_id = row[0] if row else None
         chat = None
         if session_id:
@@ -605,7 +606,7 @@ class DemoFlow:
         active_chats = []
         for row in self.care.store.db.execute('SELECT id FROM sessions ORDER BY rowid DESC'):
             state = self.care.store.load_session(row[0])
-            if state.status not in ('active', 'awaiting_cancel_confirmation', 'handoff_pending'):
+            if state.channel != 'chat' or state.status not in ('active', 'awaiting_cancel_confirmation', 'handoff_pending'):
                 continue
             active_chats.append({'session_id': state.session_id, 'order_id': state.order_id,
                 'principal_id': state.principal_id, 'status': state.status, 'opened_by': state.opened_by,
@@ -734,7 +735,32 @@ class DemoFlow:
             if any(key not in payload or payload[key] is None for key in required.get(action, ())):
                 raise CareError('missing_required_field', 400)
             result = None
-            if action == 'orders':
+            if action == 'voice-open':
+                parent = self.care.store.load_session(payload['session_id'])
+                if parent.channel != 'chat' or parent.status not in ('active', 'awaiting_cancel_confirmation'):
+                    raise CareError('voice_session_invalid', 403)
+                ctx = TrustedRequestContext(self._principal(self._inspect(parent.order_id)))
+                opened = await self.care.harness.open_chat(parent.order_id, payload['request_id'], ctx, channel='web_voice')
+                self.conn.execute('INSERT OR IGNORE INTO demo_voice_links VALUES (?,?)', (opened.session_id, parent.session_id))
+                return {'session_id': opened.session_id, 'parent_session_id': parent.session_id}
+            elif action in ('voice-validate', 'voice-say'):
+                state = self.care.store.load_session(payload['session_id'])
+                link = self.conn.execute('SELECT parent_session_id FROM demo_voice_links WHERE session_id=?', (state.session_id,)).fetchone()
+                if state.channel != 'web_voice' or link is None or state.status not in ('active', 'awaiting_cancel_confirmation'):
+                    raise CareError('voice_session_invalid', 403)
+                parent = self.care.store.load_session(link[0])
+                if parent.channel != 'chat' or parent.status not in ('active', 'awaiting_cancel_confirmation') or parent.order_id != state.order_id or parent.principal_id != state.principal_id:
+                    raise CareError('voice_session_invalid', 403)
+                if action == 'voice-validate':
+                    return {'valid': True}
+                ctx = TrustedRequestContext(self._principal(self._inspect(state.order_id)))
+                from care_truc.rules import is_cancel_confirmation
+                reply_to = state.pending.reply_to if state.pending and is_cancel_confirmation(payload['text']) else None
+                result = await self.care.harness.handle_message(state.session_id, payload['request_id'], payload['text'], ctx, reply_to)
+                await self.care.harness.drain_pending()
+                current = self.care.store.load_session(state.session_id)
+                return {'reply': result.text, 'inside': {'channel': 'voice', 'codes': list(result.codes)}, 'status': current.status}
+            elif action == 'orders':
                 saved = self.conn.execute('SELECT payload FROM demo_a2_handoff WHERE singleton=1').fetchone()
                 if saved is None:
                     # No tick has run yet; do not invent assessments or run NEXT on GET.

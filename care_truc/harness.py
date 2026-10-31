@@ -137,13 +137,16 @@ class CareHarness:
                                    datetime.min.replace(tzinfo=timezone.utc), None, None)
 
     @tracked
-    async def open_chat(self, order_id, request_id, ctx):
+    async def open_chat(self, order_id, request_id, ctx, *, channel="chat"):
         CustomerEvent("request_handoff", request_id)
         if not self.accepting:
             raise CareError("not_ready", 503)
         await self.authorize(ctx, order_id)
-        key = fingerprint((self.run_id, "customer", ctx.principal_id, request_id))
-        state = (await self.storage.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id, order_id), key, deadline=self.clock.monotonic() + 2))
+        if channel not in ("chat", "web_voice"):
+            raise CareError("invalid_channel", 400)
+        key = fingerprint((self.run_id, "customer", ctx.principal_id, request_id) if channel == "chat"
+                          else (self.run_id, "customer", ctx.principal_id, request_id, channel))
+        state = (await self.storage.create_session(SessionState(uuid4().hex, self.run_id, ctx.principal_id, order_id, channel=channel), key, deadline=self.clock.monotonic() + 2))
         return TurnResult("opened", state.session_id)
 
     @tracked
