@@ -1,0 +1,3735 @@
+{
+  "payload_version": "a2_order_list_v1",
+  "tick_at": "2026-10-28T05:00:00.000000Z",
+  "feed_health": [
+    {
+      "feed": "delivery_attempts",
+      "status": "trusted",
+      "checked_at": "2026-10-28T05:00:00.000000Z",
+      "source_timestamp": "2026-10-28T04:59:52.000000Z",
+      "last_ingested_at": null,
+      "usable_at_tick": true
+    },
+    {
+      "feed": "orders",
+      "status": "trusted",
+      "checked_at": "2026-10-28T05:00:00.000000Z",
+      "source_timestamp": "2026-10-28T04:59:56.000000Z",
+      "last_ingested_at": null,
+      "usable_at_tick": true
+    },
+    {
+      "feed": "scan_events",
+      "status": "trusted",
+      "checked_at": "2026-10-28T05:00:00.000000Z",
+      "source_timestamp": "2026-10-28T04:59:50.000000Z",
+      "last_ingested_at": "2026-10-28T04:59:52.000000Z",
+      "usable_at_tick": true
+    }
+  ],
+  "orders": [
+    {
+      "order_id": "26101800VWCQ8J",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "on_track",
+      "guaranteed_date": "2026-10-26",
+      "revised_eta": null,
+      "late_days": 0,
+      "late_probability": 0.0,
+      "confidence": 1.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:on_track",
+        "delivery_confirmed",
+        "fault:unknown"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA23636607",
+          "ingested_at": "2026-10-22T06:24:40.000000Z",
+          "fact_code": "attempt_reason",
+          "value": null,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA23636607",
+          "ingested_at": "2026-10-22T06:24:40.000000Z",
+          "fact_code": "call_attempts",
+          "value": 0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA23636607",
+          "ingested_at": "2026-10-22T06:24:40.000000Z",
+          "fact_code": "confidence",
+          "value": 1.0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA23636607",
+          "ingested_at": "2026-10-22T06:24:40.000000Z",
+          "fact_code": "delivered_at",
+          "value": "2026-10-22T13:24:40+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000364086",
+          "ingested_at": "2026-10-22T06:27:26.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "delivered",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000364086",
+          "ingested_at": "2026-10-22T06:27:26.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-22T13:24:40+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000364086",
+          "ingested_at": "2026-10-22T06:27:26.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T10:56:29.000000Z",
+      "handed_over_at": "2026-10-19T04:50:07.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:56:29.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000109664",
+          "ingested_at": "2026-10-19T04:50:24.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:50:07.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH98461139",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH98461139",
+      "payment": "PREPAID",
+      "priority": 8,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:on_track",
+          "delivery_confirmed",
+          "fault:unknown"
+        ]
+      },
+      "evidence_ref": "#/orders/0/evidence"
+    },
+    {
+      "order_id": "26101802ZPABQE",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "on_track",
+      "guaranteed_date": "2026-10-26",
+      "revised_eta": null,
+      "late_days": 0,
+      "late_probability": 0.0,
+      "confidence": 1.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:on_track",
+        "delivery_confirmed",
+        "fault:unknown"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA09121859",
+          "ingested_at": "2026-10-23T04:19:00.000000Z",
+          "fact_code": "attempt_reason",
+          "value": null,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA09121859",
+          "ingested_at": "2026-10-23T04:19:00.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA09121859",
+          "ingested_at": "2026-10-23T04:19:00.000000Z",
+          "fact_code": "confidence",
+          "value": 1.0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA09121859",
+          "ingested_at": "2026-10-23T04:19:00.000000Z",
+          "fact_code": "delivered_at",
+          "value": "2026-10-23T11:19:00+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000146433",
+          "ingested_at": "2026-10-23T04:21:42.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "delivered",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000146433",
+          "ingested_at": "2026-10-23T04:21:42.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-23T11:19:00+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000146433",
+          "ingested_at": "2026-10-23T04:21:42.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T12:07:17.000000Z",
+      "handed_over_at": "2026-10-19T04:23:17.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T12:07:17.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000361863",
+          "ingested_at": "2026-10-19T04:23:30.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:23:17.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH09221665",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH09221665",
+      "payment": "COD",
+      "priority": 8,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:on_track",
+          "delivery_confirmed",
+          "fault:unknown"
+        ]
+      },
+      "evidence_ref": "#/orders/1/evidence"
+    },
+    {
+      "order_id": "2610180BP00VSA",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "customer_fault",
+      "guaranteed_date": "2026-10-23",
+      "revised_eta": null,
+      "late_days": 5,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "customer",
+      "reason_codes": [
+        "status:customer_fault",
+        "guaranteed_day_exceeded",
+        "fault:customer",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-23",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA42024331",
+          "ingested_at": "2026-10-24T08:42:38.000000Z",
+          "fact_code": "attempt_reason",
+          "value": "customer_unreachable",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA42024331",
+          "ingested_at": "2026-10-24T08:42:38.000000Z",
+          "fact_code": "call_attempts",
+          "value": 3,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA42024331",
+          "ingested_at": "2026-10-24T08:42:38.000000Z",
+          "fact_code": "fault_party",
+          "value": "customer",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000740180",
+          "ingested_at": "2026-10-24T14:16:50.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "returning",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000740180",
+          "ingested_at": "2026-10-24T14:16:50.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-24T21:14:21+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000740180",
+          "ingested_at": "2026-10-24T14:16:50.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T10:25:19.000000Z",
+      "handed_over_at": "2026-10-20T07:03:11.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:25:19.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000099835",
+          "ingested_at": "2026-10-20T07:03:48.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T07:03:11.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH48414840",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH48414840",
+      "payment": "COD",
+      "priority": 3,
+      "cause": {
+        "fault_party": "customer",
+        "reason_codes": [
+          "status:customer_fault",
+          "guaranteed_day_exceeded",
+          "fault:customer",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/2/evidence"
+    },
+    {
+      "order_id": "2610180GSJAZVD",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "customer_fault",
+      "guaranteed_date": "2026-10-23",
+      "revised_eta": null,
+      "late_days": 5,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "customer",
+      "reason_codes": [
+        "status:customer_fault",
+        "guaranteed_day_exceeded",
+        "fault:customer",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-23",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA94306700",
+          "ingested_at": "2026-10-21T03:02:47.000000Z",
+          "fact_code": "attempt_reason",
+          "value": "customer_refused",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA94306700",
+          "ingested_at": "2026-10-21T03:02:47.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA94306700",
+          "ingested_at": "2026-10-21T03:02:47.000000Z",
+          "fact_code": "fault_party",
+          "value": "customer",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001407390",
+          "ingested_at": "2026-10-21T06:09:37.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "returning",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001407390",
+          "ingested_at": "2026-10-21T06:09:37.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-21T13:08:03+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001407390",
+          "ingested_at": "2026-10-21T06:09:37.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T10:17:55.000000Z",
+      "handed_over_at": "2026-10-19T07:34:15.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:17:55.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000287754",
+          "ingested_at": "2026-10-19T07:34:44.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T07:34:15.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH65468404",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH65468404",
+      "payment": "COD",
+      "priority": 3,
+      "cause": {
+        "fault_party": "customer",
+        "reason_codes": [
+          "status:customer_fault",
+          "guaranteed_day_exceeded",
+          "fault:customer",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/3/evidence"
+    },
+    {
+      "order_id": "2610180NM62DZO",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "customer_fault",
+      "guaranteed_date": "2026-10-26",
+      "revised_eta": null,
+      "late_days": 2,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "customer",
+      "reason_codes": [
+        "status:customer_fault",
+        "guaranteed_day_exceeded",
+        "fault:customer",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA64737481",
+          "ingested_at": "2026-10-21T08:14:50.000000Z",
+          "fact_code": "attempt_reason",
+          "value": "customer_refused",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA64737481",
+          "ingested_at": "2026-10-21T08:14:50.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA64737481",
+          "ingested_at": "2026-10-21T08:14:50.000000Z",
+          "fact_code": "fault_party",
+          "value": "customer",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000450548",
+          "ingested_at": "2026-10-21T10:33:49.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "returning",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000450548",
+          "ingested_at": "2026-10-21T10:33:49.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-21T17:32:41+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000450548",
+          "ingested_at": "2026-10-21T10:33:49.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T15:58:07.000000Z",
+      "handed_over_at": "2026-10-20T09:41:49.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T15:58:07.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001534535",
+          "ingested_at": "2026-10-20T09:42:58.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T09:41:49.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH37385718",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH37385718",
+      "payment": "PREPAID",
+      "priority": 3,
+      "cause": {
+        "fault_party": "customer",
+        "reason_codes": [
+          "status:customer_fault",
+          "guaranteed_day_exceeded",
+          "fault:customer",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/4/evidence"
+    },
+    {
+      "order_id": "2610182F1K1SGO",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "late",
+      "guaranteed_date": "2026-10-23",
+      "revised_eta": null,
+      "late_days": 1,
+      "late_probability": 1.0,
+      "confidence": 1.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:late",
+        "guaranteed_day_exceeded",
+        "delivery_confirmed",
+        "fault:unknown"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-23",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA98663941",
+          "ingested_at": "2026-10-24T08:55:30.000000Z",
+          "fact_code": "attempt_reason",
+          "value": null,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA98663941",
+          "ingested_at": "2026-10-24T08:55:30.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA98663941",
+          "ingested_at": "2026-10-24T08:55:30.000000Z",
+          "fact_code": "confidence",
+          "value": 1.0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA98663941",
+          "ingested_at": "2026-10-24T08:55:30.000000Z",
+          "fact_code": "delivered_at",
+          "value": "2026-10-24T15:55:30+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000561596",
+          "ingested_at": "2026-10-24T08:56:39.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "delivered",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000561596",
+          "ingested_at": "2026-10-24T08:56:39.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-24T15:55:30+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000561596",
+          "ingested_at": "2026-10-24T08:56:39.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T10:20:12.000000Z",
+      "handed_over_at": "2026-10-19T07:17:26.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:20:12.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000825530",
+          "ingested_at": "2026-10-19T07:18:43.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T07:17:26.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH33182482",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH33182482",
+      "payment": "COD",
+      "priority": 4,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:late",
+          "guaranteed_day_exceeded",
+          "delivery_confirmed",
+          "fault:unknown"
+        ]
+      },
+      "evidence_ref": "#/orders/5/evidence"
+    },
+    {
+      "order_id": "2610184ZP2TJSA",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "exception",
+      "guaranteed_date": "2026-10-26",
+      "revised_eta": null,
+      "late_days": 2,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "carrier",
+      "reason_codes": [
+        "status:exception",
+        "guaranteed_day_exceeded",
+        "fault:carrier",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000266770",
+          "ingested_at": "2026-10-23T21:40:34.000000Z",
+          "fact_code": "exception",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000266770",
+          "ingested_at": "2026-10-23T21:40:34.000000Z",
+          "fact_code": "fault_party",
+          "value": "carrier",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000266770",
+          "ingested_at": "2026-10-23T21:40:34.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "damaged",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000266770",
+          "ingested_at": "2026-10-23T21:40:34.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-24T04:38:03+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000266770",
+          "ingested_at": "2026-10-23T21:40:34.000000Z",
+          "fact_code": "stage_location",
+          "value": "BC6147",
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T08:59:55.000000Z",
+      "handed_over_at": "2026-10-20T09:01:58.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T08:59:55.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001543356",
+          "ingested_at": "2026-10-20T09:02:54.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T09:01:58.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH08751889",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH08751889",
+      "payment": "COD",
+      "priority": 1,
+      "cause": {
+        "fault_party": "carrier",
+        "reason_codes": [
+          "status:exception",
+          "guaranteed_day_exceeded",
+          "fault:carrier",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/6/evidence"
+    },
+    {
+      "order_id": "2610185FIXZUFU",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "late",
+      "guaranteed_date": "2026-10-24",
+      "revised_eta": null,
+      "late_days": 4,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:late",
+        "guaranteed_day_exceeded",
+        "fault:unknown",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-24",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA93490320",
+          "ingested_at": "2026-10-26T09:47:14.000000Z",
+          "fact_code": "attempt_reason",
+          "value": "customer_unreachable",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA93490320",
+          "ingested_at": "2026-10-26T09:47:14.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001498986",
+          "ingested_at": "2026-10-26T12:12:30.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "returning",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001498986",
+          "ingested_at": "2026-10-26T12:12:30.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-26T19:10:45+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001498986",
+          "ingested_at": "2026-10-26T12:12:30.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T12:29:30.000000Z",
+      "handed_over_at": "2026-10-19T10:26:22.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T12:29:30.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000468762",
+          "ingested_at": "2026-10-19T10:27:13.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T10:26:22.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH84833825",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH84833825",
+      "payment": "COD",
+      "priority": 4,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:late",
+          "guaranteed_day_exceeded",
+          "fault:unknown",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/7/evidence"
+    },
+    {
+      "order_id": "261018JRHBR0E8",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "customer_fault",
+      "guaranteed_date": "2026-10-20",
+      "revised_eta": null,
+      "late_days": 8,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "customer",
+      "reason_codes": [
+        "status:customer_fault",
+        "guaranteed_day_exceeded",
+        "fault:customer",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-20",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA83184161",
+          "ingested_at": "2026-10-22T04:55:37.000000Z",
+          "fact_code": "attempt_reason",
+          "value": "customer_unreachable",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA83184161",
+          "ingested_at": "2026-10-22T04:55:37.000000Z",
+          "fact_code": "call_attempts",
+          "value": 3,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA83184161",
+          "ingested_at": "2026-10-22T04:55:37.000000Z",
+          "fact_code": "fault_party",
+          "value": "customer",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000339613",
+          "ingested_at": "2026-10-22T09:06:18.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "returning",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000339613",
+          "ingested_at": "2026-10-22T09:06:18.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-22T16:04:20+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000339613",
+          "ingested_at": "2026-10-22T09:06:18.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T06:23:37.000000Z",
+      "handed_over_at": "2026-10-18T07:11:43.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T06:23:37.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000942470",
+          "ingested_at": "2026-10-18T07:13:40.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-18T07:11:43.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH66062015",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH66062015",
+      "payment": "PREPAID",
+      "priority": 3,
+      "cause": {
+        "fault_party": "customer",
+        "reason_codes": [
+          "status:customer_fault",
+          "guaranteed_day_exceeded",
+          "fault:customer",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/8/evidence"
+    },
+    {
+      "order_id": "261018LZFT8L9X",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "late",
+      "guaranteed_date": "2026-10-22",
+      "revised_eta": null,
+      "late_days": 1,
+      "late_probability": 1.0,
+      "confidence": 1.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:late",
+        "guaranteed_day_exceeded",
+        "delivery_confirmed",
+        "fault:unknown"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-22",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA44007525",
+          "ingested_at": "2026-10-23T03:24:02.000000Z",
+          "fact_code": "attempt_reason",
+          "value": null,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA44007525",
+          "ingested_at": "2026-10-23T03:24:02.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA44007525",
+          "ingested_at": "2026-10-23T03:24:02.000000Z",
+          "fact_code": "confidence",
+          "value": 1.0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA44007525",
+          "ingested_at": "2026-10-23T03:24:02.000000Z",
+          "fact_code": "delivered_at",
+          "value": "2026-10-23T10:24:02+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001149671",
+          "ingested_at": "2026-10-23T03:24:58.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "delivered",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001149671",
+          "ingested_at": "2026-10-23T03:24:58.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-23T10:24:02+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001149671",
+          "ingested_at": "2026-10-23T03:24:58.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T03:40:06.000000Z",
+      "handed_over_at": "2026-10-19T08:07:57.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T03:40:06.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000898719",
+          "ingested_at": "2026-10-19T08:08:48.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T08:07:57.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH92116669",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH92116669",
+      "payment": "PREPAID",
+      "priority": 4,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:late",
+          "guaranteed_day_exceeded",
+          "delivery_confirmed",
+          "fault:unknown"
+        ]
+      },
+      "evidence_ref": "#/orders/9/evidence"
+    },
+    {
+      "order_id": "261018SLU6SQ2Z",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "late",
+      "guaranteed_date": "2026-10-24",
+      "revised_eta": null,
+      "late_days": 2,
+      "late_probability": 1.0,
+      "confidence": 1.0,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:late",
+        "guaranteed_day_exceeded",
+        "delivery_confirmed",
+        "fault:unknown"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-24",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA71687587",
+          "ingested_at": "2026-10-26T05:14:04.000000Z",
+          "fact_code": "attempt_reason",
+          "value": null,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA71687587",
+          "ingested_at": "2026-10-26T05:14:04.000000Z",
+          "fact_code": "call_attempts",
+          "value": 1,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA71687587",
+          "ingested_at": "2026-10-26T05:14:04.000000Z",
+          "fact_code": "confidence",
+          "value": 1.0,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "delivery_attempts",
+          "record_id": "DA71687587",
+          "ingested_at": "2026-10-26T05:14:04.000000Z",
+          "fact_code": "delivered_at",
+          "value": "2026-10-26T12:14:04+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001518483",
+          "ingested_at": "2026-10-26T08:11:11.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "delivered",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001518483",
+          "ingested_at": "2026-10-26T08:11:11.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-26T12:14:04+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001518483",
+          "ingested_at": "2026-10-26T08:11:11.000000Z",
+          "fact_code": "stage_location",
+          "value": null,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-18T04:01:32.000000Z",
+      "handed_over_at": "2026-10-19T04:35:49.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T04:01:32.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000968817",
+          "ingested_at": "2026-10-19T04:36:50.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:35:49.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH80078324",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH80078324",
+      "payment": "PREPAID",
+      "priority": 4,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:late",
+          "guaranteed_day_exceeded",
+          "delivery_confirmed",
+          "fault:unknown"
+        ]
+      },
+      "evidence_ref": "#/orders/10/evidence"
+    },
+    {
+      "order_id": "261019255H237M",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "exception",
+      "guaranteed_date": "2026-10-26",
+      "revised_eta": null,
+      "late_days": 2,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "carrier",
+      "reason_codes": [
+        "status:exception",
+        "guaranteed_day_exceeded",
+        "fault:carrier",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-26",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001455546",
+          "ingested_at": "2026-10-24T14:25:58.000000Z",
+          "fact_code": "exception",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001455546",
+          "ingested_at": "2026-10-24T14:25:58.000000Z",
+          "fact_code": "fault_party",
+          "value": "carrier",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001455546",
+          "ingested_at": "2026-10-24T14:25:58.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "damaged",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001455546",
+          "ingested_at": "2026-10-24T14:25:58.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-24T21:24:25+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001455546",
+          "ingested_at": "2026-10-24T14:25:58.000000Z",
+          "fact_code": "stage_location",
+          "value": "BC9606",
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-19T09:08:07.000000Z",
+      "handed_over_at": "2026-10-21T06:14:42.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-19T09:08:07.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000453436",
+          "ingested_at": "2026-10-21T06:16:41.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-21T06:14:42.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH35173196",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH35173196",
+      "payment": "COD",
+      "priority": 1,
+      "cause": {
+        "fault_party": "carrier",
+        "reason_codes": [
+          "status:exception",
+          "guaranteed_day_exceeded",
+          "fault:carrier",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/11/evidence"
+    },
+    {
+      "order_id": "2610203551OOHS",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "exception",
+      "guaranteed_date": "2026-10-27",
+      "revised_eta": null,
+      "late_days": 1,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "carrier",
+      "reason_codes": [
+        "status:exception",
+        "guaranteed_day_exceeded",
+        "fault:carrier",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-27",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001501598",
+          "ingested_at": "2026-10-26T04:47:08.000000Z",
+          "fact_code": "exception",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001501598",
+          "ingested_at": "2026-10-26T04:47:08.000000Z",
+          "fact_code": "fault_party",
+          "value": "carrier",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001501598",
+          "ingested_at": "2026-10-26T04:47:08.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "lost",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001501598",
+          "ingested_at": "2026-10-26T04:47:08.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-26T11:45:02+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001501598",
+          "ingested_at": "2026-10-26T04:47:08.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-GLE-CT-DN-261023R",
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-20T15:05:33.000000Z",
+      "handed_over_at": "2026-10-22T05:02:31.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-20T15:05:33.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000707369",
+          "ingested_at": "2026-10-22T05:04:18.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-22T05:02:31.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH52674464",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH52674464",
+      "payment": "PREPAID",
+      "priority": 1,
+      "cause": {
+        "fault_party": "carrier",
+        "reason_codes": [
+          "status:exception",
+          "guaranteed_day_exceeded",
+          "fault:carrier",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/12/evidence"
+    },
+    {
+      "order_id": "2610214ZDKPZHL",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "at_risk",
+      "guaranteed_date": "2026-10-28",
+      "revised_eta": "2026-10-30T03:55:52.000000Z",
+      "late_days": 0,
+      "late_probability": 0.7641571583683008,
+      "confidence": 0.5420373782574363,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:at_risk",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000064580",
+          "ingested_at": "2026-10-27T15:33:07.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "linehaul_departed",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000064580",
+          "ingested_at": "2026-10-27T15:33:07.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-27T22:30:34+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000064580",
+          "ingested_at": "2026-10-27T15:33:07.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-SAO-BN-CT-261027P",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5420373782574363,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2574,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3799,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.7641571583683008,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:55:52.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5420373782574363,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2574,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3799,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.7641571583683008,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:55:52.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5420373782574363,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2574,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3799,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.7641571583683008,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:55:52.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-21T13:56:19.000000Z",
+      "handed_over_at": "2026-10-23T10:37:15.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T13:56:19.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000638220",
+          "ingested_at": "2026-10-23T10:40:00.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-23T10:37:15.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH33894390",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH33894390",
+      "payment": "COD",
+      "priority": 5,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:at_risk",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/13/evidence"
+    },
+    {
+      "order_id": "261021DDI56UJ1",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "at_risk",
+      "guaranteed_date": "2026-10-28",
+      "revised_eta": "2026-10-30T03:10:14.000000Z",
+      "late_days": 0,
+      "late_probability": 0.8463349911768867,
+      "confidence": 0.5222222222222223,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:at_risk",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000681682",
+          "ingested_at": "2026-10-27T13:49:37.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "linehaul_departed",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000681682",
+          "ingested_at": "2026-10-27T13:49:37.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-27T20:49:25+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000681682",
+          "ingested_at": "2026-10-27T13:49:37.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-GLE-CT-NA-261027R",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5222222222222223,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 720,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:10:14.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5222222222222223,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 720,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:10:14.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5222222222222223,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 720,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:10:14.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-21T13:54:45.000000Z",
+      "handed_over_at": "2026-10-24T03:34:58.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T13:54:45.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001608751",
+          "ingested_at": "2026-10-24T03:36:37.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T03:34:58.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH93779070",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH93779070",
+      "payment": "PREPAID",
+      "priority": 5,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:at_risk",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/14/evidence"
+    },
+    {
+      "order_id": "261021KV0GV81E",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "exception",
+      "guaranteed_date": "2026-10-27",
+      "revised_eta": null,
+      "late_days": 1,
+      "late_probability": 1.0,
+      "confidence": 0.0,
+      "fault_party": "carrier",
+      "reason_codes": [
+        "status:exception",
+        "guaranteed_day_exceeded",
+        "fault:carrier",
+        "eta_missing",
+        "confidence_missing"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-27",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001010885",
+          "ingested_at": "2026-10-25T12:19:15.000000Z",
+          "fact_code": "exception",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001010885",
+          "ingested_at": "2026-10-25T12:19:15.000000Z",
+          "fact_code": "fault_party",
+          "value": "carrier",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001010885",
+          "ingested_at": "2026-10-25T12:19:15.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "lost",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001010885",
+          "ingested_at": "2026-10-25T12:19:15.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-25T19:19:03+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001010885",
+          "ingested_at": "2026-10-25T12:19:15.000000Z",
+          "fact_code": "stage_location",
+          "value": "SC_NA",
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-21T01:24:38.000000Z",
+      "handed_over_at": "2026-10-22T07:30:24.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T01:24:38.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001247901",
+          "ingested_at": "2026-10-22T07:32:33.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-22T07:30:24.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH87493720",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH87493720",
+      "payment": "PREPAID",
+      "priority": 1,
+      "cause": {
+        "fault_party": "carrier",
+        "reason_codes": [
+          "status:exception",
+          "guaranteed_day_exceeded",
+          "fault:carrier",
+          "eta_missing",
+          "confidence_missing"
+        ]
+      },
+      "evidence_ref": "#/orders/15/evidence"
+    },
+    {
+      "order_id": "261021N6G3EZ55",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "at_risk",
+      "guaranteed_date": "2026-10-28",
+      "revised_eta": "2026-10-30T02:58:53.000000Z",
+      "late_days": 0,
+      "late_probability": 0.8463349911768867,
+      "confidence": 0.6351351351351351,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:at_risk",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001031567",
+          "ingested_at": "2026-10-27T13:38:19.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "linehaul_departed",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001031567",
+          "ingested_at": "2026-10-27T13:38:19.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-27T20:38:04+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001031567",
+          "ingested_at": "2026-10-27T13:38:19.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-GLE-HCM_TDM-DN-261027R",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6351351351351351,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 592,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T02:58:53.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6351351351351351,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 592,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T02:58:53.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6351351351351351,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 470,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 592,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.8463349911768867,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T02:58:53.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "933118c805a8bb992bc144dce9af32af9894cefaf0bf304f52599b08f2367ea6",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-21T15:31:38.000000Z",
+      "handed_over_at": "2026-10-23T07:12:20.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T15:31:38.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000941814",
+          "ingested_at": "2026-10-23T07:14:53.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-23T07:12:20.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH13396631",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH13396631",
+      "payment": "COD",
+      "priority": 5,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:at_risk",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/16/evidence"
+    },
+    {
+      "order_id": "26102208X2CPDV",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "slow_safe",
+      "guaranteed_date": "2026-10-28",
+      "revised_eta": "2026-10-28T05:50:27.000000Z",
+      "late_days": 0,
+      "late_probability": 0.11062558593367358,
+      "confidence": 0.6867807153965786,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:slow_safe",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-28",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000018822",
+          "ingested_at": "2026-10-28T00:32:50.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "out_for_delivery",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000018822",
+          "ingested_at": "2026-10-28T00:32:50.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-28T07:31:09+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000018822",
+          "ingested_at": "2026-10-28T00:32:50.000000Z",
+          "fact_code": "stage_location",
+          "value": "BC5781",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6867807153965786,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1104,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1286,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.11062558593367358,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-28T05:50:27.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6867807153965786,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1104,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1286,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.11062558593367358,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-28T05:50:27.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6867807153965786,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1104,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1286,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.11062558593367358,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-28T05:50:27.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "1b14154a33e15a217379f0ba1d19b30e2e7bdb86bf6a67fab7cef717f7bcf0e8",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-22T11:34:34.000000Z",
+      "handed_over_at": "2026-10-24T06:23:56.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T11:34:34.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001484541",
+          "ingested_at": "2026-10-24T06:24:25.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T06:23:56.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH36050107",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH36050107",
+      "payment": "PREPAID",
+      "priority": 7,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:slow_safe",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/17/evidence"
+    },
+    {
+      "order_id": "26102210WJKVSL",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "at_risk",
+      "guaranteed_date": "2026-10-29",
+      "revised_eta": "2026-10-30T03:36:08.000000Z",
+      "late_days": 0,
+      "late_probability": 0.5197544589684374,
+      "confidence": 0.5519463087248322,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:at_risk",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-29",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001664949",
+          "ingested_at": "2026-10-27T15:09:49.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "linehaul_departed",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001664949",
+          "ingested_at": "2026-10-27T15:09:49.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-27T22:09:11+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001664949",
+          "ingested_at": "2026-10-27T15:09:49.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-SAO-CT-HN-261027P",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5519463087248322,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2570,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3725,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.5197544589684374,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:36:08.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5519463087248322,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2570,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3725,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.5197544589684374,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:36:08.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.5519463087248322,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 2570,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 3725,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.5197544589684374,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-30T03:36:08.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": false,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-22T15:09:58.000000Z",
+      "handed_over_at": "2026-10-24T07:47:40.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T15:09:58.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000392583",
+          "ingested_at": "2026-10-24T07:48:55.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T07:47:40.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH12729203",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "payment_method",
+          "value": "PREPAID",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH12729203",
+      "payment": "PREPAID",
+      "priority": 5,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:at_risk",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/18/evidence"
+    },
+    {
+      "order_id": "2610226TDAHWK6",
+      "assessed_at": "2026-10-28T05:00:00.000000Z",
+      "status": "slow_safe",
+      "guaranteed_date": "2026-10-29",
+      "revised_eta": "2026-10-29T04:05:44.000000Z",
+      "late_days": 0,
+      "late_probability": 0.1097921522223693,
+      "confidence": 0.6489419424850786,
+      "fault_party": "unknown",
+      "reason_codes": [
+        "status:slow_safe",
+        "fault:unknown",
+        "eta_from_structured_evidence"
+      ],
+      "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "guaranteed_date",
+          "value": "2026-10-29",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001418929",
+          "ingested_at": "2026-10-26T12:45:45.000000Z",
+          "fact_code": "logistics_stage",
+          "value": "linehaul_departed",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001418929",
+          "ingested_at": "2026-10-26T12:45:45.000000Z",
+          "fact_code": "stage_event_at",
+          "value": "2026-10-26T19:44:30+07:00",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001418929",
+          "ingested_at": "2026-10-26T12:45:45.000000Z",
+          "fact_code": "stage_location",
+          "value": "LH-SAO-CT-NA-261026R",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6489419424850786,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1495,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1843,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.1097921522223693,
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-29T04:05:44.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "delivery_attempts",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6489419424850786,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1495,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1843,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.1097921522223693,
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-29T04:05:44.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "confidence",
+          "value": 0.6489419424850786,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_delivered_count",
+          "value": 1495,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_method",
+          "value": "kaplan_meier_carrier_service_stage_v1",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "forecast_sample_count",
+          "value": 1843,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "late_probability",
+          "value": 0.1097921522223693,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "revised_eta",
+          "value": "2026-10-29T04:05:44.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_survival_v1",
+          "record_id": "f83fc8d2fcd73e6fe969d22571514242b85e03bc5ed5cf49100593a39a05c57e",
+          "ingested_at": "2026-10-28T05:00:00.000000Z",
+          "fact_code": "slow_safe",
+          "value": true,
+          "is_structured": true
+        }
+      ],
+      "created_at": "2026-10-22T15:29:46.000000Z",
+      "handed_over_at": "2026-10-24T05:23:01.000000Z",
+      "metadata_reason_codes": [],
+      "metadata_evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T15:29:46.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001528614",
+          "ingested_at": "2026-10-24T05:25:45.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T05:23:01.000000Z",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "customer_id",
+          "value": "KH45937186",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "payment_method",
+          "value": "COD",
+          "is_structured": true
+        }
+      ],
+      "customer_id": "KH45937186",
+      "payment": "COD",
+      "priority": 7,
+      "cause": {
+        "fault_party": "unknown",
+        "reason_codes": [
+          "status:slow_safe",
+          "fault:unknown",
+          "eta_from_structured_evidence"
+        ]
+      },
+      "evidence_ref": "#/orders/19/evidence"
+    }
+  ],
+  "sample": {
+    "source": "data/release_main/core_14d.sqlite",
+    "source_sha256": "65c820444b12bd644416f8d7688b1581ed9ef09f2bac5a1583168f63ec10f153",
+    "as_of": "2026-10-28T05:00:00.000000Z",
+    "count": 20,
+    "selection": "Round-robin by STATUSES rank and payment_method; order_id ascending within each group.",
+    "feed_health_source": "platform_huy.sysguard.health_for on the full as-of source snapshot",
+    "usage": "Internal UI output example; not replay input or authority for contact/actions."
+  }
+}

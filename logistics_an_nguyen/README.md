@@ -104,8 +104,29 @@ Hàm trả envelope nội bộ `payload_version="a2_order_list_v1"`, `tick_at`,
 | --- | --- |
 | `created_at` | Ngày đặt từ `orders.created_at`; null nếu feed orders không dùng được |
 | `handed_over_at` | Event time sớm nhất của scan `handed_over` nhìn thấy; null nếu thiếu scan hoặc feed orders/scan_events không dùng được |
-| `metadata_evidence` | Bằng chứng ngày đặt/bàn giao gồm bảng, record ID, ingestion và giá trị timestamp |
+| `customer_id` | ID khách từ đơn nguồn tại cùng cutoff; null nếu thiếu hoặc feed orders không dùng được |
+| `payment` | `orders.payment_method`: `COD` hoặc `PREPAID`; null nếu thiếu hoặc feed orders không dùng được. Không phải trạng thái đã thu tiền |
+| `priority` | Số 1–8 theo thứ tự `contracts.types.STATUSES`, số nhỏ ưu tiên hiển thị trước; không phải quyền liên hệ |
+| `cause` | Object `{fault_party, reason_codes}` sao chép đúng kết luận assessment, giữ `unknown` khi chưa rõ nguyên nhân; không suy lỗi từ text tài xế |
+| `evidence_ref` | JSON Pointer trong chính envelope, ví dụ `#/orders/0/evidence`, trỏ đến evidence của assessment tương ứng |
+| `metadata_evidence` | Bằng chứng ngày đặt/bàn giao, customer ID và phương thức thanh toán gồm bảng, record ID, ingestion và giá trị nguồn |
 | `metadata_reason_codes` | `created_at_feed_unavailable`, `handed_over_scan_missing`, `handed_over_at_feed_unavailable` khi tương ứng |
+
+Đây là các trường bổ sung tương thích của `a2_order_list_v1`; `OrderAssessment`
+không đổi. Projection cũ không có customer/payment trả null, không đoán từ mã đơn.
+`evidence_ref` chỉ có nghĩa trong đúng envelope đã xuất: resolve trước khi lọc/sắp
+lại mảng `orders`, hoặc tạo lại pointer cho mảng mới. Đây không phải
+`Action.evidence_ref` bền để executor cấp tiền. Bằng chứng metadata vẫn là audit
+nội bộ khi feed lỗi; route phải phân quyền/redact trước khi trả cho người dùng.
+
+[sample_orders.json](sample_orders.json) là payload bàn giao **20 đơn có thật
+trong release** tại `2026-10-28T12:00:00+07:00`, có cả COD/PREPAID. File giữ cùng
+envelope và đầy đủ evidence để Trúc/UI đọc trực tiếp `orders`. Chọn luân phiên
+theo nhóm `(status, payment_method)` từ toàn bộ assessment cùng tick, trong nhóm
+theo order ID; chỉ lấy những trạng thái thực sự có ở tick này, không dựng đủ 8
+nhãn. Health được tính bởi `platform_huy.sysguard.health_for` từ snapshot nguồn;
+file không chứa quyền liên hệ hoặc heartbeat hiện tại. Trường `sample` ghi cutoff,
+SHA-256 DB nguồn và cách chọn. File mẫu là output để đọc UI, không nhập lại replay.
 
 Timestamp đầu ra dùng UTC ISO 8601; `guaranteed_date` vẫn là ngày Việt Nam.
 Trúc hiển thị timestamp theo Asia/Ho_Chi_Minh và phân biệt ngày đặt, ngày bàn giao,
@@ -221,7 +242,7 @@ trên là yêu cầu bàn giao trong repository, chưa được gửi cho thành
 
 ```powershell
 .venv/Scripts/python.exe -m pytest -q acceptance_an_nguyen
-.venv/Scripts/python.exe -m pytest -q acceptance_huy/test_assessed_order_handoff.py
+.venv/Scripts/python.exe -m pytest -q acceptance_an_nguyen/test_assessed_order_handoff.py
 .venv/Scripts/python.exe -m pytest -q
 ```
 
@@ -276,7 +297,9 @@ tra; cutoff được đổi về cùng định dạng. Không dùng SQLite `date
 
 Đọc bảng không có `ingested_at` dùng thời điểm availability theo D5 của Huy.
 Không đọc `truth_main.sqlite`,
-`main/`, `heldout/`, ledger, ticket, số tiền hay thông tin định danh khách.
+`main/`, `heldout/`, ledger, ticket, số tiền, tên, số điện thoại hay địa chỉ khách.
+Reader chỉ bổ sung `customer_id` và `payment_method` từ orders để bàn giao UI;
+hai trường này không đi vào mô hình ETA hoặc quy lỗi.
 `ops_14d.sqlite` dành cho A3; adapter A2 chưa tự kết luận feed khỏe từ telemetry.
 
 - Lọc ingestion trước; chọn scan cuối theo **event time**, tie theo thứ tự vòng
@@ -402,7 +425,7 @@ chưa biết trong tập risk không terminal đủ thời hạn. Cận model 0,
 và baseline 0,0738–0,1401 còn chồng nhau, nên không suy kết luận toàn tập chỉ từ
 complete-case score. Chưa xác nhận mô hình đủ chất lượng để dùng tự động.
 
-Test: `.venv/Scripts/python.exe -m pytest -q acceptance_huy/test_forecast_validation.py`.
+Test: `.venv/Scripts/python.exe -m pytest -q acceptance_an_nguyen/test_forecast_validation.py`.
 Ma trận case platform chờ interface thật nằm trong
 `../.scratch/specs/a2-platform-acceptance.md`; không phải các test tích hợp đã chạy.
 
