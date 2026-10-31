@@ -11,10 +11,10 @@ Ngày: 2026-10-31. Nhánh: `truc/fastapi-docker`. Spec và plan: `.scratch/specs
 
 ## Kiểm chứng
 
-- Baseline sau sync `origin/main` tới `8f58e83`: 633 acceptance tests và 96 care tests đạt.
+- Baseline đầu phiên sau sync `origin/main` tới `8f58e83`: 633 acceptance tests và 96 care tests đạt.
 - Task 1a sau sửa: 15 probe tests đạt. SQLite HTTP harness chỉ kiểm tooling, không chứng minh Turso.
 - Task 2 trước fix API boundary: toàn bộ care + ba acceptance folders đạt 755 tests. Fix API boundary thêm hai regression; focused API/port/question suite đạt 22 tests. Không gọi kết quả 755 là full-suite result của commit sau fix.
-- Sau khi cập nhật main mới `3c70fe2`, cần chạy lại combined suite để kiểm live demo/gateway mới với local async port.
+- Sau khi merge main mới `3c70fe2` tại `cf2e798`, chạy lại `python -m pytest -q care_truc/tests acceptance_an_nguyen acceptance_truc acceptance_huy`: **798 passed in 132.41s**, exit0. Bao gồm integration/demo/deploy mới và hai API regression sau fix. `python scripts/guardrails.py --all` và `git diff --check` đều đạt.
 - Existing global pytest_asyncio fixture-loop deprecation warning đã có từ baseline.
 - `git diff --check` đạt cho code task đã commit.
 
