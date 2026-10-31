@@ -303,7 +303,11 @@ class CareHarness:
                                if item["kind"] == "customer"]
                     effects = [dict(row) for row in self.store.effects() if row["session_id"] == session_id]
                     payload["summary"] = self.renderer.render_handoff(outcome.state, snapshot, event=event,
-                        history=history, effects=effects, previous_pending=state.pending)
+                        history=history, effects=effects, previous_pending=state.pending,
+                        reason=payload["reason"], evidence_refs=(request["id"],),
+                        receipts=[json.loads(row[0]) for row in self.store.db.execute(
+                            "SELECT data FROM receipts WHERE effect_id IN (SELECT id FROM pending_effects WHERE session_id=?) ORDER BY effect_id,revision",
+                            (session_id,))])
                 proposals.append(replace(proposal, payload=canonical(payload), evidence_ref=request["id"]))
             outcome = replace(outcome, proposals=tuple(proposals))
             if outcome.phrase_id == "blocked":
@@ -387,12 +391,45 @@ class CareHarness:
             proposal = json.loads(row["proposal"])
             if proposal["kind"] != "handoff_request":
                 continue
-            state = self.session(row["session_id"])
+            state = self.store.load_session(row["session_id"])
+            if state.run_id != self.run_id:
+                continue
             await self.authorize(ctx, state.order_id, state.principal_id)
             result.append({"session_id": state.session_id, "order_id": state.order_id,
                 "status": state.status, "delivery_status": row["state"],
                 "summary": json.loads(proposal["payload"]).get("summary")})
         return {"handoffs": result}
+
+    @tracked
+    async def retry_handoff(self, session_id: str, ctx: TrustedRequestContext) -> str:
+        """Internal capability: requeue only a blocked, never submitted envelope."""
+        if not isinstance(ctx, TrustedRequestContext) or "care_handoff_retry" not in ctx.staff_permissions:
+            raise CareError("forbidden", 403)
+        state = self.session(session_id)
+        await self.authorize(ctx, state.order_id, state.principal_id)
+        async with self.lock(session_id):
+            state = self.session(session_id)
+            row = self.store.db.execute(
+                "SELECT * FROM pending_effects WHERE run_id=? AND session_id=? AND json_extract(proposal,'$.kind')='handoff_request'",
+                (self.run_id, session_id)).fetchone()
+            if (state.status != "handoff_pending" or row is None or row["state"] != "blocked"
+                    or row["attempts"] or row["manual"] or row["outcome"] != "unknown"):
+                raise CareError("handoff_retry_not_allowed", 409)
+            if self.dispatcher is None or not getattr(self.dispatcher.gate, "supports_deadlines", False):
+                raise CareError("dispatcher_unavailable", 503)
+            proposal = EffectProposal(**json.loads(row["proposal"]))
+            snapshot = await self.snapshot(state, ctx)
+            if not self.guards.validate_dispatch(proposal, snapshot).allowed:
+                return "blocked"
+            try:
+                gate = await bounded(self.dispatcher.gate.check(proposal, ctx,
+                    deadline=self.clock.monotonic() + 2), self.clock, 2)
+            except Exception:
+                return "blocked"
+            if not gate.allowed:
+                return "blocked"
+            self.store.set_effect(row["id"], state="pending_delivery", next_at=0)
+            return "pending_delivery"
 
     @tracked
     async def resolve(self, ref: str, server_ctx: TrustedRequestContext) -> str:

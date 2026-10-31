@@ -31,16 +31,14 @@ class CarePolicy:
         new = replace(state, turn_count=state.turn_count + 1,
                       abusive_turn_count=state.abusive_turn_count + int(abuse))
         if intent == "ask_human" or new.turn_count >= max_turns or new.abusive_turn_count >= 3:
-            new = replace(new, status="handoff_pending", pending=None)
-            key = f"{state.run_id}:handoff:{state.session_id}"
-            proposal = EffectProposal(key, key, state.session_id, state.order_id,
-                "handoff_request", canonical({"order_id": state.order_id, "reason": intent}), "")
-            return PolicyOutcome(new, intent, "handoff", proposals=(proposal,), invalidate_unsent=True)
+            reason = ("customer_requested_human" if intent == "ask_human" else
+                      "abuse_limit" if new.abusive_turn_count >= 3 else "turn_limit")
+            return self._handoff(new, intent, reason)
         if changed_mind:
             return PolicyOutcome(replace(new, pending=None, status="active"), intent,
                                  "changed_mind", invalidate_unsent=True)
         if context.assessment is None and (intent == "want_cancel" or event.kind == "confirm_cancel"):
-            return PolicyOutcome(new, intent, "clarify", ("context_unavailable",))
+            return self._handoff(new, intent, "required_assessment_unavailable")
         if intent == "want_cancel":
             pending = PendingCancellation(uuid4().hex, event.request_id,
                                            context.cutoff + timedelta(minutes=10))
@@ -75,6 +73,13 @@ class CarePolicy:
                 return self._action(new, intent, action)
             return PolicyOutcome(new, intent, "ineligible", guard.codes or ("coins_ineligible",))
         return PolicyOutcome(new, intent, "explain" if intent == "ask_why" else "clarify")
+
+    def _handoff(self, state, intent, reason) -> PolicyOutcome:
+        state = replace(state, status="handoff_pending", pending=None)
+        key = f"{state.run_id}:handoff:{state.session_id}"
+        proposal = EffectProposal(key, key, state.session_id, state.order_id,
+            "handoff_request", canonical({"order_id": state.order_id, "reason": reason}), "")
+        return PolicyOutcome(state, intent, "handoff", (reason,), proposals=(proposal,), invalidate_unsent=True)
 
     def _action(self, state, intent, action) -> PolicyOutcome:
         proposal = EffectProposal(action.idempotency_key, action.idempotency_key, state.session_id,

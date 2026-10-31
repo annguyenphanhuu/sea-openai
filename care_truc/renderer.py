@@ -45,13 +45,22 @@ class ResponseRenderer:
         return RenderedResponse(text, phrase_id, reference, facts.evidence_refs,
                                 facts.public_evidence, facts.decision_codes)
 
-    def render_handoff(self, state, context, *, event=None, history=(), effects=(), previous_pending=None) -> str:
+    def render_handoff(self, state, context, *, event=None, history=(), effects=(), previous_pending=None, reason=None, evidence_refs=(), receipts=()) -> str:
         statements = [{"label": "customer_statement", "text": item.get("text") or "",
                        "kind": item.get("kind")} for item in history]
         if event is not None:
             statements.append({"label": "customer_statement", "text": event.text or "",
                                "kind": event.kind})
         return canonical({"order_id": state.order_id, "status": state.status,
+            "reason": reason, "evidence_refs": evidence_refs,
+            "action_receipts": receipts,
+            "cancellation_state": "invalidated" if previous_pending else "none",
+            "customer_need": statements,
+            "facts_trust": {"available": context.assessment is not None,
+                "current_and_trusted": Guardrails().validate_context(context).allowed,
+                "codes": Guardrails().validate_context(context).codes,
+                "assessed_at": context.assessment.assessed_at if context.assessment else None,
+                "cutoff": context.cutoff},
             "turn_count": state.turn_count, "pending_confirmation": state.pending,
             "invalidated_confirmation": previous_pending,
             "assessment_ref": fingerprint(context.assessment) if context.assessment else None,
