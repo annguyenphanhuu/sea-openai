@@ -10,6 +10,8 @@ Acceptance folders name the person being tested. Follow `docs/team_plan.md`; onl
 
 ## Development Commands
 
+Store coding specs in `.scratch/specs/`, implementation plans in `.scratch/plans/`, and research notes in `.scratch/research/`. Use matching descriptive Markdown filenames for related specs and plans.
+
 Use Python 3.11+ from the repository root:
 
 ```powershell
@@ -40,4 +42,4 @@ Use pytest; name files `test_*.py` and functions `test_*` inside your acceptance
 
 ## Commits & Pull Requests
 
-Use personal branches `huy`, `an-nguyen`, `truc`. Fetch the team remote and merge updates before work or push; integrate main into your personal branch. Do not install hooks or enforce task-branch names. Commit and push each completed, verified Huy unit to `upstream/huy`; merge/push main when requested. Use descriptive commit subjects. PRs explain behavior, contracts, tests, and UI changes.
+Use feature branches named `truc/<feature>`, `nguyen/<feature>`, or `huy/<feature>`. Use a short kebab-case feature name, for example `truc/care-api`. Fetch the team remote and merge updates before work or push; integrate main into your feature branch. Do not install hooks. Commit and push each completed, verified unit to its feature branch on the team remote (`origin` in a direct clone, `upstream` in a fork); merge/push main when requested. Use descriptive commit subjects. PRs explain behavior, contracts, tests, and UI changes.
