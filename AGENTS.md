@@ -2,9 +2,9 @@
 
 ## Project Structure & Ownership
 
-- Huy: `platform_huy/` (data validation/A3 and shared execution gate, except UI prototype), `acceptance_truc/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
+- Huy: `platform_huy/` (data validation/A3 and shared execution gate, except UI files), `acceptance_truc/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
 - An Nguyen: `logistics_an_nguyen/` (A2), `acceptance_huy/`.
-- Truc: `care_truc/` (A1, UI, HTTP APIs/auth), existing `platform_huy/ui_prototype/`, and `acceptance_an_nguyen/`.
+- Truc: `care_truc/` (A1, UI, HTTP APIs/auth), existing `platform_huy/ui_prototype/` and `platform_huy/serve_ui.py`, and `acceptance_an_nguyen/`.
 
 Acceptance folders name the person being tested. Follow `docs/team_plan.md`; only Huy edits contracts/dependencies. Request changes from other owners. A2 supplies assessed-order lists to Truc; Huy supplies source validation and feed trust. A2 and an illustrative UI prototype exist; the full pipeline is not implemented.
 
@@ -13,12 +13,13 @@ Acceptance folders name the person being tested. Follow `docs/team_plan.md`; onl
 Use Python 3.11+ from the repository root:
 
 ```powershell
-python -m pip install -r requirements/dev.txt  # Install test dependencies.
+python -m pip install -r requirements.txt      # Install shared development dependencies.
 python -c "import contracts"                 # Check contract imports.
 pytest -q                                   # Run acceptance tests.
 ```
 
-See module READMEs for A2 and prototype commands; no full application server exists yet.
+Run the static UI prototype with `python -m platform_huy.serve_ui` (localhost port 8765).
+No integrated application launch or build command exists yet.
 
 ## Coding Style
 

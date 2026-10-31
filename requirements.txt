@@ -1,0 +1,2 @@
+# Shared development setup (Python 3.11+).
+-r requirements/dev.txt

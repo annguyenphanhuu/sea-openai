@@ -11,7 +11,7 @@ Team: **Huy, An Nguyen, Trúc**. Phân công mới nhất: Huy kiểm định da
 | `contracts/` | Types, permission matrix, params, schema | Chỉ Huy |
 | `requirements/` | Dependencies runtime/dev | Chỉ Huy |
 | `platform_huy/` | Kiểm định DB, replay/state, A3 và cổng execute_action | Huy, trừ prototype UI bên dưới |
-| `platform_huy/ui_prototype/` | Prototype UI hiện có để Trúc tham khảo/tiếp quản | Trúc |
+| `platform_huy/ui_prototype/`, `platform_huy/serve_ui.py` | Prototype UI và launcher hiện có để Trúc tham khảo/tiếp quản | Trúc |
 | `logistics_an_nguyen/` | A2: đánh giá, danh sách đơn, mốc vận chuyển, ETA, nguyên nhân và bằng chứng | An Nguyen |
 | `care_truc/` | A1: chăm sóc khách/chat/web voice; toàn bộ UI và HTTP API/auth | Trúc |
 | `acceptance_huy/` | Test chéo cho platform/A3 của Huy | An Nguyen |
