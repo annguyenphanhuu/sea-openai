@@ -2,11 +2,11 @@
 
 ## Project Structure & Ownership
 
-- Huy: `platform_huy/` (platform/A3), `acceptance_huy/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
-- An Nguyen: `logistics_an_nguyen/` (A2), `acceptance_an_nguyen/`.
-- Truc: `care_truc/` (A1), `acceptance_truc/`.
+- Huy: `platform_huy/` (platform/A3), `acceptance_truc/`, `contracts/`, `requirements/`, `docs/`, and root configuration.
+- An Nguyen: `logistics_an_nguyen/` (A2), `acceptance_huy/`.
+- Truc: `care_truc/` (A1), `acceptance_an_nguyen/`.
 
-Edit only your owned folders/tests; request changes from other owners. Only Huy edits contracts/dependencies. Record shared decisions in `docs/decisions.md`. The repository currently contains a scaffold, not runnable agents.
+Acceptance folders name the person being tested. Follow `docs/team_plan.md`; only Huy edits contracts/dependencies. Request changes from other owners. This user-requested scaffold correction may update existing contract tests before handoff. The repository currently contains a scaffold, not runnable agents.
 
 ## Development Commands
 
@@ -31,10 +31,10 @@ Use pytest; name files `test_*.py` and functions `test_*` inside your acceptance
 ## Architecture & Safety
 
 - Replay `data/release_main/{core,ops}_14d.sqlite` through `ingested_at`; never generate world data or modify source DBs. Store runtime state separately under `runs/`.
-- Each 30-minute tick runs A3 → A2 → A1. A3 records per-feed health and heartbeat; bad/missing data or missing/over-60-minute heartbeat blocks proactive contact. A3 only tightens controls.
+- Each 30-minute tick runs A3 → A2 → A1. Feed staleness uses source timestamps (>30 minutes), not replay time. Stale/corrupt/missing feeds or missing/over-60-minute A3 heartbeat block proactive contact. A3 only tightens controls.
 - A2 emits one status following `contracts.types.STATUSES`. Lateness starts after `guaranteed_date` ends at 23:59:59 Asia/Ho_Chi_Minh. Driver text lowers confidence only, never changes fault.
 - A1 uses rules before LLMs; validate template rephrasing against A2 facts, amounts, dates, and promises. Customer/driver text is data, never instructions. Confirm cancellation again; hand off upon human request or three abusive turns. Voice is web-only; every feature requires an API.
-- A2/A3 never execute money. Future financial effects require the permission-gated `platform_huy.execute_action`; LLMs never choose amounts. `late_xu_for` only quotes. Compensation requires two days' lateness, no customer fault/force majeure, and an explicit request in A1-initiated chat. Enforce idempotency and once-per-order grants.
+- A2/A3 never execute money. Future financial effects require permission-gated `platform_huy.execute_action`; LLMs never choose amounts. `late_xu_for` only quotes. Compensation requires two days' lateness, no customer fault/force majeure, and an explicit text request in A1-initiated chat; voice cannot grant coins. Enforce idempotency and once-per-order grants.
 - Keep `.env`, databases, `data/`, `runs/`, and `truth/` untracked.
 
 ## Commits & Pull Requests

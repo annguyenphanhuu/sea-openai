@@ -1,9 +1,14 @@
 """Exercise persistence constraints using isolated in-memory state only."""
 
 from pathlib import Path
+from dataclasses import asdict
+from datetime import datetime
 import sqlite3
+from typing import get_args
 
 import pytest
+
+from contracts import ALLOWED_SOURCES, Action, ActionKind, ActionSource
 
 
 SCHEMA = Path(__file__).resolve().parents[1] / "contracts" / "schema_state.sql"
@@ -25,11 +30,26 @@ def state():
 
 
 def add_request(state, action_id, key, order_id="order-1"):
+    action = Action(
+        action_id=action_id,
+        order_id=order_id,
+        kind="coins",
+        amount_vnd=10_000,
+        source="a1",
+        requested_at=datetime.fromisoformat(NOW),
+        idempotency_key=key,
+        evidence_ref="contact_log:contact-1",
+        needs_approval=False,
+        queue="care",
+    )
+    values = asdict(action)
+    values["requested_at"] = NOW
+    values["available_at"] = NOW
+    columns = ", ".join(values)
+    placeholders = ", ".join("?" for _ in values)
     state.execute(
-        "INSERT INTO outbox "
-        "(action_id, idempotency_key, order_id, kind, actor, contact_id, "
-        "requested_at, available_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (action_id, key, order_id, "grant_late_xu", "A1", "contact-1", NOW, NOW),
+        f"INSERT INTO outbox ({columns}) VALUES ({placeholders})",
+        tuple(values.values()),
     )
 
 
@@ -79,3 +99,38 @@ def test_ledger_rejects_amount_outside_contract(state, amount):
 def test_ledger_requires_an_existing_action(state):
     with pytest.raises(sqlite3.IntegrityError, match="FOREIGN KEY constraint failed"):
         add_ledger_fixture(state, "ledger-1", "grant-1", "missing-action")
+
+
+@pytest.mark.parametrize("kind", get_args(ActionKind))
+@pytest.mark.parametrize("source", get_args(ActionSource))
+def test_outbox_enforces_source_permissions(state, kind, source):
+    add_request(state, "action-1", "request-1")
+    if source in ALLOWED_SOURCES[kind]:
+        state.execute("UPDATE outbox SET kind=?, source=?", (kind, source))
+        assert state.execute("SELECT kind, source FROM outbox").fetchone() == (kind, source)
+    else:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+            state.execute("UPDATE outbox SET kind=?, source=?", (kind, source))
+
+
+def test_action_round_trip_preserves_amount_and_review_fields(state):
+    add_request(state, "action-1", "request-1")
+    assert state.execute(
+        "SELECT amount_vnd, source, evidence_ref, needs_approval, queue FROM outbox"
+    ).fetchone() == (10_000, "a1", "contact_log:contact-1", 0, "care")
+
+
+@pytest.mark.parametrize("status", ["trusted", "stale", "corrupt", "missing"])
+def test_feed_health_preserves_source_time_separately_from_tick(state, status):
+    source_time = "2026-10-31T23:20:00.000000Z"
+    state.execute(
+        "INSERT INTO guard_heartbeat (tick_at, agent_id, recorded_at, proactive_contact_allowed) "
+        "VALUES (?, ?, ?, ?)", (NOW, "a3", NOW, 0),
+    )
+    state.execute(
+        "INSERT INTO feed_health (feed, tick_at, status, source_timestamp, checked_at) "
+        "VALUES (?, ?, ?, ?, ?)", ("scan_events", NOW, status, source_time, NOW),
+    )
+    assert state.execute("SELECT source_timestamp, tick_at FROM feed_health").fetchone() == (
+        source_time, NOW,
+    )
