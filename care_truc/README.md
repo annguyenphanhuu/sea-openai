@@ -1,6 +1,6 @@
 # Customer care, A1, UI, and APIs
 Input: A2 assessed-order lists with shipping dates, ETA and delay evidence, plus A3 gates and customer turns.
-Implemented output: in-process chat JSON responses, durable action requests and handoffs. Web voice and HTTP mounting remain external integration work.
+Implemented output: in-process chat JSON responses, durable action requests and handoffs. The integrated local server mounts HTTP APIs and OpenAI web voice; the care core remains framework-independent.
 Owner: Truc.
 Boundary: Rules first; LLM output is untrusted; no direct money effects or telephone calls.
 

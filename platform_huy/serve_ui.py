@@ -40,7 +40,7 @@ class LocalHTTPServer(ThreadingHTTPServer):
 def create_server(*, core_path: Path, state_path: Path,
                   start_at: datetime | None = None, port: int = 8765,
                   host: str = "127.0.0.1", integrated: bool = False,
-                  ops_path: Path | None = None, selector=None, reviewer=None) -> LocalHTTPServer:
+                  ops_path: Path | None = None, selector=None, reviewer=None, voice_provider=None) -> LocalHTTPServer:
     """Create an actual HTTP server; tests and CLI share the same request path."""
     from .presenter_auth import PresenterAuth
     presenter = PresenterAuth(host) if integrated else None
@@ -53,6 +53,13 @@ def create_server(*, core_path: Path, state_path: Path,
     directory = Path(__file__).resolve().parent / "ui_prototype"
     orders_directory = directory.parent.parent / 'logistics_an_nguyen' / 'ui'
     orders_token = secrets.token_urlsafe(32)
+    voice = None
+    voice_code = secrets.token_urlsafe(32)
+    if integrated:
+        from .voice_routes import VoiceRoutes
+        voice = VoiceRoutes(state_path.parent / 'voice.sqlite', os.environ.get('OPENAI_API_KEY', ''), voice_code,
+            provider=voice_provider, validate_session=lambda sid: demo.request('voice-validate', {'session_id': sid}).get('valid') is True)
+
 
     class Handler(SimpleHTTPRequestHandler):
         extensions_map = {**SimpleHTTPRequestHandler.extensions_map, '.mjs': 'text/javascript'}
@@ -123,6 +130,37 @@ def create_server(*, core_path: Path, state_path: Path,
                 self._json(400, {'error': 'Invalid JSON object'})
                 return None
 
+        def _voice_api(self, operation: str, payload: dict) -> None:
+            from .voice_routes import VoiceError
+            if voice is None or presenter is None or not presenter.authorized(self.headers):
+                self._json(401, {'error': 'Presenter key required'})
+                return
+            try:
+                if operation == 'state':
+                    result = dict(voice.state(voice_code), available=bool(os.environ.get('OPENAI_API_KEY')))
+                elif operation == 'create':
+                    if not isinstance(payload.get('request_id'), str) or not payload['request_id'] or len(payload['request_id']) > 200:
+                        raise VoiceError(400, 'voice_payload_invalid')
+                    opened = demo.request('voice-open', payload)
+                    result = dict(voice.create({'session_id': opened['session_id']}, voice_code), care_session_id=opened['session_id'])
+                elif operation == 'turn':
+                    authorized = voice.authorize_turn(payload, voice_code)
+                    request_id = payload.get('request_id')
+                    if not isinstance(request_id, str) or not request_id or len(request_id) > 200:
+                        raise VoiceError(400, 'voice_payload_invalid')
+                    result = demo.request('voice-say', dict(authorized, request_id=request_id))
+                else:
+                    result = voice.end(payload, voice_code)
+                self._json(200, result)
+            except VoiceError as error:
+                self._json(error.status, {'error': error.code})
+            except Exception as error:
+                from care_truc.runtime_types import CareError
+                if isinstance(error, CareError):
+                    self._json(error.status, {'error': error.code})
+                else:
+                    self._json(503, {'error': 'voice_unavailable'})
+
         def do_GET(self) -> None:
             path = urlsplit(self.path).path
             query = {key: values[-1] for key, values in parse_qs(urlsplit(self.path).query).items()}
@@ -165,6 +203,15 @@ def create_server(*, core_path: Path, state_path: Path,
                 "http://" + host_header, "https://" + host_header
             ):
                 self._json(403, {"error": "Local origin required", "proactive_allowed": False})
+                return
+            if integrated and urlsplit(self.path).path.startswith('/api/voice/'):
+                operation = urlsplit(self.path).path.removeprefix('/api/voice/')
+                if operation not in ('state', 'create', 'turn', 'end'):
+                    self._json(404, {'error': 'Unknown voice route'})
+                    return
+                payload = self._body()
+                if payload is not None:
+                    self._voice_api(operation, payload)
                 return
             routes = {"/api/a3/kill": "kill", "/api/a3/revive": "revive",
                       "/api/next": "next", "/api/a3/proactive-check": "proactive-check"}
