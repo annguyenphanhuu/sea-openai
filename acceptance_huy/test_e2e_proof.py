@@ -113,7 +113,7 @@ def persisted_request(proof, tmp_path, text='Xin boi thuong xu', *, cancel=False
     assessment = OrderAssessment('o', NOW, 'late', datetime(2026,10,22).date(), None, 2, 1.0, 0.9, 'carrier', (), ())
     snapshot = ContextSnapshot('customer', 'o', NOW, assessment,
         GuardSnapshot('a3', NOW, (FeedSnapshot('orders','trusted',NOW),), ('orders',), True, True),
-        525000, False, True, True)
+        525000, False, True, True, ledger_pending=False)
 
     def commit(event):
         nonlocal state
@@ -131,7 +131,8 @@ def persisted_request(proof, tmp_path, text='Xin boi thuong xu', *, cancel=False
 
     if cancel:
         commit(CustomerEvent('message','want-cancel','Toi muon huy don'))
-        proposals = commit(CustomerEvent('confirm_cancel','confirm', confirmation_id=state.pending.confirmation_id))
+        proposals = commit(CustomerEvent('confirm_cancel','confirm', confirmation_id=state.pending.confirmation_id,
+            reply_to=state.pending.reply_to, confirmed=True))
     else:
         proposals = commit(CustomerEvent('message','text',text))
     return care, proposals[0] if proposals else None
@@ -244,3 +245,115 @@ def test_customer_text_does_not_clear_source_fault_or_force_majeure(proof,tmp_pa
     evidence = service.record_text(care,proposal,NOW)
     payload = json.loads(conn.execute('SELECT payload_json FROM execution_evidence WHERE evidence_id=?',(evidence,)).fetchone()[0])
     assert (payload['responsibility'],payload['force_majeure'],payload['review_id']) == ('unknown','unknown',None)
+
+
+@pytest.mark.parametrize('changed', ['principal', 'run', 'key', 'order', 'stale_assessment'])
+def test_demo_gateway_rechecks_final_authority_and_context(proof, tmp_path, changed):
+    """A previously accepted gate cannot authorize changed durable delivery facts."""
+    from types import SimpleNamespace
+    from care_truc.guardrails import Guardrails
+    from care_truc.runtime_types import CareError
+    from platform_huy.demo_flow import _Gateway
+
+    _, conn = proof
+    care = MemoryStore.open(tmp_path / 'final-care.sqlite')
+    try:
+        state = SessionState('session', 'r', 'customer', 'o', opened_by='a1', contact_id='contact')
+        care.create_session(state, 'opening')
+        proposal = EffectProposal('opening', 'opening', 'session', 'o', 'contact_send',
+                                  care_canonical({'text': 'Opening'}), '')
+        care.db.execute("INSERT INTO pending_effects(id,run_id,effect_key,session_id,proposal,session_version,state,outcome,attempts) "
+                        "VALUES ('opening','r','opening','session',?,0,'in_flight','unknown',1)",
+                        (care_canonical(proposal),))
+        conn.execute('CREATE TABLE demo_inbox(effect_id PRIMARY KEY,effect_key,session_id,order_id,text,created_at)')
+        conn.execute('CREATE TABLE demo_handoffs(effect_id PRIMARY KEY,session_id,payload,created_at)')
+        assessment = OrderAssessment('o', NOW, 'late', datetime(2026,10,22).date(),
+                                     None, 2, 1.0, 0.9, 'carrier', (), ())
+        if changed == 'stale_assessment':
+            assessment = replace(assessment, assessed_at=datetime.fromisoformat('2026-10-24T13:00:00+07:00'))
+        elif changed == 'key':
+            care.db.execute("UPDATE pending_effects SET effect_key='another-key'")
+        else:
+            field = {'principal': 'principal_id', 'run': 'run_id', 'order': 'order_id'}[changed]
+            altered = replace(state, **{field: 'another'})
+            care.db.execute('UPDATE sessions SET data=? WHERE id=?', (care_canonical(altered), state.session_id))
+        snapshot = ContextSnapshot('customer', 'o', NOW, assessment,
+            GuardSnapshot('a3', NOW, (FeedSnapshot('orders','trusted',NOW),), ('orders',), True, True))
+        flow = SimpleNamespace(conn=conn, run_id='r', now=NOW, gateway_errors=[],
+            care=SimpleNamespace(store=care, harness=SimpleNamespace(guards=Guardrails())),
+            context=SimpleNamespace(snapshot=lambda ctx, order_id: snapshot),
+            _inspect=lambda order_id: {'order': {'customer_id': 'c'}},
+            _principal=lambda facts: 'customer', _allowed=lambda: True,
+            _contacted_today=lambda customer, excluding=None: False)
+        expected = 'final_dispatch_blocked' if changed == 'stale_assessment' else 'effect_binding_invalid'
+        with pytest.raises(CareError, match=expected):
+            asyncio.run(_Gateway(flow).submit(proposal, deadline=time.monotonic() + 2))
+        for table in ('demo_inbox', 'demo_handoffs', 'contact_log'):
+            assert conn.execute(f'SELECT count(*) FROM {table}').fetchone() == (0,)
+    finally:
+        care.close()
+
+
+@pytest.mark.parametrize('adapter', ['recorder', 'gateway'])
+@pytest.mark.parametrize('changed', ['confirmed', 'reply_to'])
+def test_platform_cancellation_requires_explicit_bound_consent(proof, tmp_path, adapter, changed):
+    from care_truc.runtime_types import CareError
+    from platform_huy.effect_gateway import SqliteEffectGateway
+
+    service, conn = proof
+    care, proposal = persisted_request(proof, tmp_path, cancel=True)
+    try:
+        evidence = service.record_text(care, proposal, NOW) if adapter == 'gateway' else None
+        row = care.db.execute('SELECT data FROM evidence_bundles WHERE ref=?', (proposal.evidence_ref,)).fetchone()
+        bundle = json.loads(row[0])
+        bundle['event'][changed] = False if changed == 'confirmed' else 'different-prompt'
+        care.db.execute('UPDATE evidence_bundles SET data=? WHERE ref=?',
+                        (care_canonical(bundle), proposal.evidence_ref))
+        care.db.execute('UPDATE requests SET payload=? WHERE id=?',
+                        (care_canonical(bundle['event']), proposal.evidence_ref))
+        if adapter == 'recorder':
+            with pytest.raises(ValueError, match='cancel_confirmation_invalid'):
+                service.record_text(care, proposal, NOW)
+        else:
+            care.db.execute('UPDATE pending_effects SET attempts=1 WHERE id=?', (proposal.effect_id,))
+            gateway = SqliteEffectGateway(executor(proof), care,
+                context=ServerContext('a1-service','a1','c',None,frozenset({'cancel:request'})),
+                customer_principal='customer', evidence_bindings={proposal.evidence_ref: evidence})
+            with pytest.raises(CareError, match='care_evidence_invalid'):
+                asyncio.run(gateway.submit(proposal, deadline=time.monotonic() + 2))
+        for table in ('cancel_requests', 'outbox', 'ledger_new', 'action_receipts'):
+            assert conn.execute(f'SELECT count(*) FROM {table}').fetchone() == (0,)
+    finally:
+        care.close()
+
+
+def test_financial_acceptance_holds_care_authority_lock(proof, tmp_path, monkeypatch):
+    from platform_huy.effect_gateway import SqliteEffectGateway
+
+    service, conn = proof
+    care, proposal = persisted_request(proof, tmp_path, cancel=True)
+    contender = sqlite3.connect(tmp_path / 'care.sqlite', isolation_level=None, timeout=0)
+    try:
+        evidence = service.record_text(care, proposal, NOW)
+        care.db.execute('UPDATE pending_effects SET attempts=1 WHERE id=?', (proposal.effect_id,))
+        gateway = SqliteEffectGateway(executor(proof), care,
+            context=ServerContext('a1-service','a1','c',None,frozenset({'cancel:request'})),
+            customer_principal='customer', evidence_bindings={proposal.evidence_ref: evidence})
+        original = gateway._verify_provenance
+        checked = []
+
+        def attempt_authority_change(*args):
+            with pytest.raises(sqlite3.OperationalError, match='locked'):
+                contender.execute("UPDATE sessions SET principal='another' WHERE id='session'")
+            checked.append(True)
+            return original(*args)
+
+        monkeypatch.setattr(gateway, '_verify_provenance', attempt_authority_change)
+        receipt = asyncio.run(gateway.submit(proposal, deadline=time.monotonic() + 2))
+        assert checked == [True]
+        assert receipt.outcome == 'awaiting_approval'
+        assert conn.execute('SELECT count(*) FROM cancel_requests').fetchone() == (1,)
+        assert conn.execute('SELECT count(*) FROM ledger_new').fetchone() == (0,)
+    finally:
+        contender.close()
+        care.close()

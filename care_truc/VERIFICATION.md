@@ -35,9 +35,52 @@ authorization evidence fail closed. Contact sessions lacking the bound open
 fingerprint also need an explicit migration decision. Use fresh run state;
 retention and migration of existing production state require separate review.
 
-No HTTP server, network authentication, voice provider/session negotiation or
-replay-fed A2/A3/executor delivery is demonstrated. Huy's current
-`SqliteEffectGateway` does not advertise atomic final validation, so integrated
-delivery is blocked until the owner implements and declares that guarantee.
-Separate gate checking cannot establish it. Required handoff inputs and proposed
-route mapping are in README; all route decisions remain subject to platform review.
+## Local release-fed integration
+
+`acceptance_huy/test_e2e_flow.py`, `test_e2e_proof.py` and
+`test_integration_tick.py` verify `DemoFlow` against existing release inputs and
+isolated runtime SQLite. A3, A2 and A1 run in order. Actual local effects include
+web-inbox/contact rows, staff handoffs, cancellation review requests and a coin
+ledger committed by the real SQLite executor. A staff review in these tests is
+explicit simulated authorization, not a source finding about responsibility or
+force majeure. Release databases remain read-only. None of these local effects
+asserts external provider delivery or commercial payout.
+
+Both local gateways attest `atomic_final_validation is True`. Financial dispatch
+holds the care write lock through durable provenance validation and executor
+acceptance. The executor owns the platform transaction and checks current server
+permission, guard, trusted evidence, eligibility, immutable amounts and global
+once-per-order grants. Contact dispatch rechecks durable identity/run/order/key,
+current context and daily contact limits under both write locks without an await
+before inbox acceptance. Handoff remains available when proactive controls close.
+
+The guarantee is scoped to one event-loop thread, the care OS ownership lock and
+a single trusted runtime writer. It is not a distributed transaction and does not
+authorize arbitrary concurrent platform processes. Such a deployment needs an
+executor-owned provenance acceptance seam and fresh review before attestation.
+
+New regression tests reject changed final delivery authority or stale context,
+require explicit bound cancellation consent at both provenance boundaries, and
+prove a competing SQLite writer cannot change care authority during financial
+acceptance. All ten fail against the pre-integration production modules loaded
+in memory and pass against the implemented modules.
+
+Presenter HTTP authentication is covered separately. Customer CareApi HTTP routes,
+customer network authentication, external contact providers and web voice/session
+negotiation are not established by the local integration. Required adapter inputs
+and proposed route mapping remain in README.
+
+## Verified integration revision, 2026-10-31
+
+The user-approved main integration changes pass these fresh checks:
+
+- Touched release-fed flow/tick and presenter authentication tests: **30 passed**.
+- Proof, coin, cancellation and dispatch regression tests: **115 passed**.
+- Required combined acceptance and care suite: **1174 passed**.
+- Root acceptance suite through `guardrails.py --all --tests`: **684 passed**;
+  guardrails passed. Contract/care imports, standalone demo and diff checks pass.
+
+The ten new authority/consent/concurrency tests also fail against the previous
+gateway implementations loaded in memory, proving they detect the repaired gaps.
+Implementation verification is complete for the local scope above. Independent
+controller review precedes push; production deployment approval is separate.

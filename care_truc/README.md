@@ -68,11 +68,13 @@ python scripts/guardrails.py --all --tests
 The root pytest configuration discovers acceptance folders only, so the explicit
 harness command is required. Tests use isolated SQLite, fake operational time,
 fixed authenticated context and scripted gateways under `care_truc/tests/`.
-They do not read or generate replay world data. Passing these tests does not prove
-HTTP integration, real A3/A2/executor/provider delivery or production readiness.
+They do not read or generate replay world data. The separate
+`acceptance_huy/test_e2e_flow.py`, `test_e2e_proof.py` and
+`test_integration_tick.py` exercise the release-fed local integration described
+below. Neither suite establishes external provider delivery or production readiness.
 Retention is run-scoped; a production retention policy remains separate work.
 `CareHarness.resolve(ref, server_ctx)` supplies durable decision evidence to the platform under the explicit `care_evidence` server permission and ownership authorization. It is not a customer API operation.
-Verified during implementation: harness tests and repository acceptance tests pass; import contracts, diff check and full repository guardrails pass. All network/context/clock adapters in these runs are the labeled test fixtures, with actual SQLite and OS locks. Provider, HTTP, A3/A2/executor integration remains separate.
+See [VERIFICATION.md](VERIFICATION.md) for current commands, results and deployment scope.
 
 
 ## Integrated business policy
@@ -154,13 +156,27 @@ required. Gateway `atomic_final_validation` must be exactly `True`: this is a
 platform guarantee of atomic latest permission/control/D4 validation at acceptance,
 not permission for a caller to set a flag to bypass a missing implementation.
 
-Huy must provide ownership/principal/cutoff binding, completed assessment and
-item value as-of, mandatory-feed policy, atomic latest-control dispatch, durable
-gateway lookup/receipts and global order uniqueness, durable handoff delivery,
-HTTP mount/authentication and review of route decisions. The current platform
-`SqliteEffectGateway` lacks `atomic_final_validation`; real integrated delivery
-therefore remains unavailable and the dispatcher fails closed. This demo does
-not change that gateway. Voice provider/session negotiation is also unintegrated.
+The standalone algorithm demo remains separate from
+`platform_huy.demo_flow.DemoFlow`. The latter replays the existing release inputs
+through A3, A2 and A1, writes actual local web-inbox contacts and staff handoffs,
+and uses `SqliteEffectGateway`/`execute_action` for durable local coin ledgers and
+cancellation review requests. Source databases stay read-only; runtime state is
+separate. These receipts describe local SQLite effects, not commercial payouts
+or contact delivery through an external provider.
+
+Both local gateways now declare `atomic_final_validation` after final authority
+and dispatch checks. Care provenance stays locked through financial acceptance;
+the executor owns its own atomic permission, guard, eligibility, amount and
+once-per-order ledger checks. Demo contact checks run under both write locks
+without an await before inbox acceptance. This guarantee requires the existing
+single event-loop thread, care OS ownership lock and one trusted runtime writer.
+It does not establish a distributed transaction or support arbitrary competing
+platform processes. A deployment with multiple runtime writers needs a reviewed
+executor-owned provenance acceptance seam before using this attestation.
+
+The presenter HTTP adapter has separate authentication tests; those do not mount
+the proposed customer CareApi routes or establish customer network authentication.
+External delivery and voice provider/session negotiation remain unintegrated.
 
 API payloads use `handle_message(session_id, message_id, text, reply_to?)` and
 `confirm_cancel(confirmation_id, request_id, reply_to, confirmed)`; JSON confirmed

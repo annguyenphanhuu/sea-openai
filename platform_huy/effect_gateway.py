@@ -30,6 +30,7 @@ class SqliteEffectGateway:
 
     supports_deadlines = True
     idempotent = True
+    atomic_final_validation = True
 
     def __init__(self, store: SqliteStateStore, care_store: MemoryStore, *,
                  context: ServerContext, customer_principal: str,
@@ -143,7 +144,9 @@ class SqliteEffectGateway:
                         or confirmation['expires_at'] != pending['expires_at']):
                     raise ValueError('Cancellation provenance does not match')
                 if event['kind'] == 'confirm_cancel':
-                    if event.get('confirmation_id') != action.confirmation_id or message['body'] != 'confirm_cancel:' + action.confirmation_id:
+                    if (event.get('confirmed') is not True or event.get('reply_to') != pending['reply_to']
+                            or event.get('confirmation_id') != action.confirmation_id
+                            or message['body'] != 'confirm_cancel:' + action.confirmation_id):
                         raise ValueError('Cancellation event does not match')
                 elif event['kind'] == 'message':
                     from care_truc.policy import signals
@@ -167,16 +170,19 @@ class SqliteEffectGateway:
     async def submit(self, proposal: EffectProposal, *, deadline: float) -> Receipt:
         """Execute a persisted A1 request; receipt means an actual local effect."""
         with self._deadline(deadline):
-            action, state = self._prepare(proposal)
-            existing = get_receipt(action.idempotency_key, store=self.store, context=self.context)
-            if existing is None:
-                if state.status != 'active':
-                    raise CareError('session_not_active', 409)
-                self._verify_provenance(proposal, action, state)
-            if time.monotonic() >= deadline:
-                raise TimeoutError('deadline_exceeded')
-            result = execute_action(action, store=self.store, context=self.context)
-            return self._receipt(proposal, result)
+            # Freeze durable care authority/provenance through platform acceptance.
+            # execute_action owns the separate platform transaction; do not nest it.
+            with self.care_store.transaction():
+                action, state = self._prepare(proposal)
+                existing = get_receipt(action.idempotency_key, store=self.store, context=self.context)
+                if existing is None:
+                    if state.status != 'active':
+                        raise CareError('session_not_active', 409)
+                    self._verify_provenance(proposal, action, state)
+                if time.monotonic() >= deadline:
+                    raise TimeoutError('deadline_exceeded')
+                result = execute_action(action, store=self.store, context=self.context)
+                return self._receipt(proposal, result)
 
     async def lookup(self, key: str, *, deadline: float) -> Receipt | None:
         """Recover real committed success after response loss or adapter restart."""

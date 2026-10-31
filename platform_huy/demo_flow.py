@@ -59,7 +59,11 @@ class _Context:
             raise CareError('forbidden', 403)
 
     async def load(self, ctx, order_id):
-        await self.authorize(ctx, order_id)
+        return self.snapshot(ctx, order_id)
+
+    def snapshot(self, ctx, order_id):
+        if ctx.principal_id != self.flow._principal(self.flow._inspect(order_id)):
+            raise CareError('forbidden', 403)
         flow = self.flow
         proof = flow._inspect(order_id)
         assessment = flow.assessments.get(order_id)
@@ -122,6 +126,7 @@ class _Gate:
 class _Gateway:
     supports_deadlines = True
     idempotent = True
+    atomic_final_validation = True
 
     def __init__(self, flow):
         self.flow = flow
@@ -150,18 +155,31 @@ class _Gateway:
                 raise TimeoutError('deadline_exceeded')
             if proposal.kind == 'action_request':
                 return await self._financial(proposal).submit(proposal, deadline=deadline)
-            state = flow.care.store.load_session(proposal.session_id)
-            persisted = flow.care.store.effect(proposal.effect_id)
-            if persisted is None or persisted['attempts'] < 1 or persisted['proposal'] != canonical(proposal):
-                raise CareError('effect_binding_invalid', 403)
-            if proposal.kind == 'contact_send':
-                payload = json.loads(proposal.payload)
-                with immediate(flow.conn):
+            # No await inside these locks: final durable authority and controls
+            # remain stable until the local inbox transaction commits.
+            with flow.care.store.transaction(), immediate(flow.conn):
+                state = flow.care.store.load_session(proposal.session_id)
+                persisted = flow.care.store.effect(proposal.effect_id)
+                if (persisted is None or persisted['attempts'] < 1
+                    or persisted['run_id'] != flow.run_id or state.run_id != flow.run_id
+                    or persisted['effect_key'] != proposal.key or persisted['session_id'] != state.session_id
+                    or state.order_id != proposal.order_id
+                    or state.principal_id != flow._principal(flow._inspect(state.order_id))
+                    or persisted['proposal'] != canonical(proposal)):
+                    raise CareError('effect_binding_invalid', 403)
+                if proposal.kind == 'contact_send':
+                    if state.status != 'active' or state.opened_by != 'a1' or state.channel != 'chat':
+                        raise CareError('session_not_active', 409)
+                    payload = json.loads(proposal.payload)
                     # Recheck under the same write transaction that makes the
                     # message available in the inbox. Earlier async guard/gate
                     # snapshots cannot authorize delivery after a runtime kill.
                     if not flow._allowed():
                         raise CareError('proactive_blocked', 409)
+                    snapshot = flow.context.snapshot(TrustedRequestContext(state.principal_id), state.order_id)
+                    decision = flow.care.harness.guards.validate_dispatch(proposal, snapshot)
+                    if not decision.allowed:
+                        raise CareError('final_dispatch_blocked', 409)
                     customer = flow._inspect(state.order_id)['order']['customer_id']
                     if flow._contacted_today(customer, excluding=state.contact_id):
                         raise CareError('customer_daily_contact_limit', 409)
@@ -174,14 +192,15 @@ class _Gateway:
                     flow.conn.execute('INSERT OR IGNORE INTO demo_inbox VALUES (?,?,?,?,?,?)',
                         (proposal.effect_id, proposal.key, state.session_id, state.order_id,
                          payload['text'], timestamp))
-                remote = 'web-inbox:' + proposal.effect_id
-            elif proposal.kind == 'handoff_request':
-                with immediate(flow.conn):
+                    remote = 'web-inbox:' + proposal.effect_id
+                elif proposal.kind == 'handoff_request':
+                    if state.status not in ('handoff_pending', 'transferred'):
+                        raise CareError('session_state_conflict', 409)
                     flow.conn.execute('INSERT OR IGNORE INTO demo_handoffs VALUES (?,?,?,?)',
                         (proposal.effect_id, state.session_id, proposal.payload, utc(flow.now)))
-                remote = 'staff-inbox:' + proposal.effect_id
-            else:
-                raise CareError('effect_kind_not_supported', 409)
+                    remote = 'staff-inbox:' + proposal.effect_id
+                else:
+                    raise CareError('effect_kind_not_supported', 409)
             return Receipt(proposal.effect_id, proposal.key, fingerprint(proposal.payload),
                            1, 'succeeded', remote)
         except Exception as error:

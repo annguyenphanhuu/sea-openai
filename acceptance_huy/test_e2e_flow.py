@@ -38,7 +38,7 @@ def test_actual_release_next_real_a1_four_customer_turns(tmp_path):
         # No audit review has happened. Real A1 and the financial gate fail closed.
         second = flow.request('chat-say', {'session_id': session, 'text': 'Tôi xin xu', 'request_id': 'turn-2'})
         assert second['ledger'] == []
-        assert second['turn_result']['codes'] == ['coins_ineligible']
+        assert second['turn_result']['codes'] == ['coins_evidence_unavailable', 'coins_fault_ineligible']
         third = flow.request('chat-say', {'session_id': session, 'text': 'Tôi muốn hủy đơn', 'request_id': 'turn-3'})
         assert third['turn_result']['confirmation_id']
         assert third['outbox'] == []
