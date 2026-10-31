@@ -1,0 +1,2 @@
+# Deployment-only Hub client; application modules use the Python standard library.
+huggingface-hub==1.16.4

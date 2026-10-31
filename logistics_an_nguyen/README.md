@@ -22,6 +22,14 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 | Baseline ETA/xác suất | Đã có survival model và CLI kiểm định cửa sổ cố định; chưa hiệu chỉnh hoặc xác nhận chất lượng toàn tập |
 | Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy phụ trách kiểm định/A3/state; Trúc phụ trách A1/UI/HTTP/auth; An bàn giao danh sách assessment |
 
+## UI danh sách đơn
+
+Trang quản lý danh sách 20 đơn bằng HTML/CSS/JS thuần nằm trong
+[`ui/`](ui/README.md). Chạy `.venv/Scripts/python.exe -m logistics_an_nguyen.ui`
+rồi mở `http://127.0.0.1:8766/ui/`. Mặc định đọc `sample_orders.json`; adapter
+`?source=api` dành cho HTTP API của Trúc khi sẵn sàng. Nút xác minh mở bằng chứng
+để đối chiếu, chưa ghi nhận phê duyệt.
+
 ## Python API
 
 ```python

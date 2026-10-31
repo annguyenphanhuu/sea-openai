@@ -4,6 +4,7 @@ from contextlib import closing
 from dataclasses import asdict
 from datetime import datetime, timedelta
 import json
+import os
 from pathlib import Path
 import sqlite3
 from threading import Lock
@@ -21,6 +22,12 @@ def project_root() -> Path:
                  if (path / "data/release_main/core_14d.sqlite").is_file()), root)
 
 
+def release_dir() -> Path:
+    """Allow deployment inputs without changing local release discovery."""
+    configured = os.environ.get("SEA_RELEASE_DIR")
+    return Path(configured) if configured else project_root() / "data/release_main"
+
+
 class A3Demo:
     """Serialize local requests; only NEXT advances business time or runs A3."""
 
@@ -32,8 +39,10 @@ class A3Demo:
             parent.name.casefold() == "data" for parent in self.state_path.parents
         ):
             raise ValueError("Runtime must be separate from source and outside data directories")
-        if self.state_path.exists() and self.state_path.samefile(self.core_path):
-            raise ValueError("Runtime must not refer to the source file")
+        if self.state_path.exists():
+            source_paths = (self.core_path, self.core_path.parent / 'ops_14d.sqlite')
+            if any(path.exists() and self.state_path.samefile(path) for path in source_paths):
+                raise ValueError("Runtime must not refer to a source file")
         self.lock = Lock()
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as state:

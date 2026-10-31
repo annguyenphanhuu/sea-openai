@@ -1,6 +1,6 @@
 # Điều chỉnh lưu trữ cho demo trên Space
 
-Quyết định của Huy ngày 31/10/2026. Đây là phần điều chỉnh cho kế hoạch triển khai Space được nhắc trong hội thoại; chưa xác định được đường dẫn bản kế hoạch gốc. Không đổi số thứ tự hoặc nội dung Task 2/Task 5 của kế hoạch platform chín task.
+Quyết định của Huy ngày 31/10/2026. Huy đã xác nhận bước 2/bước 5 là trong tin nhắn, không có file kế hoạch gốc cần tìm. Bản ghi chính thức nằm tại [decisions-lunch.md](decisions-lunch.md). Không đổi số thứ tự hoặc nội dung Task 2/Task 5 của kế hoạch platform chín task.
 
 ## Bước 2 — Gỡ PR MongoDB khỏi main
 
