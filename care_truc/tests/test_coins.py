@@ -112,7 +112,7 @@ def test_local_reservation_refuses_new_message_and_durable_evidence(tmp_path):
         await h.drain_pending()
         refused=await h.handle_message(other.session_id,'new-session','cho tôi xu',CUSTOMER)
         assert not refused.effect_ids and 'coins_grant_pending' in refused.codes
-        effects=[row for row in h.store.effects() if json.loads(row['proposal'])['kind']=='action_request']
+        effects=[row for row in runtime.store.effects() if json.loads(row['proposal'])['kind']=='action_request']
         assert len(effects)==1
         proposal=json.loads(effects[0]['proposal'])
         evidence=json.loads(await h.resolve(proposal['evidence_ref'],TrustedRequestContext('staff',frozenset({'care_evidence'}))))

@@ -33,12 +33,15 @@ def test_actual_release_next_real_a1_four_customer_turns(tmp_path):
         assert opened['pending_verification']['order']['items_value_vnd'] == 525000
         assert opened['pending_verification']['order']['delivered_at'] is None
         assert opened['pending_verification']['coin_quote'] == 26000
+        assert opened['orders'][0]['fault_party'] == 'carrier'
+        assert opened['orders'][0]['handover_on_time'] is True
+        assert opened['orders'][0]['lsr_exemption']
         first = flow.request('chat-say', {'session_id': session, 'text': 'Tại sao đơn hàng trễ?', 'request_id': 'turn-1'})
         assert first['turn_result']['intent'] == 'ask_why'
         # No audit review has happened. Real A1 and the financial gate fail closed.
         second = flow.request('chat-say', {'session_id': session, 'text': 'Tôi xin xu', 'request_id': 'turn-2'})
         assert second['ledger'] == []
-        assert second['turn_result']['codes'] == ['coins_evidence_unavailable', 'coins_fault_ineligible']
+        assert second['turn_result']['codes'] == ['coins_evidence_unavailable']
         third = flow.request('chat-say', {'session_id': session, 'text': 'Tôi muốn hủy đơn', 'request_id': 'turn-3'})
         assert third['turn_result']['confirmation_id']
         assert third['outbox'] == []
@@ -67,7 +70,8 @@ def test_explicit_simulated_staff_review_real_money_and_four_turns(tmp_path):
             'responsibility': 'carrier', 'force_majeure': 'absent',
             'evidence_refs': opened['pending_verification']['evidence_refs']})
         assert reviewed['pending_verification']['evidence_ready'] is True
-        assert reviewed['orders'][0]['fault_party'] == 'unknown'
+        assert reviewed['orders'][0] == opened['orders'][0]
+        assert reviewed['orders'][0]['fault_party'] == 'carrier'
         first = flow.request('chat-say', {'session_id': session, 'text': 'Tại sao đơn hàng trễ?', 'request_id': 'why'})
         assert first['turn_result']['intent'] == 'ask_why'
         second = flow.request('chat-say', {'session_id': session, 'text': 'Tôi xin xu', 'request_id': 'coins'})

@@ -38,12 +38,24 @@
       "late_probability": 0.0,
       "confidence": 1.0,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:on_track",
         "delivery_confirmed",
         "fault:unknown"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101800VWCQ8J",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:56:29.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -69,6 +81,24 @@
           "ingested_at": "2026-10-18T10:56:29.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T10:56:29.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000109664",
+          "ingested_at": "2026-10-19T04:50:24.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:50:07.000000Z",
           "is_structured": true
         },
         {
@@ -199,12 +229,24 @@
       "late_probability": 0.0,
       "confidence": 1.0,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:on_track",
         "delivery_confirmed",
         "fault:unknown"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26101802ZPABQE",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T12:07:17.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -230,6 +272,24 @@
           "ingested_at": "2026-10-18T12:07:17.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T12:07:17.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000361863",
+          "ingested_at": "2026-10-19T04:23:30.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:23:17.000000Z",
           "is_structured": true
         },
         {
@@ -360,14 +420,27 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "customer",
+      "fault_owner": "customer",
+      "handover_on_time": true,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:customer_fault",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
         "fault:customer",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:25:19.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -393,6 +466,24 @@
           "ingested_at": "2026-10-18T10:25:19.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T10:25:19.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000099835",
+          "ingested_at": "2026-10-20T07:03:48.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T07:03:11.000000Z",
           "is_structured": true
         },
         {
@@ -502,6 +593,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610180BP00VSA",
+          "ingested_at": "2026-10-20T07:03:48.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T10:25:19.000000Z",
@@ -553,6 +653,7 @@
         "reason_codes": [
           "status:customer_fault",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
           "fault:customer",
           "eta_missing",
           "confidence_missing"
@@ -570,14 +671,27 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "customer",
+      "fault_owner": "customer",
+      "handover_on_time": true,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:customer_fault",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
         "fault:customer",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:17:55.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -603,6 +717,24 @@
           "ingested_at": "2026-10-18T10:17:55.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T10:17:55.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000287754",
+          "ingested_at": "2026-10-19T07:34:44.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T07:34:15.000000Z",
           "is_structured": true
         },
         {
@@ -694,6 +826,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610180GSJAZVD",
+          "ingested_at": "2026-10-19T07:34:44.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T10:17:55.000000Z",
@@ -745,6 +886,7 @@
         "reason_codes": [
           "status:customer_fault",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
           "fault:customer",
           "eta_missing",
           "confidence_missing"
@@ -762,14 +904,27 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "customer",
+      "fault_owner": "customer",
+      "handover_on_time": true,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:customer_fault",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
         "fault:customer",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T15:58:07.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -795,6 +950,24 @@
           "ingested_at": "2026-10-18T15:58:07.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T15:58:07.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001534535",
+          "ingested_at": "2026-10-20T09:42:58.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T09:41:49.000000Z",
           "is_structured": true
         },
         {
@@ -868,6 +1041,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610180NM62DZO",
+          "ingested_at": "2026-10-20T09:42:58.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T15:58:07.000000Z",
@@ -919,6 +1101,7 @@
         "reason_codes": [
           "status:customer_fault",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
           "fault:customer",
           "eta_missing",
           "confidence_missing"
@@ -935,15 +1118,29 @@
       "late_days": 1,
       "late_probability": 1.0,
       "confidence": 1.0,
-      "fault_party": "unknown",
+      "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:late",
         "guaranteed_day_exceeded",
         "delivery_confirmed",
-        "fault:unknown",
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
+        "fault:carrier",
         "cod_refusal_risk:high"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T10:20:12.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -969,6 +1166,24 @@
           "ingested_at": "2026-10-18T10:20:12.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T10:20:12.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000825530",
+          "ingested_at": "2026-10-19T07:18:43.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T07:17:26.000000Z",
           "is_structured": true
         },
         {
@@ -1051,6 +1266,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610182F1K1SGO",
+          "ingested_at": "2026-10-19T07:18:43.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T10:20:12.000000Z",
@@ -1098,12 +1322,14 @@
       "payment": "COD",
       "priority": 4,
       "cause": {
-        "fault_party": "unknown",
+        "fault_party": "carrier",
         "reason_codes": [
           "status:late",
           "guaranteed_day_exceeded",
           "delivery_confirmed",
-          "fault:unknown",
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
+          "fault:carrier",
           "cod_refusal_risk:high"
         ]
       },
@@ -1119,14 +1345,27 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": false,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:exception",
         "guaranteed_day_exceeded",
+        "seller_handover_late",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T08:59:55.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -1152,6 +1391,24 @@
           "ingested_at": "2026-10-18T08:59:55.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T08:59:55.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001543356",
+          "ingested_at": "2026-10-20T09:02:54.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-20T09:01:58.000000Z",
           "is_structured": true
         },
         {
@@ -1197,6 +1454,15 @@
           "ingested_at": "2026-10-23T21:40:34.000000Z",
           "fact_code": "stage_location",
           "value": "BC6147",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610184ZP2TJSA",
+          "ingested_at": "2026-10-20T09:02:54.000000Z",
+          "fact_code": "handover_on_time",
+          "value": false,
           "is_structured": true
         }
       ],
@@ -1249,6 +1515,7 @@
         "reason_codes": [
           "status:exception",
           "guaranteed_day_exceeded",
+          "seller_handover_late",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -1265,16 +1532,30 @@
       "late_days": 4,
       "late_probability": 1.0,
       "confidence": 0.0,
-      "fault_party": "unknown",
+      "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:late",
         "guaranteed_day_exceeded",
-        "fault:unknown",
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
+        "fault:carrier",
         "eta_missing",
         "confidence_missing",
         "cod_refusal_risk:high"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T12:29:30.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -1300,6 +1581,24 @@
           "ingested_at": "2026-10-18T12:29:30.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T12:29:30.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000468762",
+          "ingested_at": "2026-10-19T10:27:13.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T10:26:22.000000Z",
           "is_structured": true
         },
         {
@@ -1400,6 +1699,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610185FIXZUFU",
+          "ingested_at": "2026-10-19T10:27:13.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T12:29:30.000000Z",
@@ -1447,11 +1755,13 @@
       "payment": "COD",
       "priority": 4,
       "cause": {
-        "fault_party": "unknown",
+        "fault_party": "carrier",
         "reason_codes": [
           "status:late",
           "guaranteed_day_exceeded",
-          "fault:unknown",
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
+          "fault:carrier",
           "eta_missing",
           "confidence_missing",
           "cod_refusal_risk:high"
@@ -1469,14 +1779,27 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "customer",
+      "fault_owner": "customer",
+      "handover_on_time": true,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:customer_fault",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
         "fault:customer",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T06:23:37.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -1502,6 +1825,24 @@
           "ingested_at": "2026-10-18T06:23:37.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T06:23:37.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000942470",
+          "ingested_at": "2026-10-18T07:13:40.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-18T07:11:43.000000Z",
           "is_structured": true
         },
         {
@@ -1611,6 +1952,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "261018JRHBR0E8",
+          "ingested_at": "2026-10-18T07:13:40.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T06:23:37.000000Z",
@@ -1662,6 +2012,7 @@
         "reason_codes": [
           "status:customer_fault",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
           "fault:customer",
           "eta_missing",
           "confidence_missing"
@@ -1678,14 +2029,28 @@
       "late_days": 1,
       "late_probability": 1.0,
       "confidence": 1.0,
-      "fault_party": "unknown",
+      "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:late",
         "guaranteed_day_exceeded",
         "delivery_confirmed",
-        "fault:unknown"
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
+        "fault:carrier"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T03:40:06.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -1711,6 +2076,24 @@
           "ingested_at": "2026-10-18T03:40:06.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T03:40:06.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000898719",
+          "ingested_at": "2026-10-19T08:08:48.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T08:07:57.000000Z",
           "is_structured": true
         },
         {
@@ -1775,6 +2158,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "261018LZFT8L9X",
+          "ingested_at": "2026-10-19T08:08:48.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T03:40:06.000000Z",
@@ -1822,12 +2214,14 @@
       "payment": "PREPAID",
       "priority": 4,
       "cause": {
-        "fault_party": "unknown",
+        "fault_party": "carrier",
         "reason_codes": [
           "status:late",
           "guaranteed_day_exceeded",
           "delivery_confirmed",
-          "fault:unknown"
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
+          "fault:carrier"
         ]
       },
       "evidence_ref": "#/orders/9/evidence"
@@ -1841,14 +2235,28 @@
       "late_days": 2,
       "late_probability": 1.0,
       "confidence": 1.0,
-      "fault_party": "unknown",
+      "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:late",
         "guaranteed_day_exceeded",
         "delivery_confirmed",
-        "fault:unknown"
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
+        "fault:carrier"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-18T04:01:32.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -1874,6 +2282,24 @@
           "ingested_at": "2026-10-18T04:01:32.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-18T04:01:32.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000968817",
+          "ingested_at": "2026-10-19T04:36:50.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-19T04:35:49.000000Z",
           "is_structured": true
         },
         {
@@ -1974,6 +2400,15 @@
           "fact_code": "stage_location",
           "value": null,
           "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "261018SLU6SQ2Z",
+          "ingested_at": "2026-10-19T04:36:50.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
+          "is_structured": true
         }
       ],
       "created_at": "2026-10-18T04:01:32.000000Z",
@@ -2021,12 +2456,14 @@
       "payment": "PREPAID",
       "priority": 4,
       "cause": {
-        "fault_party": "unknown",
+        "fault_party": "carrier",
         "reason_codes": [
           "status:late",
           "guaranteed_day_exceeded",
           "delivery_confirmed",
-          "fault:unknown"
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
+          "fault:carrier"
         ]
       },
       "evidence_ref": "#/orders/10/evidence"
@@ -2041,14 +2478,28 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:exception",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-19T09:08:07.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -2074,6 +2525,24 @@
           "ingested_at": "2026-10-19T09:08:07.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-19T09:08:07.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000453436",
+          "ingested_at": "2026-10-21T06:16:41.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-21T06:14:42.000000Z",
           "is_structured": true
         },
         {
@@ -2119,6 +2588,15 @@
           "ingested_at": "2026-10-24T14:25:58.000000Z",
           "fact_code": "stage_location",
           "value": "BC9606",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "261019255H237M",
+          "ingested_at": "2026-10-21T06:16:41.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
           "is_structured": true
         }
       ],
@@ -2171,6 +2649,8 @@
         "reason_codes": [
           "status:exception",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -2188,14 +2668,28 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:exception",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-20T15:05:33.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -2221,6 +2715,24 @@
           "ingested_at": "2026-10-20T15:05:33.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-20T15:05:33.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000707369",
+          "ingested_at": "2026-10-22T05:04:18.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-22T05:02:31.000000Z",
           "is_structured": true
         },
         {
@@ -2266,6 +2778,15 @@
           "ingested_at": "2026-10-26T04:47:08.000000Z",
           "fact_code": "stage_location",
           "value": "LH-GLE-CT-DN-261023R",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "2610203551OOHS",
+          "ingested_at": "2026-10-22T05:04:18.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
           "is_structured": true
         }
       ],
@@ -2318,6 +2839,8 @@
         "reason_codes": [
           "status:exception",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -2335,6 +2858,9 @@
       "late_probability": 0.7641571583683008,
       "confidence": 0.5420373782574363,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
@@ -2342,6 +2868,15 @@
         "cod_refusal_risk:medium"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610214ZDKPZHL",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T13:56:19.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -2367,6 +2902,24 @@
           "ingested_at": "2026-10-21T13:56:19.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-21T13:56:19.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000638220",
+          "ingested_at": "2026-10-23T10:40:00.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-23T10:37:15.000000Z",
           "is_structured": true
         },
         {
@@ -2651,12 +3204,24 @@
       "late_probability": 0.8463349911768867,
       "confidence": 0.5222222222222223,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
         "eta_from_structured_evidence"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021DDI56UJ1",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T13:54:45.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -2682,6 +3247,24 @@
           "ingested_at": "2026-10-21T13:54:45.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-21T13:54:45.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001608751",
+          "ingested_at": "2026-10-24T03:36:37.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T03:34:58.000000Z",
           "is_structured": true
         },
         {
@@ -2965,14 +3548,28 @@
       "late_probability": 1.0,
       "confidence": 0.0,
       "fault_party": "carrier",
+      "fault_owner": "carrier",
+      "handover_on_time": true,
+      "lsr_exemption": "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển.",
       "reason_codes": [
         "status:exception",
         "guaranteed_day_exceeded",
+        "seller_handover_on_time",
+        "lsr_exempt:seller_handover_on_time",
         "fault:carrier",
         "eta_missing",
         "confidence_missing"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T01:24:38.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -2998,6 +3595,24 @@
           "ingested_at": "2026-10-21T01:24:38.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-21T01:24:38.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001247901",
+          "ingested_at": "2026-10-22T07:32:33.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-22T07:30:24.000000Z",
           "is_structured": true
         },
         {
@@ -3043,6 +3658,15 @@
           "ingested_at": "2026-10-25T12:19:15.000000Z",
           "fact_code": "stage_location",
           "value": "SC_NA",
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "a2_seller_protection_v1",
+          "record_id": "261021KV0GV81E",
+          "ingested_at": "2026-10-22T07:32:33.000000Z",
+          "fact_code": "handover_on_time",
+          "value": true,
           "is_structured": true
         }
       ],
@@ -3095,6 +3719,8 @@
         "reason_codes": [
           "status:exception",
           "guaranteed_day_exceeded",
+          "seller_handover_on_time",
+          "lsr_exempt:seller_handover_on_time",
           "fault:carrier",
           "eta_missing",
           "confidence_missing"
@@ -3112,6 +3738,9 @@
       "late_probability": 0.8463349911768867,
       "confidence": 0.6351351351351351,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
@@ -3119,6 +3748,15 @@
         "cod_refusal_risk:medium"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "261021N6G3EZ55",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-21T15:31:38.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -3144,6 +3782,24 @@
           "ingested_at": "2026-10-21T15:31:38.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-21T15:31:38.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000941814",
+          "ingested_at": "2026-10-23T07:14:53.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-23T07:12:20.000000Z",
           "is_structured": true
         },
         {
@@ -3428,12 +4084,24 @@
       "late_probability": 0.11062558593367358,
       "confidence": 0.6867807153965786,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:slow_safe",
         "fault:unknown",
         "eta_from_structured_evidence"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102208X2CPDV",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T11:34:34.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -3459,6 +4127,24 @@
           "ingested_at": "2026-10-22T11:34:34.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-22T11:34:34.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001484541",
+          "ingested_at": "2026-10-24T06:24:25.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T06:23:56.000000Z",
           "is_structured": true
         },
         {
@@ -3742,12 +4428,24 @@
       "late_probability": 0.5197544589684374,
       "confidence": 0.5519463087248322,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:at_risk",
         "fault:unknown",
         "eta_from_structured_evidence"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "26102210WJKVSL",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T15:09:58.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -3773,6 +4471,24 @@
           "ingested_at": "2026-10-22T15:09:58.000000Z",
           "fact_code": "payment_method",
           "value": "PREPAID",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-22T15:09:58.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV000392583",
+          "ingested_at": "2026-10-24T07:48:55.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T07:47:40.000000Z",
           "is_structured": true
         },
         {
@@ -4056,12 +4772,24 @@
       "late_probability": 0.1097921522223693,
       "confidence": 0.6489419424850786,
       "fault_party": "unknown",
+      "fault_owner": "unknown",
+      "handover_on_time": null,
+      "lsr_exemption": null,
       "reason_codes": [
         "status:slow_safe",
         "fault:unknown",
         "eta_from_structured_evidence"
       ],
       "evidence": [
+        {
+          "feed": "orders",
+          "source_table": "orders",
+          "record_id": "2610226TDAHWK6",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "created_at",
+          "value": "2026-10-22T15:29:46.000000Z",
+          "is_structured": true
+        },
         {
           "feed": "orders",
           "source_table": "orders",
@@ -4087,6 +4815,24 @@
           "ingested_at": "2026-10-22T15:29:46.000000Z",
           "fact_code": "payment_method",
           "value": "COD",
+          "is_structured": true
+        },
+        {
+          "feed": "orders",
+          "source_table": "policy",
+          "record_id": "seller_prepare_days",
+          "ingested_at": "2026-10-22T15:29:46.000000Z",
+          "fact_code": "seller_prepare_days",
+          "value": 2,
+          "is_structured": true
+        },
+        {
+          "feed": "scan_events",
+          "source_table": "scan_events",
+          "record_id": "EV001528614",
+          "ingested_at": "2026-10-24T05:25:45.000000Z",
+          "fact_code": "handed_over_at",
+          "value": "2026-10-24T05:23:01.000000Z",
           "is_structured": true
         },
         {
@@ -4369,6 +5115,7 @@
     "selection": "Round-robin by STATUSES rank and payment_method; order_id ascending within each group.",
     "feed_health_source": "platform_huy.sysguard.health_for on the full as-of source snapshot",
     "usage": "Internal UI output example; not replay input or authority for contact/actions.",
-    "risk_rule": "COD late: high if integer items_value_vnd >= 1000000 or a visible failed delivery attempt; other COD late/at_risk: medium."
+    "risk_rule": "COD late: high if integer items_value_vnd >= 1000000 or a visible failed delivery attempt; other COD late/at_risk: medium.",
+    "seller_protection_rule": "Actual lateness and handover within policy.seller_prepare_days; preserve confirmed customer/platform/force_majeure fault."
   }
 }

@@ -7,7 +7,7 @@ from contracts.types import STATUSES
 
 from .adapter import REQUIRED_FEEDS
 from .models import FeedHealth, TickResult, aware, parse_instant, utc_iso
-from .replay import ReplaySnapshot
+from .replay import ReplaySnapshot, handover_milestones
 from .service import assessment_payload, evidence_payload
 
 
@@ -49,22 +49,7 @@ def assessed_orders_payload(
             raise ValueError("snapshot must contain one visible row per order_id")
         orders[order_id], created[order_id] = row, created_at
 
-    handovers = {}
-    for row in snapshot.scans:
-        if row["order_id"] not in orders or row["status"] != "handed_over":
-            continue
-        ingested_at = parse_instant(row["ingested_at"], "handover ingested_at")
-        if ingested_at > tick_at:
-            continue
-        event_at = parse_instant(row["event_at"], "handover event_at")
-        if event_at > tick_at:
-            continue
-        if event_at < created[row["order_id"]]:
-            raise ValueError("handed_over event cannot precede order creation")
-        candidate = (event_at, ingested_at, row["event_id"])
-        previous = handovers.get(row["order_id"])
-        if previous is None or candidate < previous:
-            handovers[row["order_id"]] = candidate
+    handovers = handover_milestones(snapshot.scans, created, tick_at)
 
     assessments = {}
     for assessment in result.assessments:

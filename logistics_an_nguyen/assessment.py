@@ -15,6 +15,7 @@ from .replay import STAGES
 FACT_CODES = frozenset({
     "exception", "fault_party", "delivered_at", "revised_eta",
     "late_probability", "confidence", "slow_safe", "logistics_stage", "stationary_ticks",
+    "created_at", "handed_over_at", "seller_prepare_days",
 })
 
 
@@ -58,8 +59,13 @@ def _fact_value(item: Evidence) -> object:
     elif code == "fault_party":
         if value not in get_args(FaultParty):
             raise ValueError("invalid fault_party")
-    elif code in ("delivered_at", "revised_eta"):
-        return parse_instant(value, code)
+    elif code in ("delivered_at", "revised_eta", "created_at", "handed_over_at"):
+        instant = parse_instant(value, code)
+        if code in ("created_at", "handed_over_at") and instant > item["ingested_at"]:
+            raise ValueError(f"{code} cannot follow its ingestion")
+        return instant
+    elif code == "seller_prepare_days" and (type(value) is not int or value < 0):
+        raise ValueError("seller_prepare_days must be a nonnegative integer")
     elif code == "logistics_stage" and value not in STAGES:
         raise ValueError("invalid logistics_stage")
     elif code == "stationary_ticks" and (type(value) is not int or value < 0):
@@ -172,6 +178,35 @@ def assess_order(
         reasons.append("risk_estimate_missing")
 
     fault_party = facts.get("fault_party") or "unknown"
+    if late_days:
+        created_at = facts.get("created_at")
+        handed_over_at = facts.get("handed_over_at")
+        prepare_days = facts.get("seller_prepare_days")
+        handover_on_time = None
+        if not unavailable and not conflicts and all(
+            value is not None for value in (created_at, handed_over_at, prepare_days)
+        ):
+            if not created_at <= handed_over_at <= reference:
+                raise ValueError("handed_over_at must be between creation and delivery or tick_at")
+            handover_on_time = (handed_over_at - created_at).total_seconds() <= prepare_days * 86400
+        reasons.append(
+            "seller_handover_unverified" if handover_on_time is None else
+            "seller_handover_on_time" if handover_on_time else "seller_handover_late"
+        )
+        if handover_on_time is not None:
+            # Retain all input provenance plus a stable derived result for audit.
+            evidence += (dict(
+                feed="scan_events", source_table="a2_seller_protection_v1", record_id=order.order_id,
+                ingested_at=max(item["ingested_at"] for code in (
+                    "created_at", "handed_over_at", "seller_prepare_days"
+                ) for item in latest[code]),
+                fact_code="handover_on_time", value=handover_on_time, is_structured=True,
+            ),)
+        # Timely handover is a carrier-delay rule, not permission to replace a
+        # confirmed customer, platform or force-majeure cause with carrier fault.
+        if handover_on_time is True and fault_party in ("unknown", "carrier"):
+            fault_party = "carrier"
+            reasons.append("lsr_exempt:seller_handover_on_time")
     reasons.append(f"fault:{fault_party}")
     revised_eta = facts.get("revised_eta") if delivered_at is None else None
     if revised_eta is not None and revised_eta < tick_at:
