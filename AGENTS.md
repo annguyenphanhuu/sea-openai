@@ -39,4 +39,4 @@ Use pytest; name files `test_*.py` and functions `test_*` inside your acceptance
 
 ## Commits & Pull Requests
 
-Use personal branches `huy`, `an-nguyen`, `truc`. History uses short descriptive subjects, e.g. “Set up hackathon contracts.” Commit locally; push only on explicit request. PRs should describe behavior, affected contracts, and test results; link relevant issues and include screenshots for UI changes.
+Use personal branches `huy`, `an-nguyen`, `truc`. History uses short descriptive subjects, e.g. “Set up hackathon contracts.” The user authorizes committing and pushing each completed, verified unit to the team repository on `huy` (`upstream` in this checkout). Merge main when requested. PRs should describe behavior, affected contracts, and test results; link relevant issues and include screenshots for UI changes.

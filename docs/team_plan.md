@@ -108,7 +108,7 @@ Giờ tính từ lúc team bắt đầu thực thi plan. Huy dùng `huy`, An Ngu
 4. Trúc: A1 và test A2 do Trúc viết; chạy test A1 do Huy cung cấp.
 5. Huy: test A1, tích hợp API/UI/voice và regression toàn luồng; giải quyết conflict cùng chủ folder.
 
-Đưa test chéo cho chủ implementation chạy sớm trước merge. Không đổi contract âm thầm; mọi đổi contract qua Huy và thông báo hai bên dùng. Yêu cầu hiện tại là **commit local, chưa push**. Thứ tự trên là kế hoạch, không ủy quyền push/merge trong lần sửa scaffold này.
+Đưa test chéo cho chủ implementation chạy sớm trước merge. Không đổi contract âm thầm; mọi đổi contract qua Huy và thông báo hai bên dùng. Theo yêu cầu mới của Huy, **mỗi phần hoàn thành và kiểm tra đạt phải commit rồi push lên nhánh huy của repo team** (`upstream` trong checkout hiện tại). Merge vào main khi Huy yêu cầu. Các thành viên tiếp tục dùng nhánh cá nhân của mình.
 
 ## 5. Test chéo ai viết cho ai
 
