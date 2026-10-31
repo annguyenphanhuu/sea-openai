@@ -428,7 +428,19 @@ class CareHarness:
                 return "blocked"
             if not gate.allowed:
                 return "blocked"
-            self.store.set_effect(row["id"], state="pending_delivery", next_at=0)
+            # Gate calls yield: another owner may have claimed or accepted this envelope.
+            changed = self.store.db.execute(
+                "UPDATE pending_effects SET state='pending_delivery',next_at=0 "
+                "WHERE id=? AND run_id=? AND session_id=? AND effect_key=? "
+                "AND revision=? AND proposal=? AND state='blocked' AND attempts=0 "
+                "AND manual=0 AND outcome='unknown' AND EXISTS ("
+                "SELECT 1 FROM sessions WHERE id=? AND run_id=? AND principal=? "
+                "AND order_id=? AND version=? AND json_extract(data,'$.status')='handoff_pending')",
+                (row["id"], self.run_id, session_id, row["effect_key"], row["revision"],
+                 row["proposal"], session_id, self.run_id, state.principal_id,
+                 state.order_id, state.version)).rowcount
+            if changed != 1:
+                raise CareError("handoff_retry_not_allowed", 409)
             return "pending_delivery"
 
     @tracked

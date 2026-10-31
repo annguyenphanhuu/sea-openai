@@ -114,3 +114,64 @@ def test_handoff_listing_filters_other_runs(tmp_path):
         assert await other.get_handoffs(STAFF) == {'handoffs': []}
         h.store.close()
     asyncio.run(check())
+
+@pytest.mark.parametrize('accepted', [False, True])
+def test_late_retry_cannot_resurrect_effect_from_other_connection(tmp_path, accepted):
+    async def check():
+        from care_truc.harness import CareHarness
+        from care_truc.store import MemoryStore
+        from care_truc.runtime_types import GateDecision
+
+        class LateGate(Gate):
+            def __init__(self):
+                self.started = asyncio.Event()
+                self.release = asyncio.Event()
+
+            async def check(self, proposal, ctx, *, deadline):
+                self.started.set()
+                await self.release.wait()
+                return GateDecision(True)
+
+        class PausedGateway(ScriptedGateway):
+            def __init__(self):
+                super().__init__()
+                self.started = asyncio.Event()
+                self.release = asyncio.Event()
+
+            async def submit(self, proposal, *, deadline):
+                self.started.set()
+                await self.release.wait()
+                return await super().submit(proposal, deadline=deadline)
+
+        h = harness(tmp_path)
+        sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
+        result = await h.request_handoff(sid, 'human', CUSTOMER)
+        eid = result.effect_ids[0]
+        h.store.set_effect(eid, state='blocked')
+        late = LateGate()
+        h.dispatcher = EffectDispatcher(h, ScriptedGateway(), late)
+        waiting = asyncio.create_task(h.retry_handoff(sid, RETRY))
+        await late.started.wait()
+        other = CareHarness('run', MemoryStore.open(tmp_path / 'care.sqlite'), h.context_provider, h.clock)
+        gateway = PausedGateway()
+        other.dispatcher = EffectDispatcher(other, gateway, Gate())
+        assert await other.retry_handoff(sid, RETRY) == 'pending_delivery'
+        dispatch = asyncio.create_task(other.drain_pending())
+        await gateway.started.wait()
+        if accepted:
+            gateway.release.set()
+            await dispatch
+        before = dict(other.store.effect(eid))
+        late.release.set()
+        with pytest.raises(CareError, match='handoff_retry_not_allowed'):
+            await waiting
+        assert dict(other.store.effect(eid)) == before
+        assert before['state'] == ('delivered' if accepted else 'in_flight')
+        if not accepted:
+            gateway.release.set()
+            await dispatch
+        assert other.session(sid).status == 'transferred'
+        assert len(gateway.submissions) == 1
+        other.store.close()
+        h.store.close()
+    asyncio.run(check())
