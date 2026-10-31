@@ -5,13 +5,13 @@ import json
 
 from .hooks import bounded
 from .harness import tracked
-from .runtime_types import (CareError, DrainReport, EffectProposal, TrustedRequestContext)
+from .runtime_types import (CareError, DrainReport, EffectProposal, HookDecision, TrustedRequestContext)
 
 
 class EffectDispatcher:
     def __init__(self, harness, gateway, gate):
         self.harness = harness
-        self.store = harness.store
+        self.storage = harness.storage
         self.clock = harness.clock
         self.gateway = gateway
         self.gate = gate
@@ -26,7 +26,8 @@ class EffectDispatcher:
         started = examined = 0
         end = self.clock.monotonic() + min(2, max(0, start_budget_s))
         async with self.drain_lock:
-            rows = self.store.effects()
+            await self.storage.quarantine_legacy_cancellations(deadline=self.clock.monotonic() + 2)
+            rows = (await self.storage.effects(deadline=self.clock.monotonic() + 2))
             start = self.cursor % len(rows) if rows else 0
             for offset in range(len(rows)):
                 index = (start + offset) % len(rows)
@@ -51,75 +52,83 @@ class EffectDispatcher:
                 if lock.locked():
                     continue
                 async with lock:
-                    state = self.store.load_session(proposal.session_id)
+                    state = (await self.storage.load_session(proposal.session_id, deadline=self.clock.monotonic() + 2))
                     ctx = TrustedRequestContext(state.principal_id)
                     await self.harness.authorize(ctx, state.order_id, state.principal_id)
-                    snapshot = await self.harness.snapshot(state, ctx)
+                    snapshot = await self.harness.snapshot(state, ctx,
+                        handoff=proposal.kind == "handoff_request")
+                    if snapshot.validation_codes:
+                        await self.harness.record_observation(proposal.session_id, "context_validation",
+                            HookDecision(codes=snapshot.validation_codes), row["id"])
                     decision = self.harness.guards.validate_dispatch(proposal, snapshot)
                     adapters = (self.gateway, self.gate)
-                    if not decision.allowed or not all(a and getattr(a, "supports_deadlines", False) for a in adapters):
-                        self.store.set_effect(row["id"], state="blocked")
+                    if (not decision.allowed
+                            or getattr(self.gateway, "atomic_final_validation", None) is not True
+                            or not all(a and getattr(a, "supports_deadlines", False) for a in adapters)):
+                        (await self.storage.set_effect(row["id"], state="blocked", deadline=self.clock.monotonic() + 2))
                         continue
                     if state.status in ("handoff_pending", "transferred", "completed") and proposal.kind != "handoff_request":
-                        self.store.set_effect(row["id"], state="blocked")
+                        (await self.storage.set_effect(row["id"], state="blocked", deadline=self.clock.monotonic() + 2))
                         continue
                     before = await self.harness.hooks.run("before_action", {"proposal": proposal, "decision": decision})
-                    self.harness.record_observation(proposal.session_id, "before_action", before, row["id"])
+                    await self.harness.record_observation(proposal.session_id, "before_action", before, row["id"])
                     if before.action != "continue":
-                        self.store.set_effect(row["id"], state="blocked")
+                        (await self.storage.set_effect(row["id"], state="blocked", deadline=self.clock.monotonic() + 2))
                         continue
                     try:
                         gate = await bounded(self.gate.check(proposal, ctx, deadline=self.clock.monotonic() + 2), self.clock, 2)
                     except Exception:
-                        self.store.set_effect(row["id"], state="blocked")
+                        (await self.storage.set_effect(row["id"], state="blocked", deadline=self.clock.monotonic() + 2))
                         continue
                     if not gate.allowed:
-                        self.store.set_effect(row["id"], state="blocked")
+                        (await self.storage.set_effect(row["id"], state="blocked", deadline=self.clock.monotonic() + 2))
                         continue
-                    claimed = self.store.claim_effect(row["id"], state.version, row["revision"], self.clock.utcnow().timestamp())
+                    claimed = (await self.storage.claim_effect(row["id"], state.version, row["revision"], self.clock.utcnow().timestamp(), deadline=self.clock.monotonic() + 2))
                 if claimed is None:
                     continue
                 started += 1
                 try:
                     receipt = await bounded(self.gateway.submit(claimed, deadline=self.clock.monotonic() + 2), self.clock, 2)
-                    self.store.record_receipt(receipt)
+                    if receipt.effect_id != claimed.effect_id:
+                        raise CareError("receipt_binding_invalid")
+                    (await self.storage.record_receipt(receipt, deadline=self.clock.monotonic() + 2))
                 except Exception:
-                    self.store.set_effect(row["id"], state="needs_reconciliation")
+                    (await self.storage.set_effect(row["id"], state="needs_reconciliation", deadline=self.clock.monotonic() + 2))
                     continue
                 observed = await self.harness.hooks.run("after_action", {"receipt": receipt})
-                self.harness.record_observation(claimed.session_id, "after_action", observed, row["id"])
+                await self.harness.record_observation(claimed.session_id, "after_action", observed, row["id"])
         return DrainReport(started, examined)
 
     @tracked
     async def reconcile(self, effect_id: str) -> None:
-        row = self.store.effect(effect_id)
+        row = (await self.storage.effect(effect_id, deadline=self.clock.monotonic() + 2))
         if row["manual"] or row["lookups"] >= 3:
             return
         lookup = getattr(self.gateway, "lookup", None)
         if lookup is None or not getattr(self.gateway, "supports_deadlines", False):
-            self.store.set_effect(effect_id, state="needs_reconciliation", manual=1)
+            (await self.storage.set_effect(effect_id, state="needs_reconciliation", manual=1, deadline=self.clock.monotonic() + 2))
             return
-        count = row["lookups"] + 1
         now = self.clock.utcnow().timestamp()
-        # Persist lookup budget before the call, including a crash during lookup.
-        with self.store.transaction():
-            self.store.set_effect(effect_id, lookups=count, next_at=now + (1 if count == 1 else 5))
-            from uuid import uuid4
-            self.store.db.execute("INSERT INTO effect_attempts(id,effect_id,revision,kind,started_at,deadline) VALUES(?,?,?,'lookup',?,?)",
-                (uuid4().hex, effect_id, row["revision"], now, now + 2))
+        count = await self.storage.reserve_lookup(effect_id, now, deadline=self.clock.monotonic() + 2)
+        if count is None:
+            return
         try:
             receipt = await bounded(lookup(row["effect_key"], deadline=self.clock.monotonic() + 2), self.clock, 2)
             if receipt is not None:
-                self.store.record_receipt(receipt)
-                self.store.set_effect(effect_id, lookups=0)
+                if receipt.effect_id != effect_id:
+                    raise CareError("receipt_binding_invalid")
+                (await self.storage.record_receipt(receipt, deadline=self.clock.monotonic() + 2))
+                (await self.storage.set_effect(effect_id, lookups=0, deadline=self.clock.monotonic() + 2))
                 observed = await self.harness.hooks.run("after_action", {"receipt": receipt})
-                self.harness.record_observation(row["session_id"], "after_action", observed, effect_id)
+                await self.harness.record_observation(row["session_id"], "after_action", observed, effect_id)
                 return
         except Exception:
             if count >= 3:
-                self.store.set_effect(effect_id, state="needs_reconciliation", manual=1)
+                (await self.storage.set_effect(effect_id, state="needs_reconciliation", manual=1, deadline=self.clock.monotonic() + 2))
             return
         if count >= 3 or row["attempts"] >= 3:
-            self.store.set_effect(effect_id, state="needs_reconciliation", manual=1)
+            (await self.storage.set_effect(effect_id, state="needs_reconciliation", manual=1, deadline=self.clock.monotonic() + 2))
+        elif (await self.storage.lacks_cancellation_evidence(row, deadline=self.clock.monotonic() + 2)):
+            (await self.storage.set_effect(effect_id, state="needs_reconciliation", deadline=self.clock.monotonic() + 2))
         elif row["state"] != "delivered" and getattr(self.gateway, "idempotent", False):
-            self.store.set_effect(effect_id, state="retry_wait")
+            (await self.storage.set_effect(effect_id, state="retry_wait", deadline=self.clock.monotonic() + 2))

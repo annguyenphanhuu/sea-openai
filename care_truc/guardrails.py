@@ -22,7 +22,8 @@ class Guardrails:
         if not guard.contact_allowed:
             return GuardDecision(False, ("control_blocked",))
         feeds = {feed.name: feed for feed in guard.feeds}
-        if not guard.required_feeds or len(feeds) != len(guard.feeds):
+        if (not guard.required_feeds or len(set(guard.required_feeds)) != len(guard.required_feeds)
+                or len(feeds) != len(guard.feeds)):
             return GuardDecision(False, ("feed_policy_missing",))
         for name in guard.required_feeds:
             feed = feeds.get(name)
@@ -41,6 +42,9 @@ class Guardrails:
             seen = evidence.get("ingested_at")
             if seen is None or seen.tzinfo is None or seen > snapshot.cutoff:
                 return GuardDecision(False, ("evidence_future",))
+        if any(code.startswith(("feed_", "untrusted_fact:", "conflicting_fact:"))
+               for code in assessment.reason_codes):
+            return GuardDecision(False, ("facts_unverified",))
         return self.proactive(snapshot)
 
     def validate_output(self, rendered, outcome, snapshot) -> GuardDecision:
@@ -64,11 +68,10 @@ class Guardrails:
                 return GuardDecision(False, ("action_gate_missing",))
             payload = json.loads(proposal.payload)
             if payload["kind"] == "coins":
-                from contracts.params import late_xu_for
-                assessment = snapshot.assessment
-                if (not snapshot.contact_sent or snapshot.ledger_granted is not False
-                        or assessment.late_days < 2 or assessment.status == "unknown_feed"
-                        or assessment.fault_party not in ("carrier", "platform")
-                        or payload["amount_vnd"] != late_xu_for(snapshot.items_value_vnd)):
-                    return GuardDecision(False, ("coins_ineligible",))
+                from .coins import evaluate_facts
+                eligibility = evaluate_facts(snapshot)
+                if not eligibility.allowed:
+                    return GuardDecision(False, eligibility.codes)
+                if payload["amount_vnd"] != eligibility.amount_vnd:
+                    return GuardDecision(False, ("coins_amount_mismatch",))
         return GuardDecision(True)

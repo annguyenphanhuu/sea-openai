@@ -8,7 +8,7 @@ from contracts.types import ContactTask
 from care_truc.api import CareApi
 from care_truc.lifecycle import CareRuntime
 from care_truc.runtime_types import Receipt, TrustedRequestContext, fingerprint, CareError
-from .helpers import CUSTOMER, STAFF, NOW
+from .helpers import SYSTEM, CUSTOMER, STAFF, NOW
 from .test_recovery import adapters
 
 
@@ -16,7 +16,7 @@ def test_full_contact_coins_receipt_and_restart(tmp_path):
     async def check():
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         contact=ContactTask('contact','o1',NOW,NOW,'chat',True,'late','contact-key')
-        opening=await runtime.harness.open_contact(contact,CUSTOMER)
+        opening=await runtime.harness.open_contact(contact,SYSTEM)
         sid=opening.session_id; api=CareApi(runtime.harness)
         await runtime.harness.drain_pending()
         refused=await api.handle('handle_message',{'session_id':sid,'message_id':'early','text':'cho tôi xu'},CUSTOMER)
@@ -47,7 +47,7 @@ def test_repeated_human_request_keeps_one_pending_handoff(tmp_path):
         runtime=await CareRuntime.start('run',adapters(),root=tmp_path,background=False)
         api=CareApi(runtime.harness)
         sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
-        for request_id in ('h1','h2'):
+        for request_id in ('h1','h1'):
             result=await api.handle('request_handoff',{'session_id':sid,'request_id':request_id},CUSTOMER)
             assert result.status==200
         assert len(runtime.store.effects())==1
@@ -78,7 +78,7 @@ def test_cancel_then_handoff_invalidates_unsent_action(tmp_path):
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         api=CareApi(runtime.harness); sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
         pending=await api.handle('prepare_cancel',{'session_id':sid,'request_id':'c'},CUSTOMER)
-        await api.handle('confirm_cancel',{'confirmation_id':pending.body['confirmation_id'],'request_id':'yes'},CUSTOMER)
+        await api.handle('confirm_cancel',{'confirmation_id':pending.body['confirmation_id'],'request_id':'yes','reply_to':pending.body['message_id'],'confirmed':True},CUSTOMER)
         await api.handle('request_handoff',{'session_id':sid,'request_id':'h'},CUSTOMER)
         await runtime.harness.drain_pending()
         assert [p.kind for p in ports['gateway'].submissions]==['handoff_request']

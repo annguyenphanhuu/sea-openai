@@ -23,6 +23,10 @@ def canonical(value: object) -> str:
 
 
 def fingerprint(value: object) -> str:
+    # Preserve pre-confirmation-flag request fingerprints for existing v1 turns.
+    if isinstance(value, CustomerEvent) and value.kind != "confirm_cancel":
+        value = asdict(value)
+        value.pop("confirmed")
     return hashlib.sha256(canonical(value).encode("utf-8")).hexdigest()
 
 
@@ -39,6 +43,7 @@ class CustomerEvent:
     text: str | None = None
     reply_to: str | None = None
     confirmation_id: str | None = None
+    confirmed: bool = False
 
     def __post_init__(self) -> None:
         if self.kind not in ("message", "confirm_cancel", "request_handoff", "prepare_cancel", "open_contact"):
@@ -48,6 +53,8 @@ class CustomerEvent:
         if self.kind == "message" and (not isinstance(self.text, str) or not self.text.strip()
                                        or len(self.text) > 4000):
             raise ValueError("invalid_text")
+        if type(self.confirmed) is not bool:
+            raise ValueError("invalid_confirmation")
         for value in (self.reply_to, self.confirmation_id):
             if value is not None and (not isinstance(value, str) or not 1 <= len(value) <= 200):
                 raise ValueError("invalid_reference")
@@ -81,6 +88,8 @@ class ContextSnapshot:
     ledger_granted: bool | None = None
     contact_sent: bool = False
     evidence_resolvable: bool = False
+    ledger_pending: bool | None = None
+    validation_codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +97,11 @@ class PendingCancellation:
     confirmation_id: str
     reply_to: str
     expires_at: datetime
+    principal_id: str | None = None
+    session_id: str | None = None
+    order_id: str | None = None
+    contact_id: str | None = None
+    version: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +118,8 @@ class SessionState:
     abusive_turn_count: int = 0
     version: int = 0
     pending: PendingCancellation | None = None
+    open_fingerprint: str | None = None
+    last_cutoff: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +157,9 @@ class RenderedResponse:
     text: str
     phrase_id: str
     assessment_ref: str | None
+    evidence_refs: tuple[str, ...] = ()
+    public_evidence: tuple[str, ...] = ()
+    codes: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,6 +172,10 @@ class TurnResult:
     effect_ids: tuple[str, ...] = ()
     confirmation_id: str | None = None
     source: str = "template"
+    assessment_ref: str | None = None
+    evidence_refs: tuple[str, ...] = ()
+    public_evidence: tuple[str, ...] = ()
+    message_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +183,7 @@ class AttemptToken:
     request_id: str
     state_version: int
     boot_generation: int
+    processing_attempt: int = 0
 
 
 @dataclass(frozen=True, slots=True)

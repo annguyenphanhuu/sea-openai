@@ -1,60 +1,102 @@
-# Harness verification and boundaries
+# Care verification
 
-The runtime was implemented against the 2026-10-31 care harness and business
-specifications. Each implementation unit was tested and pushed separately to
-`truc/care-harness`. Run the commands in README from the repository root.
+From the repository root, Python 3.11+:
 
-The test environment uses real SQLite transactions and Windows OS process locks,
-with fixed authenticated context, fake operational time, scripted platform
-receipts/gates and optional phrase selectors. No release database was changed.
-These results do not establish live HTTP, provider, A3/A2 or executor integration.
+```powershell
+python -c "import contracts; import care_truc"
+python -m pytest care_truc/tests/test_flow.py -q
+python -m pytest care_truc/tests -q
+python -m pytest -q
+python -m pytest acceptance_huy acceptance_an_nguyen acceptance_truc care_truc/tests -q
+python -m care_truc.demo
+git diff --check
+python scripts/guardrails.py --all --tests
+```
 
-## Independent final review
+Root pytest discovers acceptance folders; include care tests explicitly for the
+combined suite. The flow test invokes the same labeled demo used by the CLI. All
+its inputs are algorithm fixtures, SQLite is isolated, and no source DB or world
+data is accessed or generated. The gateway uses memory receipts; simulated
+success never asserts actual delivery or execution. Expected CLI fields are
+`coin_receipt`, `cancel_receipt`, `handoff_receipt` = `succeeded`, selector source
+`template`, and true immutable replay, evidence, privacy and blocked-guard checks.
 
-A fresh read-only reviewer examined commit `53d1395` and found one critical and
-eight important issues. They were addressed in one fix pass with regression tests
-in `tests/test_review_regressions.py`:
+The single runtime starts with explicitly injected adapters. Tests cover immutable
+POST/current GET (`effects`, `system_events`), durable evidence resolution,
+`care_contact`, explicit `ledger_pending=False`, and strict gateway capability
+`atomic_final_validation is True`. Internal handoff retry requires
+`care_handoff_retry`; it preserves the original envelope and terminal session.
+Cancellation requires explicit confirmed consent and the exact prompt
+`reply_to`/`message_id`; ordinary acceptance without that binding cannot execute it.
 
-| Finding | Verified behavior |
-| --- | --- |
-| Shutdown released ownership during external drain | Every active harness/dispatcher operation is tracked before storage/lock release |
-| Text confirmation used customer request ID | Confirmation binds to public assistant response event ID |
-| Interrupted opening could not resume | Typed open_contact payload recovers with the original task and processing budget, zero customer turns |
-| Blocked effects starved later work | Non-actionable rows are skipped and scans advance fairly |
-| Repeating blocked handoff failed revision checks | New explicit human request reuses the unsent handoff key/envelope |
-| D4 used unbound order-level contact success | Current session requires its own authoritative successful contact receipt |
-| Why response omitted supported reasons | Approved templates map structured evidence and reason codes; unknown reasons remain neutral |
-| Handoff lost the conversation/action context | Summary preserves labelled customer statements, facts, pending requests and known action outcomes |
-| Hook failures disappeared | Sanitized hook phase outcomes appear in staff trace and observer failures degrade health without undoing receipts |
+The v1 harness adds cancellation lifecycle storage, but cannot migrate the former
+synchronous prototype schema. Legacy embedded confirmations without durable
+authorization evidence fail closed. Contact sessions lacking the bound open
+fingerprint also need an explicit migration decision. Use fresh run state;
+retention and migration of existing production state require separate review.
 
-The same fix pass verified that contact envelopes contain a validated opening
-message and that the persisted internal opening payload is staff-only, rather
-than being displayed as a customer message.
+## Local release-fed integration
 
-Deferred minor: a conflicting repeat of an older, already superseded receipt
-revision is ignored rather than reported as an adapter inconsistency. The latest
-authoritative state is preserved. Conflicts at the current revision are rejected.
+`acceptance_huy/test_e2e_flow.py`, `test_e2e_proof.py` and
+`test_integration_tick.py` verify `DemoFlow` against existing release inputs and
+isolated runtime SQLite. A3, A2 and A1 run in order. Actual local effects include
+web-inbox/contact rows, staff handoffs, cancellation review requests and a coin
+ledger committed by the real SQLite executor. A staff review in these tests is
+explicit simulated authorization, not a source finding about responsibility or
+force majeure. Release databases remain read-only. None of these local effects
+asserts external provider delivery or commercial payout.
 
-The reviewer did not judge live authentication correctness, atomic external
-permission enforcement, provider cancellation compliance, executor once-per-order
-guarantees or live HTTP/provider integration. Those require actual platform
-adapters and remain separate integration checks; test fixtures do not prove them.
+Both local gateways attest `atomic_final_validation is True`. Financial dispatch
+holds the care write lock through durable provenance validation and executor
+acceptance. The executor owns the platform transaction and checks current server
+permission, guard, trusted evidence, eligibility, immutable amounts and global
+once-per-order grants. Contact dispatch rechecks durable identity/run/order/key,
+current context and daily contact limits under both write locks without an await
+before inbox acceptance. Handoff remains available when proactive controls close.
 
-## Execution decisions
+The guarantee is scoped to one event-loop thread, the care OS ownership lock and
+a single trusted runtime writer. It is not a distributed transaction and does not
+authorize arbitrary concurrent platform processes. Such a deployment needs an
+executor-owned provenance acceptance seam and fresh review before attestation.
 
-- Updated ownership on main gives Truc HTTP/auth; this implementation keeps the
-  requested in-process scope. Risk: later adapter handoff ownership needs alignment.
-- Store request references use generated internal IDs, scoped separately from
-  client IDs. Risk: an extra internal lookup, avoiding cross-session collisions.
-- Canonical JSON captures nested contract evidence before callbacks can change
-  it. Risk: serialization overhead, without widening business authority.
-- Initial full guardrails failed on pre-existing tracked `.scratch/runs` files.
-  They were preserved while this branch used staged checks plus both suites.
-  Subsequent main updates removed those artifacts and full guardrails passed.
-  Risk at that stage was blocked repository CI; no longer outstanding.
+New regression tests reject changed final delivery authority or stale context,
+require explicit bound cancellation consent at both provenance boundaries, and
+prove a competing SQLite writer cannot change care authority during financial
+acceptance. All ten fail against the pre-integration production modules loaded
+in memory and pass against the implemented modules.
 
-Execution record correction: Task 4 RED tests were inadvertently included in the
-Task 3 commit by an overlapping bookkeeping command. They were observed failing
-before their implementation; subsequent commit/check operations were serialized.
+The nonfinancial acceptance path also bounds both SQLite connections' lock waits
+and progress to its monotonic deadline. It rechecks after acquiring locks, before
+effect writes, and before leaving the write transactions. Deterministic tests
+advance time during final validation and from actual INSERT triggers for both
+contact and handoff; expired work leaves no contact/inbox/handoff rows. Real
+competing write locks verify bounded rejection on each connection. All six cases
+fail against the first integration revision and pass after the deadline repair.
 
-Final verification after updating origin/main: **96 harness tests and 518 acceptance tests passed**. `import contracts`, `git diff --check` and `python scripts/guardrails.py --all --tests` passed. Nine review regressions exercise the fixes (reason rendering and handoff context share one scenario). No post-fix independent re-review was requested; regression tests and the full suites verify the single fix pass.
+Presenter HTTP authentication is covered separately. Customer CareApi HTTP routes,
+customer network authentication, external contact providers and web voice/session
+negotiation are not established by the local integration. Required adapter inputs
+and proposed route mapping remain in README.
+
+## Verified integration revision, 2026-10-31
+
+The user-approved integration plus the independent-review deadline correction
+pass these fresh checks:
+
+- Deadline expiry and lock-wait regressions: **6 passed** after **6 failed** on
+  the first integration revision.
+- Proof, coin, cancellation and dispatch regression tests: **121 passed**.
+- Affected release-fed flow/tick and financial gateway tests: **19 passed**.
+- Required combined acceptance and care suite: **1180 passed**.
+- Contract/care/gateway imports and diff checks pass. Final index guardrails pass.
+
+The preceding integration revision additionally passed **30** flow/tick/presenter
+authentication tests, **684** root acceptance tests through guardrails, and the
+standalone algorithm demo. Those unchanged checks were not repeated separately;
+the current combined gate includes the acceptance and care tests.
+
+The ten new authority/consent/concurrency tests also fail against the previous
+gateway implementations loaded in memory, proving they detect the repaired gaps.
+Implementation verification is complete for the local scope above, including
+the reviewer's deadline finding. Independent re-review precedes push; production
+deployment approval is separate.
