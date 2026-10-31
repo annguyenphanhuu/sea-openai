@@ -231,7 +231,8 @@ class _Gateway:
 
 
 class DemoFlow:
-    def __init__(self, core_path, state_path, start_at=None, ops_path=None):
+    def __init__(self, core_path, state_path, start_at=None, ops_path=None, *, selector=None):
+        self.selector = selector
         self.core_path = Path(core_path).resolve(strict=True)
         self.ops_path = Path(ops_path or self.core_path.with_name('ops_14d.sqlite')).resolve(strict=True)
         self.state_path = Path(state_path).resolve()
@@ -326,7 +327,7 @@ class DemoFlow:
         self.context = _Context(self)
         self.gateway = _Gateway(self)
         self.care = await CareRuntime.start(self.run_id,
-            {'context_provider': self.context, 'gateway': self.gateway, 'gate': _Gate(self), 'clock': SystemClock()},
+            {'context_provider': self.context, 'gateway': self.gateway, 'gate': _Gate(self), 'clock': SystemClock(), 'selector': self.selector},
             root=self.state_path.parent / 'care', background=False)
 
     def _inspect(self, order_id):
@@ -502,7 +503,8 @@ class DemoFlow:
         for assessment in self.assessments.values():
             label_counts[assessment.status] += 1
         outbox, ledger = self._rows('outbox'), self._rows('ledger_new')
-        return {'now': self.now.astimezone(_VN).isoformat(), 'guard_alive': sysguard.guard_alive(self.conn, self.now),
+        return {'llm': {'enabled': self.selector is not None, 'model': getattr(self.selector, 'model', None)},
+            'now': self.now.astimezone(_VN).isoformat(), 'guard_alive': sysguard.guard_alive(self.conn, self.now),
             'proactive_allowed': self._allowed(), 'feed_health': [dict(asdict(h), age_minutes=None if h.source_timestamp is None else (self.now-h.source_timestamp).total_seconds()/60) for h in self._health()],
             'last_heartbeat_at': None if heartbeat is None else heartbeat[0],
             'killed': json.loads(controls.get('a3_killed', 'false')) is not False,
