@@ -1,6 +1,0 @@
-﻿{
-    "finished_utc":  "2026-10-31T04:26:31.3126879Z",
-    "command":  "conda run --name sea-openai python -m pytest -q --junitxml=.scratch/runs/baseline/full.xml",
-    "started_utc":  "2026-10-31T04:26:23.3930822Z",
-    "exit_code":  0
-}
