@@ -15,7 +15,7 @@ class OpenAIPhraseSelector:
     supports_deadlines = True
     natural_replies = True
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", *,
+    def __init__(self, api_key: str, model: str = "gpt-5.4-mini", *,
                  transport: httpx.AsyncBaseTransport | None = None) -> None:
         if not api_key.strip() or not model.strip():
             raise ValueError("openai_configuration_missing")
@@ -120,4 +120,4 @@ def selector_from_env(environ: Mapping[str, str] | None = None) -> OpenAIPhraseS
     key = environment.get("OPENAI_API_KEY", "").strip()
     if not key:
         return None
-    return OpenAIPhraseSelector(key, environment.get("OPENAI_MODEL", "gpt-4o-mini"))
+    return OpenAIPhraseSelector(key, environment.get("OPENAI_MODEL", "gpt-5.4-mini"))

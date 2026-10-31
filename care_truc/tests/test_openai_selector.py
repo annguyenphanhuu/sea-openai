@@ -22,7 +22,7 @@ def test_request_contract_and_validated_phrase():
         assert str(request.url) == "https://api.openai.com/v1/chat/completions"
         assert request.headers["authorization"] == "Bearer test-key"
         body = json.loads(request.content)
-        assert body["model"] == "gpt-4o-mini"
+        assert body["model"] == "gpt-5.4-mini"
         assert body["store"] is False
         assert body["messages"][1]["content"] == CONTEXT.decode()
         schema = body["response_format"]["json_schema"]
