@@ -25,9 +25,9 @@ def public_reason(assessment) -> str:
 
 
 class ResponseRenderer:
-    version = "2"
+    version = "3"
 
-    def render(self, outcome, context, phrase_id: str) -> RenderedResponse:
+    def render(self, outcome, context, phrase_id: str, *, draft=None) -> RenderedResponse:
         text = CATALOG[phrase_id]
         if any(code in outcome.codes for code in ("cancel_confirmation_expired", "cancel_confirmation_invalid")):
             text = "Xác nhận hủy không còn hợp lệ. Nếu vẫn muốn hủy, bạn cần yêu cầu hủy và xác nhận lại lời nhắc mới."
@@ -44,8 +44,14 @@ class ResponseRenderer:
             text += " " + facts.text
             if assessment and Guardrails().validate_context(context).allowed:
                 text += " " + public_reason(assessment)
+        if draft is not None:
+            from .natural import render_template
+            if (outcome.phrase_id not in ('explain', 'clarify') or outcome.proposals
+                    or any(code.startswith('cancel_confirmation_') for code in outcome.codes)):
+                raise ValueError('natural_transactional_output')
+            text = render_template(draft, context)
         return RenderedResponse(text, phrase_id, reference, facts.evidence_refs,
-                                facts.public_evidence, facts.decision_codes)
+                                facts.public_evidence, facts.decision_codes, draft)
 
     def render_handoff(self, state, context, *, event=None, history=(), effects=(), previous_pending=None, reason=None, evidence_refs=(), receipts=()) -> str:
         statements = [{"label": "customer_statement", "text": item.get("text") or "",

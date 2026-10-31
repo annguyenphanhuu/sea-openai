@@ -82,7 +82,10 @@ class CarePolicy:
             if eligibility.allowed:
                 return replace(self._action(new, intent, build_coin_action(state, eligibility, context.cutoff)),
                                codes=("coins_eligible",))
-            return PolicyOutcome(new, intent, "ineligible", eligibility.codes)
+            phrase = "checking_evidence" if "coins_evidence_unavailable" in eligibility.codes else "ineligible"
+            return PolicyOutcome(new, intent, phrase, eligibility.codes)
+        if intent == "want_more" and not context.evidence_resolvable:
+            return PolicyOutcome(new, intent, "checking_evidence")
         return PolicyOutcome(new, intent, "explain" if intent == "ask_why" else "clarify")
 
     def _handoff(self, state, intent, reason) -> PolicyOutcome:

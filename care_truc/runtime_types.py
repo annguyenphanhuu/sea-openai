@@ -153,6 +153,12 @@ GateDecision = GuardDecision
 
 
 @dataclass(frozen=True, slots=True)
+class NaturalDraft:
+    topic: str
+    template: str
+
+
+@dataclass(frozen=True, slots=True)
 class RenderedResponse:
     text: str
     phrase_id: str
@@ -160,6 +166,7 @@ class RenderedResponse:
     evidence_refs: tuple[str, ...] = ()
     public_evidence: tuple[str, ...] = ()
     codes: tuple[str, ...] = ()
+    draft: NaturalDraft | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -216,6 +223,7 @@ class PhraseSelection:
     phrase_id: str
     source: str
     codes: tuple[str, ...] = ()
+    draft: NaturalDraft | None = None
 
 
 @dataclass(frozen=True, slots=True)
