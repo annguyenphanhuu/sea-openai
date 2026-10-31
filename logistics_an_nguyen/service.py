@@ -18,7 +18,12 @@ def evidence_payload(evidence: tuple[Evidence, ...]) -> list[dict]:
 
 
 def assessment_payload(assessment: OrderAssessment) -> dict:
-    """Return JSON-safe contract v0 fields for Truc's authenticated routes."""
+    """Return JSON-safe contract fields and additive A2 seller-protection metadata."""
+    handover_on_time = None
+    if "seller_handover_on_time" in assessment.reason_codes:
+        handover_on_time = True
+    elif "seller_handover_late" in assessment.reason_codes:
+        handover_on_time = False
     return {
         "order_id": assessment.order_id,
         "assessed_at": utc_iso(assessment.assessed_at),
@@ -29,6 +34,12 @@ def assessment_payload(assessment: OrderAssessment) -> dict:
         "late_probability": assessment.late_probability,
         "confidence": assessment.confidence,
         "fault_party": assessment.fault_party,
+        "fault_owner": assessment.fault_party,
+        "handover_on_time": handover_on_time,
+        "lsr_exemption": (
+            "Miễn trừ LSR: shop bàn giao đúng hạn; chậm giao thuộc đơn vị vận chuyển."
+            if "lsr_exempt:seller_handover_on_time" in assessment.reason_codes else None
+        ),
         "reason_codes": list(assessment.reason_codes),
         "evidence": evidence_payload(assessment.evidence),
     }

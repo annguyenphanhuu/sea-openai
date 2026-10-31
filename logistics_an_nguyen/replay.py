@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 import sqlite3
 
-from .models import VIETNAM, aware
+from .models import VIETNAM, aware, parse_instant
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +20,13 @@ class ReplaySnapshot:
     scans: tuple[dict, ...]
     attempts: tuple[dict, ...]
     reports: tuple[dict, ...]
+    seller_prepare_days: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.seller_prepare_days is not None and (
+            type(self.seller_prepare_days) is not int or self.seller_prepare_days < 0
+        ):
+            raise ValueError("seller_prepare_days must be a nonnegative integer or null")
 
 
 class ReleaseReader:
@@ -67,7 +74,46 @@ class ReleaseReader:
         )
         projected = [tuple(dict(row) for row in self.connection.execute(sql, args))
                      for sql, args in queries]
-        return ReplaySnapshot(tick_at, *projected)
+        # Release policy is static configuration without event/ingestion timestamps.
+        # Older projections may omit it; never silently invent the two-day limit.
+        seller_prepare_days = None
+        if self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='policy'"
+        ).fetchone():
+            rows = self.connection.execute(
+                "SELECT value FROM policy WHERE key='seller_prepare_days'"
+            ).fetchall()
+            if rows:
+                value = rows[0]["value"]
+                if len(rows) != 1 or not isinstance(value, str) or not value.isascii() or not value.isdecimal():
+                    raise ValueError("policy.seller_prepare_days must be a nonnegative integer string")
+                seller_prepare_days = int(value)
+        return ReplaySnapshot(tick_at, *projected, seller_prepare_days=seller_prepare_days)
+
+
+def handover_milestones(
+    scans: tuple[dict, ...], created: dict[str, datetime], tick_at: datetime,
+) -> dict[str, tuple[datetime, datetime, str]]:
+    """Select the first visible handover, with stable ingestion/record tie breaks."""
+    handovers = {}
+    for row in scans:
+        if row["order_id"] not in created or row["status"] != "handed_over":
+            continue
+        ingested_at = parse_instant(row["ingested_at"], "handover ingested_at")
+        if ingested_at > tick_at:
+            continue
+        event_at = parse_instant(row["event_at"], "handover event_at")
+        if event_at > tick_at:
+            continue
+        if event_at < created[row["order_id"]]:
+            raise ValueError("handed_over event cannot precede order creation")
+        if event_at > ingested_at:
+            raise ValueError("handed_over event cannot follow its ingestion")
+        candidate = (event_at, ingested_at, row["event_id"])
+        previous = handovers.get(row["order_id"])
+        if previous is None or candidate < previous:
+            handovers[row["order_id"]] = candidate
+    return handovers
 
 
 STAGES = (

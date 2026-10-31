@@ -8,7 +8,7 @@ from contracts.types import Evidence
 
 from .forecast import Observation, SurvivalCurve
 from .models import OrderFacts, VIETNAM, aware, parse_instant, utc_iso
-from .replay import ReplaySnapshot, TERMINAL, deduplicate_scans, grouped
+from .replay import ReplaySnapshot, TERMINAL, deduplicate_scans, grouped, handover_milestones
 
 
 REQUIRED_FEEDS = ("orders", "scan_events", "delivery_attempts")
@@ -41,6 +41,10 @@ class ReleaseAdapter:
                     if parse_instant(row[field], field) > tick_at:
                         raise ValueError(f"snapshot {field} exceeds tick_at")
         self.snapshot = snapshot
+        self.handovers = handover_milestones(snapshot.scans, {
+            row["order_id"]: parse_instant(row["created_at"], "created_at")
+            for row in snapshot.orders if not row["cancelled_at"]
+        }, tick_at)
         scans = grouped(snapshot.scans, "order_id")
         self.scans = {key: deduplicate_scans(rows) for key, rows in scans.items()}
         self.attempts = grouped(tuple(sorted(snapshot.attempts, key=lambda row: (
@@ -105,6 +109,18 @@ class ReleaseAdapter:
             last = history[-1] if history else None
             stage = last["status"] if last else "created"
             evidence = [_evidence("orders", order_id, created_at, "guaranteed_date", guaranteed.isoformat())]
+            evidence.append(_evidence("orders", order_id, created_at, "created_at", utc_iso(created_at)))
+            if self.snapshot.seller_prepare_days is not None:
+                # Static release policy is available with the order, not a live feed.
+                evidence.append(_evidence(
+                    "orders", "seller_prepare_days", created_at, "seller_prepare_days",
+                    self.snapshot.seller_prepare_days, table="policy",
+                ))
+            if order_id in self.handovers:
+                event_at, ingested_at, record_id = self.handovers[order_id]
+                evidence.append(_evidence(
+                    "scan_events", record_id, ingested_at, "handed_over_at", utc_iso(event_at),
+                ))
             for code in ("payment_method", "items_value_vnd"):
                 if order.get(code) is not None:
                     evidence.append(_evidence("orders", order_id, created_at, code, order[code]))
