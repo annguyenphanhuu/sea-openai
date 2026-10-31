@@ -16,9 +16,10 @@ chuẩn. Nhãn và feed tuân theo D1–D5 Huy chốt trong `docs/decisions.md` 
 | Lọc dữ liệu theo `ingested_at`, kiểm tra dữ liệu đầu vào | Đã triển khai trên snapshot do platform cung cấp |
 | Câu hỏi quản lý, lưu/đọc/trả lời và chống trùng khi retry | Đã triển khai trong `service.py` và `questions.py` |
 | Đầu ra JSON cho API orders/shop và review | Đã có Python API và serializer để Trúc gắn HTTP route/UI |
+| Danh sách ngày đặt/bàn giao cho Trúc | Đã có `assessed_orders_payload` và file `*.orders.json`, kèm bằng chứng as-of và health |
 | Kiểm thử biên và lỗi A2 | Đã có trong `acceptance_an_nguyen/` |
 | Adapter đọc DB release | Đã nối schema `release_main`, đọc as-of và chỉ đọc |
-| Baseline ETA/xác suất | Đã có survival model từ lịch sử nhìn thấy; chưa hiệu chỉnh/kiểm định độ chính xác |
+| Baseline ETA/xác suất | Đã có survival model và kiểm tra offline 3 tick; chưa hiệu chỉnh hoặc xác nhận chất lượng toàn tập |
 | Chạy chuỗi A3 → A2 → A1, HTTP/auth và checkpoint | Huy phụ trách kiểm định/A3/state; Trúc phụ trách A1/UI/HTTP/auth; An bàn giao danh sách assessment |
 
 ## Python API
@@ -63,6 +64,63 @@ timestamp nguồn không quá 30 phút và không ở tương lai; `checked_at` 
 mới không làm dữ liệu nguồn cũ thành mới. Đây không phải kiểm tra quyền liên hệ:
 heartbeat A3 (ngưỡng 60 phút), control và kiểm tra lại lúc gửi thuộc platform.
 A2 không tạo `ContactTask` hay `Action`.
+
+## Payload danh sách bàn giao Trúc
+
+```python
+from logistics_an_nguyen import (
+    ReleaseReader, ReleaseAdapter, ProgressTracker,
+    evaluate_tick, assessed_orders_payload,
+)
+
+with ReleaseReader("data/release_main/core_14d.sqlite") as reader:
+    snapshot = reader.snapshot(current_tick)
+health = tuple(health)  # Reuse the exact A3 snapshots for assessment and export.
+tracker = ProgressTracker(previous_progress)
+orders = tracker.apply(ReleaseAdapter(snapshot).orders(),
+                       tick_at=current_tick, feed_health=health)
+result = evaluate_tick(orders, tick_at=current_tick, feed_health=health)
+payload = assessed_orders_payload(snapshot, result, feed_health=health)
+# Persist tracker.records only after the whole tick succeeds.
+```
+
+Hàm trả envelope nội bộ `payload_version="a2_order_list_v1"`, `tick_at`,
+`feed_health`, `orders`. Mỗi phần tử `orders` giữ nguyên các trường từ
+`assessment_payload` và thêm:
+
+| Trường | Ý nghĩa |
+| --- | --- |
+| `created_at` | Ngày đặt từ `orders.created_at`; null nếu feed orders không dùng được |
+| `handed_over_at` | Event time sớm nhất của scan `handed_over` nhìn thấy; null nếu thiếu scan hoặc feed orders/scan_events không dùng được |
+| `metadata_evidence` | Bằng chứng ngày đặt/bàn giao gồm bảng, record ID, ingestion và giá trị timestamp |
+| `metadata_reason_codes` | `created_at_feed_unavailable`, `handed_over_scan_missing`, `handed_over_at_feed_unavailable` khi tương ứng |
+
+Timestamp đầu ra dùng UTC ISO 8601; `guaranteed_date` vẫn là ngày Việt Nam.
+Trúc hiển thị timestamp theo Asia/Ho_Chi_Minh và phân biệt ngày đặt, ngày bàn giao,
+ngày cam kết, ETA mới. Không lấy ngày đặt hoặc stage station thay ngày bàn giao.
+Scan bàn giao phải có cả event time và ingestion không vượt tick; scan đến muộn
+chỉ xuất hiện sau khi ingest. Có nhiều lần bàn giao thì lấy lần đầu đã nhìn thấy,
+tie theo ingestion rồi record ID. Retry không làm thay đổi mốc này; một scan cũ
+được ingest ở tick sau có thể bổ sung/sửa mốc sớm nhất đã biết.
+
+`feed_health` chứa status, checked_at, source_timestamp, last_ingested_at và
+`usable_at_tick` cho từng feed, bao gồm missing khi chưa có A3. Status trusted
+chưa đủ: UI phải đọc `usable_at_tick` để nhận biết timestamp nguồn quá hạn.
+Metadata chỉ là phần bổ sung, không thay status, ETA, fault, confidence hay
+reason_codes của assessment. `metadata_evidence` giữ giá trị quan sát để audit
+kể cả khi feed không đáng tin; không dùng giá trị audit thay trường hiển thị null.
+
+Đây là payload **nội bộ**, không phải response công khai hay quyền liên hệ:
+Trúc phải kiểm ownership/auth, lọc bằng chứng và text nguồn trước khi trả cho
+khách/shop. Không suy ra quyền liên hệ từ `usable_at_tick`: heartbeat, controls
+và gate lúc gửi vẫn do platform/A3 cung cấp. Không có heartbeat giả trong payload.
+
+Caller phải dùng cùng snapshot/tick và cùng health đã đưa vào A2. Hàm từ chối
+assessment khác tick, trùng/thiếu/thừa đơn, ngày cam kết không khớp, evidence
+tương lai, health trùng/tương lai hoặc bàn giao trước ngày đặt. Payload gồm đúng
+tập đơn nhìn thấy chưa hủy, sắp theo order_id. Lọc theo quyền người dùng ở tầng
+HTTP sau khi có payload nội bộ. `OrderAssessment` và `assessment_payload` giữ
+nguyên cấu trúc; phiên bản trên chỉ thuộc adapter A2, không sửa shared contracts.
 
 ## Quy ước bằng chứng cần Huy duyệt
 
@@ -139,7 +197,7 @@ lọc trường nội bộ/quyền truy cập trước khi trả cho khách ho�
    diễn thiếu forecast và mapping fault. Huy ghi quyết định chung trong docs.
 3. Huy và An Nguyen kiểm định baseline survival mới theo nhiều tick, thống nhất
    nhóm tuyến và tiêu chí chất lượng trước khi dùng tự động cho khách hàng.
-4. Trúc gắn serializer vào API orders/shop và QuestionStore vào API supervisor,
+4. Trúc gắn `assessed_orders_payload` vào API orders/shop và QuestionStore vào API supervisor,
    thêm UI, auth, phân quyền và xử lý lỗi; Huy giữ transaction/checkpoint của tick.
 5. Truc đọc `OrderAssessment`, reason/evidence và kiểm tra guard qua platform;
    không suy diễn eligibility xu từ riêng status hoặc probability.
@@ -151,6 +209,7 @@ trên là yêu cầu bàn giao trong repository, chưa được gửi cho thành
 
 ```powershell
 .venv/Scripts/python.exe -m pytest -q acceptance_an_nguyen
+.venv/Scripts/python.exe -m pytest -q acceptance_huy/test_assessed_order_handoff.py
 .venv/Scripts/python.exe -m pytest -q
 ```
 
@@ -164,7 +223,10 @@ trong test và SQLite in-memory/temporary; không cần DB release, không tạo
 ```
 
 Lệnh mặc định đọc `data/release_main/core_14d.sqlite`, đọc health từ
-`runs/state.sqlite` nếu đã có, ghi JSONL assessment và summary vào `runs/a2/`.
+`runs/state.sqlite` nếu đã có, ghi JSONL assessment, payload danh sách
+`<tick>.orders.json` và summary vào `runs/a2/`. Summary có `order_list_file`
+để Trúc tìm file bàn giao; JSONL assessment cũ giữ nguyên cấu trúc. File danh sách
+được ghi qua file tạm rồi replace để reader không đọc phải JSON đang ghi dở.
 Không tạo state A3 giả, không thay đổi DB nguồn, không ghi ledger/outbox/câu hỏi.
 `--core`, `--state`, `--output` cho phép đổi nguồn/state/đích; output phải nằm
 trong `runs/`. Tick bắt buộc có timezone, không dùng giờ máy làm thời gian nghiệp vụ.
@@ -258,3 +320,32 @@ Chạy thực tế tại `2026-10-28T12:00:00+07:00`: 11.008 đơn nhìn thấy,
 3.230 đơn có baseline forecast. Khi chưa có health từ A3, toàn bộ assessment
 là `unknown_feed`, đúng cơ chế chặn; các số trên không phải điểm chất lượng
 dự báo và không chứng minh forecast chính xác.
+
+## Kiểm tra offline ban đầu ngày 31/10/2026
+
+Đóng băng forecast ở 12:00 giờ Việt Nam ngày 25, 26, 27/10 trước khi đọc
+outcome as-of 28/10/2026 12:00. Chỉ dùng `release_main/core_14d.sqlite`; không
+dùng truth/heldout, không tạo health A3. Hash cả core/ops không đổi sau khi chạy.
+
+| Tick (giờ VN) | Đơn đang vận chuyển có forecast | Số ETA có outcome để chấm | MAE ETA (giờ) | Brier xác suất trễ |
+| --- | --- | --- | --- | --- |
+| 25/10 12:00 | 2.346 / 3.436 (68,3%) | 1.334 | 11,70 | 0,0486 |
+| 26/10 12:00 | 3.149 / 3.558 (88,5%) | 1.316 | 15,49 | 0,0655 |
+| 27/10 12:00 | 3.002 / 3.610 (83,2%) | 547 | 10,80 | 0,0620 |
+
+MAE tính trên forecast có ETA và đã nhìn thấy giao thành công sau tick; Brier
+tính trên các đơn trong tập này chưa trễ tại tick và có dự báo xác suất, gồm
+1.248, 1.309, 545 đơn. Brier càng thấp càng tốt. Trên các mẫu được chấm này,
+dự báo hằng số không trễ có Brier tương ứng 0,0096 / 0,0099 / 0,0147, thấp hơn
+baseline hiện tại. Do đó chưa có cơ sở dùng xác suất hiện tại để tự động chọn
+khách cần liên hệ.
+
+Đây là kiểm tra thăm dò có **selection bias**: 1.012 / 1.832 / 2.455 forecast
+chưa có outcome giao hàng tại cutoff và bị bỏ khỏi phép chấm, không bị gán là
+đúng hạn hay trễ. Tập đơn lặp qua các tick; thời gian theo dõi khác nhau và chưa
+đánh giá đầy đủ đơn bị censor/hủy. Các số trên không phải chất lượng toàn tập
+hay cam kết giao hàng. Cần đánh giá với thời gian theo dõi đủ, xử lý censoring
+và chốt tiêu chí với Huy trước khi hiệu chỉnh hoặc dùng tự động.
+
+Artifact local được gitignore: `runs/handoff-review-20261031/baseline-validation.json`
+và script tái lập `runs/handoff-review-20261031/validate_baseline.py`.

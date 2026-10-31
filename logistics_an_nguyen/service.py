@@ -18,7 +18,7 @@ def evidence_payload(evidence: tuple[Evidence, ...]) -> list[dict]:
 
 
 def assessment_payload(assessment: OrderAssessment) -> dict:
-    """Return JSON-safe contract v0 fields for Huy's authenticated routes."""
+    """Return JSON-safe contract v0 fields for Truc's authenticated routes."""
     return {
         "order_id": assessment.order_id,
         "assessed_at": utc_iso(assessment.assessed_at),
