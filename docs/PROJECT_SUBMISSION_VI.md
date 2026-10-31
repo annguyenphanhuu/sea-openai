@@ -68,7 +68,7 @@ Một số đặc điểm quan trọng từ kiểm định:
 - Có 1.115 dòng bồi thường lịch sử không tìm thấy đơn tương ứng trong lát dữ liệu. Đây là giới hạn của lát cắt, không được âm thầm coi là lịch sử khách hàng đầy đủ.
 - Thống kê hồi cứu ghi nhận 1.126 đơn giao sau ngày cam kết trong nhóm đã có scan giao thành công; 277 đơn trễ ít nhất hai ngày. Đây **không phải** danh sách mặc nhiên được nhận bồi thường tại một tick.
 
-Trạng thái phiên chat, nhịp tim agent, quyết định của nhân viên và quyền lợi mới được ghi vào SQLite runtime riêng. Không sửa `sim_clock`, nội dung hay schema của DB nguồn. Dữ liệu, runtime và `.env` không được đưa lên Git.
+Trạng thái phiên chat, nhịp tim agent, quyết định của nhân viên và quyền lợi mới được ghi vào SQLite runtime riêng. StateStore chỉ có bản SQLite, không sử dụng MongoDB. Khi triển khai trên Space, runtime nằm trên đĩa local; nhóm chấp nhận trở về baseline sau khi Space restart, không yêu cầu giữ trạng thái qua lần restart đó. Trong một phiên chạy vẫn phải bảo đảm giao dịch và không cấp trùng. Không sửa `sim_clock`, nội dung hay schema của DB nguồn. Dữ liệu, runtime và `.env` không được đưa lên Git.
 
 ## 3. Replay theo thời gian, không nhìn trước kết quả
 
@@ -137,7 +137,7 @@ Thiết kế dành một cổng `execute_action` của platform để kiểm quy
 
 ## 6. Những gì đã có và phần đang tích hợp
 
-Tình trạng đối chiếu với main tại commit `82c4398`, ngày 31/10/2026:
+Tình trạng đối chiếu với bản A1/A2 trên main tại commit `82c4398` và quyết định gỡ tích hợp MongoDB sau đó, ngày 31/10/2026:
 
 | Thành phần | Tình trạng |
 | --- | --- |
@@ -150,7 +150,7 @@ Tình trạng đối chiếu với main tại commit `82c4398`, ngày 31/10/2026
 | Luồng ba agent hoàn chỉnh | Đang tích hợp adapter, ngưỡng guard, khóa chống cấp trùng và biên nhận hành động |
 | HTTP chat, UI khách/shop, voice và thực thi quyền lợi | Chưa được xác nhận chạy xuyên suốt với dữ liệu release |
 
-Nhóm đã có kiểm thử đơn vị, acceptance, biên thời gian, xử lý retry và kiểm tra A3 bằng dữ liệu release. Khi soạn tài liệu, chạy đồng thời ba thư mục acceptance và `care_truc/tests` trên bản cập nhật này cho kết quả **630 test đạt, không có test lỗi hoặc bị bỏ qua**. Các test A1 dùng adapter kiểm thử được ghi rõ; chúng không chứng minh đã gửi tin thật hoặc cấp quyền lợi qua platform. Nhóm chưa công bố accuracy ETA, tỷ lệ giảm hủy đơn hay hiệu quả chăm sóc trên dữ liệu thực.
+Nhóm đã có kiểm thử đơn vị, acceptance, biên thời gian, xử lý retry và kiểm tra A3 bằng dữ liệu release. Sau khi gỡ tích hợp MongoDB và các test riêng của tích hợp đó, kiểm tra trong môi trường sạch không cài PyMongo cho kết quả **518 acceptance test và 96 test A1 đạt, không có test lỗi hoặc bị bỏ qua**. Các test A1 dùng adapter kiểm thử được ghi rõ; chúng không chứng minh đã gửi tin thật hoặc cấp quyền lợi qua platform. Nhóm chưa công bố accuracy ETA, tỷ lệ giảm hủy đơn hay hiệu quả chăm sóc trên dữ liệu thực.
 
 ## 7. Kịch bản trình diễn
 
