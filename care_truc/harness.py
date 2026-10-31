@@ -412,17 +412,25 @@ class CareHarness:
         state = self.session(session_id)
         await self.authorize(ctx, state.order_id, state.principal_id)
         messages = []
+        system_events = []
         for event in self.store.events(session_id):
             if event["visibility"] != "customer":
                 continue
             payload = json.loads(event["content"])
+            if event["kind"] == "receipt":
+                system_events.append({"id": event["id"], "sequence": event["sequence"],
+                    "kind": event["kind"], "outcome": payload["outcome"], "effect_id": payload["effect_id"]})
+                continue
             messages.append({"id": event["id"], "sequence": event["sequence"], "kind": event["kind"],
                 "text": payload.get("text", ""),
+                **({key: payload.get(key) for key in ("intent", "assessment_ref", "evidence_refs",
+                    "codes", "effect_ids", "source", "message_id", "public_evidence")}
+                   if event["kind"] == "response" else {}),
                 **({"outcome": payload["outcome"], "effect_id": payload["effect_id"]}
                    if event["kind"] == "receipt" else {})})
         effects = [{"effect_id": row["id"], "delivery_status": row["state"], "outcome": row["outcome"]}
                    for row in self.store.effects() if row["session_id"] == session_id]
-        return {"messages": messages, "effects": effects, "status": state.status}
+        return {"messages": messages, "system_events": system_events, "effects": effects, "status": state.status}
 
     @tracked
     async def get_trace(self, session_id, ctx):

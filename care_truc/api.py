@@ -32,7 +32,10 @@ class CareApi:
 
     async def handle(self, operation: str, payload: Mapping[str, object], ctx: TrustedRequestContext) -> ApiResponse:
         try:
-            if not isinstance(ctx, TrustedRequestContext) or not ctx.principal_id:
+            if (not isinstance(ctx, TrustedRequestContext)
+                    or not isinstance(ctx.principal_id, str) or not ctx.principal_id.strip()
+                    or type(ctx.staff_permissions) is not frozenset
+                    or any(not isinstance(p, str) or not p.strip() for p in ctx.staff_permissions)):
                 raise CareError("unauthenticated", 401)
             if not isinstance(operation, str) or operation not in SCHEMAS or not isinstance(payload, Mapping):
                 raise CareError("invalid_operation", 400)
@@ -48,6 +51,11 @@ class CareApi:
                     continue
                 if not isinstance(value, str) or not value.strip() or len(value) > (4000 if key == "text" else 200):
                     raise CareError("invalid_payload", 400)
+            # Public customer operations never inherit staff read capabilities.
+            if "session_id" in payload and operation != "get_trace":
+                state = self.harness.session(payload["session_id"])
+                if state.principal_id != ctx.principal_id:
+                    raise CareError("not_found", 404)
             if operation == "prepare_cancel":
                 result = await self.harness._process_event(payload["session_id"],
                     CustomerEvent("prepare_cancel", payload["request_id"]), ctx)
@@ -55,6 +63,11 @@ class CareApi:
                 result = await getattr(self.harness, operation)(**payload, ctx=ctx)
             return ApiResponse(200, json.loads(canonical(result)))
         except CareError as error:
+            # Keep staff capability refusal distinct; conceal resource authorization.
+            staff_denial = (operation == "get_trace" and "care_trace" not in ctx.staff_permissions
+                            or operation == "get_handoffs" and "care_handoffs" not in ctx.staff_permissions) if error.status == 403 and isinstance(ctx, TrustedRequestContext) else False
+            if error.status == 403 and not staff_denial:
+                return ApiResponse(404, {"error": "not_found"})
             return ApiResponse(error.status, {"error": error.code})
         except ValueError:
             return ApiResponse(400, {"error": "invalid_payload"})
