@@ -26,3 +26,8 @@
 | 9 | pending all previous retained tasks | none | not started |
 
 - Task 1 started: /root/implement_task01, private worktree huy-task-01, base16e8011, approximately 11:33 VN. Worker records precise start/deadline. Full baseline in that worktree:178passed; original sandboxGitconfig permission failure retained separately. Audit complete, no concurrent implementation worker. Preflight table reviewed; source/test ownership and pair seams explicit.
+
+- User resolved Task 6 policy: only successful financial grants reserve canonical key; denial audit remains, later same-key re-evaluation allowed. Existing incidents audit means no Task 1 schema/contract change. Controller full Task 1 pytest:208passed, exit0; independent review underway.
+
+## Task 1: complete
+Implementation worker implement_task01; independent review review_task01 spec PASS/quality PASS. Controller full suite208passed, exit0. RED/GREEN/research/review preserved. Only four allowed source/test files added; contracts unchanged. Unit commit follows this ledger entry.
