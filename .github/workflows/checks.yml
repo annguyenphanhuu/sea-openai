@@ -3,7 +3,7 @@ name: Repository checks
 on:
   pull_request:
   push:
-    branches: [main, huy, an-nguyen, truc]
+    branches: [main, 'feat/**', 'fix/**', 'chore/**', 'docs/**', 'refactor/**', 'test/**', 'perf/**', 'build/**', 'ci/**', 'revert/**']
 
 permissions:
   contents: read
@@ -20,4 +20,9 @@ jobs:
           cache: pip
           cache-dependency-path: requirements/*.txt
       - run: python -m pip install -r requirements/dev.txt
+      - name: Validate PR branch name
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BRANCH: ${{ github.head_ref }}
+        run: python scripts/check_branch.py "$PR_BRANCH"
       - run: python scripts/guardrails.py --all --tests

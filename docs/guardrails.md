@@ -11,7 +11,12 @@ Each clone needs installation. The installer sets local `core.hooksPath` to
 the absolute `.githooks` path in the installing checkout and refuses to replace
 a different configured hooks directory. Keep that checkout available: linked
 worktrees share these hooks, including when their branch has older hook files.
-Use your personal branch (`huy`, `an-nguyen`, or `truc`) as required by AGENTS.md.
+Use task branches `<type>/<lowercase-kebab-description>`, such as
+`chore/repository-guardrails`. Allowed types: `feat`, `fix`, `chore`, `docs`,
+`refactor`, `test`, `perf`, `build`, `ci`, `revert`. Hooks check the current branch
+before commit and push, rejecting legacy personal names, `main`, and detached
+HEAD. PR CI checks the source branch name. This is the repository convention,
+not a universal Git standard; folder ownership is unchanged.
 
 `pre-commit` checks the staged snapshot, rejecting private paths, unresolved
 conflict markers, and whitespace errors. Unstaged fixes do not fix staged errors;
@@ -45,7 +50,7 @@ CodeGraph is initialized locally. Its `.codegraph/` index stays untracked.
 After installing hooks, use ordinary Git commands:
 
 ```powershell
-git worktree add ../sea-openai-huy huy
+git worktree add -b feat/order-tracking ../sea-openai-order-tracking main
 ```
 
 The `post-checkout` hook copies all ignored files from the installing checkout

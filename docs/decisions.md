@@ -6,6 +6,7 @@
 - Repeat checks in GitHub Actions for pull requests and team branch pushes. Each clone installs hooks with `python scripts/install_hooks.py`; see `docs/guardrails.md` for limits and branch-rule enforcement.
 - Keep the local CodeGraph index untracked. Hook setup does not push, open a PR, or change remote branch rules.
 - Keep `docs/superpowers/` local. Shared absolute hooks use `post-checkout` to copy ignored files from the installing checkout into new worktrees without overwriting existing files. Normal branch switches do not copy files.
+- Replace personal branch names with `<type>/<lowercase-kebab-description>` task branches. Commit/push hooks and PR CI enforce the convention; folder ownership remains unchanged. This supersedes the personal-branch default in D5.
 
 Chưa có `team_plan.md`. Các quyết định dưới đây được thiết lập từ mô tả của Huy và yêu cầu tiếp theo “bạn setup cho tôi đi”; đây không phải nội dung trích từ mục 6 của một plan có sẵn. Những lựa chọn bổ sung được ghi là **mặc định đề xuất**. Chưa có agent, API chạy thật hay hàm thực thi tiền.
 
