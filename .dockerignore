@@ -1,0 +1,34 @@
+# Deny everything by default; keep only the deployment source allowlist.
+**
+!contracts/
+!contracts/*.py
+!contracts/*.sql
+!logistics_an_nguyen/
+!logistics_an_nguyen/*.py
+!care_truc/
+!care_truc/*.py
+!care_truc/schema.sql
+!platform_huy/
+!platform_huy/*.py
+!platform_huy/migrations/
+!platform_huy/migrations/*.sql
+!platform_huy/ui_prototype/
+!platform_huy/ui_prototype/**
+!deploy/
+!deploy/*.py
+!deploy/requirements.txt
+!deploy/Dockerfile
+
+# Explicit final exclusions also cover sensitive files inside allowed folders.
+**/.env*
+**/data
+**/truth
+**/runs
+**/.git
+**/.worktrees
+**/.scratch
+**/__pycache__
+**/*.pyc
+**/*.sqlite
+**/*.sqlite-*
+**/*.db
