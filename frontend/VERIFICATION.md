@@ -1,6 +1,6 @@
 # Frontend verification
 
-Verified on 2026-10-31 against team main `82c4398`, with Node.js 24.11.0, npm 11.12.1, Next.js 16.4.3, and Microsoft Edge on Windows.
+Verified on 2026-10-31 against team main `77a601e`, with Node.js 24.11.0, npm 11.12.1, Next.js 16.4.3, and Microsoft Edge on Windows.
 
 | Check | Result |
 | --- | --- |
@@ -9,11 +9,11 @@ Verified on 2026-10-31 against team main `82c4398`, with Node.js 24.11.0, npm 11
 | `npm run lint` | Passed |
 | `npm run typecheck` | Passed |
 | `npm run test:e2e` with `PLAYWRIGHT_CHANNEL=msedge` | Six browser tests passed |
-| Repository contract import and `python -m pytest -q` | 534 tests passed |
+| Repository contract import and `python -m pytest -q` | 518 tests passed after merging the latest main |
 
 Browser tests cover search and filters, selecting orders, keyboard tab navigation, draft and handoff previews, preview reset on reload, null dates, server rejection, simulated guard failure, loading/error recovery, mobile menu focus/Escape, theme persistence, and no horizontal overflow at 375, 768, 1024, and 1440 pixels.
 
-Desktop and mobile screenshots were inspected in both themes. Reproduce them with the browser tests; they are saved under ignored `test-results/`.
+Desktop and mobile screenshots were inspected in both themes. Review examples in `docs/screenshots/`. Reproduce all screenshots with the browser tests; they are saved under ignored `test-results/`.
 
 ## Lighthouse
 
