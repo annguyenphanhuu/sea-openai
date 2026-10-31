@@ -10,6 +10,10 @@
 
 **Spec:** [fastapi-docker-huggingface-design.md](../specs/fastapi-docker-huggingface-design.md). Đọc cả spec và plan khi thực thi. Đây là kế hoạch, chưa triển khai hoặc xác nhận dịch vụ ngoài.
 
+## Execution checkpoint — 2026-10-31
+
+Task1a probe tooling và Task2 local ports đã triển khai, qua task review và scoped re-review. Task1b live compatibility **BLOCKED** vì chưa có Turso DB/token; Tasks3–13 chưa triển khai. Xem [execution checkpoint](../research/fastapi-docker-huggingface-execution.md) để biết commits, test evidence, deploy inspection và quyết định. Remote adapters không được coi là hoàn tất bằng local tests.
+
 ## Global Constraints
 
 - “Uvicorn đúng một process, không reload”; worker logic cùng event loop, không tạo CareRuntime thứ hai.
@@ -49,7 +53,7 @@ Plan này chỉ tạo tài liệu `.scratch/plans/`; không fetch/merge/push tro
 | Vùng | File mới/chỉnh | Trách nhiệm |
 | --- | --- | --- |
 | Storage shared, Huy | `platform_huy/storage/{types,remote,migrations,commands,identity,queries,lease,backup}.py`, `platform_huy/storage/__init__.py`, `platform_huy/migrations/002_service.sql` | Database transactions, durable commands/auth/query state, lease, backup; giữ nguyên migration 001 |
-| Care, Trúc | `care_truc/storage/{ports,sqlite,remote}.py`, `care_truc/storage/__init__.py`; sửa `store.py`, `effect_store.py`, `harness.py`, `dispatcher.py`, `lifecycle.py` | Port theo request/turn/effect/recovery; bỏ truy cập SQL trực tiếp khỏi orchestration |
+| Care, Trúc | `care_truc/{storage_port,local_store}.py`, adapter remote sau compatibility gate; sửa `store.py`, `effect_store.py`, `harness.py`, `dispatcher.py`, `lifecycle.py` | Port theo request/turn/effect/recovery; bỏ truy cập SQL trực tiếp khỏi orchestration |
 | A2, An Nguyen | `logistics_an_nguyen/question_port.py`, `question_remote.py`; sửa `questions.py` | Lưu/đọc/trả lời supervisor question qua port, không đổi semantics assessment |
 | Platform, Huy | `platform_huy/{source_cache,coordinator,context_adapter,dispatch_gate,remote_executor,remote_effect_gateway,review_service}.py`; sửa `state_store.py`, `effect_gateway.py` khi cần seam chung | Replay, trusted facts/evidence, gate, executor/receipt và review/cancel thật trong namespace đánh giá |
 | HTTP, Trúc | `care_truc/http/{__init__,app,settings,schemas,errors,security,dependencies,auth,orders,chats,cancel_review,supervisor,guard,replay,voice}.py` | App factory, auth, strict transport schemas, routes |
@@ -74,15 +78,16 @@ Chữ ký dưới đây là **giao diện dự kiến**, không phải symbol hi
 
 ### Task 2: Tạo storage ports và loại SQL khỏi orchestration care/A2
 
+**Scope đã chốt:** local ports/adapter hoàn tất; remote files/parity tests chuyển sang Task3 sau live gate.
 **Owner:** Trúc cho care; An Nguyen cho A2; Huy cho shared persistence.
-**Files:** care storage files trong bản đồ; sửa `care_truc/{harness,dispatcher,lifecycle,store,effect_store}.py`; A2 `question_port.py`, `question_remote.py`, `questions.py`; create `care_truc/tests/test_storage_ports.py`, `acceptance_an_nguyen/test_question_remote.py`.
+**Files:** care storage files trong bản đồ; sửa `care_truc/{harness,dispatcher,lifecycle,store,effect_store}.py`; A2 `question_port.py`, `question_remote.py`, `questions.py`; create `care_truc/tests/test_storage_ports.py`, `acceptance_an_nguyen/test_question_port.py`.
 **Interfaces:** `CareStore` cung cấp async operations cho begin/commit turn, load session, request lookup, recovery list, claim/record effects, confirmation consume và health; dùng DTO hiện có `SessionState`, `CustomerEvent`, `PolicyOutcome`, `Receipt`. `QuestionRepository.save(questions)`, `.list_questions(order_id=None,status=None)`, `.answer(question_id, *, answer_text, answered_by, answered_at)` là async. Port giữ nguyên tên/arguments nghiệp vụ của store cũ khi có, thêm keyword `deadline: float` cho I/O; `commit_turn` giữ expected_version và attempt token hiện có.
 
-- [ ] Viết contract tests chạy cùng bộ case cho local port: stale session version/attempt không commit; duplicate message giữ một kết quả; request+outbox commit cùng transaction; recovery không đổi principal/channel; question answer lặp cùng nội dung là idempotent, đổi nội dung conflict. Assertions: `count_requests == 1`, `count_effects == 1`, `stale_commit is False`, `answer_conflict.code == 'conflict'`.
-- [ ] Chạy `pytest -q care_truc/tests/test_storage_ports.py acceptance_an_nguyen/test_question_remote.py`; kỳ vọng FAIL vì chưa có port.
-- [ ] Implement local adapter bọc logic hiện có; chuyển các direct `.db/.conn.execute` trong orchestration thành operation có tên, await port tại đúng boundaries. Không giả remote bằng sqlite connection. Inventory và ghi rõ mọi operation đang dùng vào port, không thêm CRUD tổng quát cho route.
-- [ ] `CareRuntime.start` nhận injected store và `background=False` cho integrated coordinator; giữ đường local dev tương thích. Chỉ integrated app dùng một coordinator, không đồng thời bật `_work()` cũ.
-- [ ] Chạy `pytest -q care_truc/tests acceptance_an_nguyen`; tất cả tests cũ và contract tests PASS; commit `refactor: isolate care and question persistence ports` theo từng owner, push các unit đã xác minh.
+- [x] Viết contract tests chạy cùng bộ case cho local port: stale session version/attempt không commit; duplicate message giữ một kết quả; request+outbox commit cùng transaction; recovery không đổi principal/channel; question answer lặp cùng nội dung là idempotent, đổi nội dung conflict. Assertions: `count_requests == 1`, `count_effects == 1`, `stale_commit is False`, `answer_conflict.code == 'conflict'`.
+- [x] Chạy `pytest -q care_truc/tests/test_storage_ports.py acceptance_an_nguyen/test_question_port.py`; kỳ vọng FAIL vì chưa có port.
+- [x] Implement local adapter bọc logic hiện có; chuyển các direct `.db/.conn.execute` trong orchestration thành operation có tên, await port tại đúng boundaries. Không giả remote bằng sqlite connection. Inventory và ghi rõ mọi operation đang dùng vào port, không thêm CRUD tổng quát cho route.
+- [x] `CareRuntime.start` nhận injected store và `background=False` cho integrated coordinator; giữ đường local dev tương thích. Chỉ integrated app dùng một coordinator, không đồng thời bật `_work()` cũ.
+- [x] Chạy `pytest -q care_truc/tests acceptance_an_nguyen`; tất cả tests cũ và contract tests PASS; commit `refactor: isolate care and question persistence ports` theo từng owner, push các unit đã xác minh.
 
 ### Task 3: Remote migrations, atomic commands, sessions và recovery
 
@@ -188,6 +193,8 @@ Chữ ký dưới đây là **giao diện dự kiến**, không phải symbol hi
 - [ ] Run `npm --prefix frontend run lint`, `npm --prefix frontend run typecheck`, `npm --prefix frontend run build`, e2e trên API thật; tất cả PASS; kiểm laptop/mobile/mic HTTPS. Commit `feat: connect judge interface to live service API`.
 
 ### Task 12: Image, proxy, process lifecycle, CI và runbook
+
+**Baseline deploy đã kiểm tra lúc execution:** `deploy/Dockerfile`, `deploy/start_space.py`, `deploy/fetch_data.py`, `deploy/README.md` đã tồn tại; cập nhật upstream `3c70fe2` chạy integrated A3/A2/A1, web inbox và presenter-key auth trên stdlib HTTP, local SQLite ephemeral. Next.js vẫn nằm ngoài image; presenter auth chưa phải per-judge ownership. Tái sử dụng downloader/validation, UID 1000 và allowlist; giữ đường demo cũ. Image service root mới vẫn cần Next/FastAPI/proxy/auth/remote persistence. Production SourceCache phải siết revision pin và hash bắt buộc vì downloader cũ mặc định main và manifest optional. Test `acceptance_huy/test_lunch_deploy.py`: 17 passed; chưa build image vì Docker daemon local chưa sẵn.
 
 **Owner:** Huy root/deploy/docs; Trúc frontend config và service entrypoint.
 **Files:** deployment files trong bản đồ, create `scripts/smoke_service.py`, `docs/huggingface-runbook.md`.
