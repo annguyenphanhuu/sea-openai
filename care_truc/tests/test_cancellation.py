@@ -121,7 +121,7 @@ def test_lost_lifecycle_fails_closed_and_requires_new_prompt(tmp_path):
     asyncio.run(check())
 
 
-def test_confirm_is_turn_eight_and_cannot_bypass_handoff(tmp_path):
+def test_confirm_at_turn_eight_still_requires_and_accepts_bound_consent(tmp_path):
     async def check():
         h = harness(tmp_path)
         sid = (await h.open_chat('o1', 'open', CUSTOMER)).session_id
@@ -130,9 +130,10 @@ def test_confirm_is_turn_eight_and_cannot_bypass_handoff(tmp_path):
         await h.handle_message(sid, 'want', 'muốn hủy', CUSTOMER)
         pending = (await h.session(sid)).pending
         result = await h.confirm_cancel(pending.confirmation_id, 'yes', CUSTOMER, reply_to=pending.reply_to, confirmed=True)
-        assert 'turn_limit' in result.codes
-        assert (await h.session(sid)).turn_count == 8 and (await h.session(sid)).status == 'handoff_pending'
-        assert all(':cancel:' not in e['effect_key'] for e in h.store.effects())
+        assert 'turn_limit' not in result.codes
+        assert (await h.session(sid)).turn_count == 8 and (await h.session(sid)).status == 'active'
+        assert result.effect_ids
+        assert any(':cancel:' in e['effect_key'] for e in h.store.effects())
         h.store.close()
     asyncio.run(check())
 

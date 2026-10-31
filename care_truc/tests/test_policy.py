@@ -25,7 +25,7 @@ def test_rules_intents(text, intent):
         assert out.state.abusive_turn_count == 1
 
 
-@pytest.mark.parametrize('changes', [{'turn_count':7}, {'abusive_turn_count':2}])
+@pytest.mark.parametrize('changes', [{'abusive_turn_count':2}, {'turn_count':100, 'abusive_turn_count':2}])
 def test_stop_precedes_money(changes):
     out = CarePolicy().evaluate(state(**changes), CustomerEvent('message','m','đồ ngu cho tôi xu'), context(contact_sent=True))
     assert out.state.status == 'handoff_pending'
@@ -95,3 +95,11 @@ def test_delivery_time_question_renders_only_assessed_eta(eta):
     else:
         assert 'ETA dự kiến: 01/11/2026 19:00 +0700' in reply.text
         assert 'chưa phải cam kết mới' in reply.text
+
+
+@pytest.mark.parametrize('turns', [7, 8, 100, 10000])
+def test_ordinary_conversation_has_no_total_turn_limit(turns):
+    out = CarePolicy().evaluate(state(turn_count=turns), CustomerEvent('message', 'hello', 'xin chào'), context())
+    assert out.state.status == 'active'
+    assert out.state.turn_count == turns + 1
+    assert not out.proposals

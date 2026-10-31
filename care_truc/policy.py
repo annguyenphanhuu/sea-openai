@@ -5,7 +5,6 @@ from datetime import timedelta
 from uuid import uuid4
 from secrets import token_urlsafe
 
-from contracts.params import max_turns
 from contracts.types import Action
 from .runtime_types import (CustomerEvent, EffectProposal, PendingCancellation,
                            PolicyOutcome, CareError, canonical)
@@ -27,8 +26,6 @@ class CarePolicy:
             return "customer_requested_human"
         if state.abusive_turn_count + int(abuse) >= 3:
             return "abuse_limit"
-        if state.turn_count + 1 >= max_turns:
-            return "turn_limit"
         return None
 
     def evaluate(self, state, event: CustomerEvent, context) -> PolicyOutcome:
