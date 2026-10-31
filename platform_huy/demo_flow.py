@@ -28,7 +28,7 @@ from logistics_an_nguyen.service import assessment_payload, evaluate_tick
 
 from . import sysguard
 from .dto import ServerContext, SourceIdentity
-from .effect_gateway import SqliteEffectGateway
+from .effect_gateway import SqliteEffectGateway, check_deadline, sqlite_deadline
 from .state import bootstrap, connect_state, immediate, utc
 from .state_store import SqliteStateStore
 
@@ -157,7 +157,9 @@ class _Gateway:
                 return await self._financial(proposal).submit(proposal, deadline=deadline)
             # No await inside these locks: final durable authority and controls
             # remain stable until the local inbox transaction commits.
-            with flow.care.store.transaction(), immediate(flow.conn):
+            with (sqlite_deadline((flow.care.store.db, flow.conn), deadline),
+                  flow.care.store.transaction(), immediate(flow.conn)):
+                check_deadline(deadline)
                 state = flow.care.store.load_session(proposal.session_id)
                 persisted = flow.care.store.effect(proposal.effect_id)
                 if (persisted is None or persisted['attempts'] < 1
@@ -183,6 +185,7 @@ class _Gateway:
                     customer = flow._inspect(state.order_id)['order']['customer_id']
                     if flow._contacted_today(customer, excluding=state.contact_id):
                         raise CareError('customer_daily_contact_limit', 409)
+                    check_deadline(deadline)
                     timestamp = utc(flow.now)
                     flow.conn.execute(
                         "INSERT OR IGNORE INTO contact_log(contact_id,order_id,channel,initiated_by,status,"
@@ -196,11 +199,13 @@ class _Gateway:
                 elif proposal.kind == 'handoff_request':
                     if state.status not in ('handoff_pending', 'transferred'):
                         raise CareError('session_state_conflict', 409)
+                    check_deadline(deadline)
                     flow.conn.execute('INSERT OR IGNORE INTO demo_handoffs VALUES (?,?,?,?)',
                         (proposal.effect_id, state.session_id, proposal.payload, utc(flow.now)))
                     remote = 'staff-inbox:' + proposal.effect_id
                 else:
                     raise CareError('effect_kind_not_supported', 409)
+                check_deadline(deadline)
             return Receipt(proposal.effect_id, proposal.key, fingerprint(proposal.payload),
                            1, 'succeeded', remote)
         except Exception as error:

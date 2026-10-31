@@ -8,16 +8,50 @@ from dataclasses import replace
 from datetime import datetime
 import json
 import math
+import sqlite3
 import time
 from types import MappingProxyType
-from typing import Mapping
+from typing import Iterator, Mapping
 
 from care_truc.runtime_types import CareError, EffectProposal, Receipt, canonical, fingerprint
 from care_truc.store import MemoryStore
 from contracts.types import Action
-from .dto import ExecutionResult, ServerContext
+from .dto import ExecutionResult, PlatformError, ServerContext
 from .money import execute_action, get_receipt
 from .state_store import SqliteStateStore
+
+
+def check_deadline(deadline: float) -> float:
+    if not isinstance(deadline, (int, float)) or not math.isfinite(deadline):
+        raise ValueError('Invalid monotonic deadline')
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError('deadline_exceeded')
+    return remaining
+
+
+@contextmanager
+def sqlite_deadline(connections: tuple[sqlite3.Connection, ...], deadline: float) -> Iterator[None]:
+    """Bound synchronous SQLite work; callers check again before committing."""
+    check_deadline(deadline)
+    saved = []
+    try:
+        for conn in connections:
+            old = conn.execute('PRAGMA busy_timeout').fetchone()[0]
+            saved.append((conn, old))
+            milliseconds = max(1, min(50, int(check_deadline(deadline) * 1000)))
+            conn.execute(f'PRAGMA busy_timeout={milliseconds}')
+            conn.set_progress_handler(lambda: int(time.monotonic() >= deadline), 100)
+        try:
+            yield
+        except (sqlite3.Error, PlatformError) as error:
+            if time.monotonic() >= deadline:
+                raise TimeoutError('deadline_exceeded') from error
+            raise
+    finally:
+        for conn, timeout in saved:
+            conn.set_progress_handler(None, 0)
+            conn.execute(f'PRAGMA busy_timeout={timeout}')
 
 
 class SqliteEffectGateway:
@@ -47,27 +81,8 @@ class SqliteEffectGateway:
             raise ValueError('Platform runtime must be bootstrapped')
         self.run_id = row[0]
 
-    @contextmanager
     def _deadline(self, deadline: float):
-        if not isinstance(deadline, (int, float)) or not math.isfinite(deadline):
-            raise ValueError('Invalid monotonic deadline')
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError('deadline_exceeded')
-        saved = []
-        try:
-            for conn in (self.store.conn, self.care_store.db):
-                old = conn.execute('PRAGMA busy_timeout').fetchone()[0]
-                saved.append((conn, old))
-                # Local SQLite cannot wait indefinitely inside an async port.
-                milliseconds = max(1, min(50, int(remaining * 1000)))
-                conn.execute(f'PRAGMA busy_timeout={milliseconds}')
-                conn.set_progress_handler(lambda: int(time.monotonic() >= deadline), 100)
-            yield
-        finally:
-            for conn, timeout in saved:
-                conn.set_progress_handler(None, 0)
-                conn.execute(f'PRAGMA busy_timeout={timeout}')
+        return sqlite_deadline((self.store.conn, self.care_store.db), deadline)
 
     def _prepare(self, proposal: EffectProposal):
         row = self.care_store.effect(proposal.effect_id)

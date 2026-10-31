@@ -65,6 +65,14 @@ prove a competing SQLite writer cannot change care authority during financial
 acceptance. All ten fail against the pre-integration production modules loaded
 in memory and pass against the implemented modules.
 
+The nonfinancial acceptance path also bounds both SQLite connections' lock waits
+and progress to its monotonic deadline. It rechecks after acquiring locks, before
+effect writes, and before leaving the write transactions. Deterministic tests
+advance time during final validation and from actual INSERT triggers for both
+contact and handoff; expired work leaves no contact/inbox/handoff rows. Real
+competing write locks verify bounded rejection on each connection. All six cases
+fail against the first integration revision and pass after the deadline repair.
+
 Presenter HTTP authentication is covered separately. Customer CareApi HTTP routes,
 customer network authentication, external contact providers and web voice/session
 negotiation are not established by the local integration. Required adapter inputs
@@ -72,15 +80,23 @@ and proposed route mapping remain in README.
 
 ## Verified integration revision, 2026-10-31
 
-The user-approved main integration changes pass these fresh checks:
+The user-approved integration plus the independent-review deadline correction
+pass these fresh checks:
 
-- Touched release-fed flow/tick and presenter authentication tests: **30 passed**.
-- Proof, coin, cancellation and dispatch regression tests: **115 passed**.
-- Required combined acceptance and care suite: **1174 passed**.
-- Root acceptance suite through `guardrails.py --all --tests`: **684 passed**;
-  guardrails passed. Contract/care imports, standalone demo and diff checks pass.
+- Deadline expiry and lock-wait regressions: **6 passed** after **6 failed** on
+  the first integration revision.
+- Proof, coin, cancellation and dispatch regression tests: **121 passed**.
+- Affected release-fed flow/tick and financial gateway tests: **19 passed**.
+- Required combined acceptance and care suite: **1180 passed**.
+- Contract/care/gateway imports and diff checks pass. Final index guardrails pass.
+
+The preceding integration revision additionally passed **30** flow/tick/presenter
+authentication tests, **684** root acceptance tests through guardrails, and the
+standalone algorithm demo. Those unchanged checks were not repeated separately;
+the current combined gate includes the acceptance and care tests.
 
 The ten new authority/consent/concurrency tests also fail against the previous
 gateway implementations loaded in memory, proving they detect the repaired gaps.
-Implementation verification is complete for the local scope above. Independent
-controller review precedes push; production deployment approval is separate.
+Implementation verification is complete for the local scope above, including
+the reviewer's deadline finding. Independent re-review precedes push; production
+deployment approval is separate.

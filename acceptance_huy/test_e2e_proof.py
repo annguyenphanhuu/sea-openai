@@ -357,3 +357,96 @@ def test_financial_acceptance_holds_care_authority_lock(proof, tmp_path, monkeyp
     finally:
         contender.close()
         care.close()
+
+
+@pytest.fixture
+def nonfinancial_gateway(proof, tmp_path):
+    from types import SimpleNamespace
+    from care_truc.guardrails import Guardrails
+    from platform_huy.demo_flow import _Gateway
+
+    _, conn = proof
+    care = MemoryStore.open(tmp_path / 'deadline-care.sqlite')
+    conn.execute('CREATE TABLE demo_inbox(effect_id PRIMARY KEY,effect_key,session_id,order_id,text,created_at)')
+    conn.execute('CREATE TABLE demo_handoffs(effect_id PRIMARY KEY,session_id,payload,created_at)')
+    assessment = OrderAssessment('o', NOW, 'late', datetime(2026,10,22).date(),
+                                 None, 2, 1.0, 0.9, 'carrier', (), ())
+    snapshot = ContextSnapshot('customer', 'o', NOW, assessment,
+        GuardSnapshot('a3', NOW, (FeedSnapshot('orders','trusted',NOW),), ('orders',), True, True))
+    flow = SimpleNamespace(conn=conn, run_id='r', now=NOW, gateway_errors=[],
+        care=SimpleNamespace(store=care, harness=SimpleNamespace(guards=Guardrails())),
+        context=SimpleNamespace(snapshot=lambda ctx, order_id: snapshot),
+        _inspect=lambda order_id: {'order': {'customer_id': 'c'}},
+        _principal=lambda facts: 'customer', _allowed=lambda: True,
+        _contacted_today=lambda customer, excluding=None: False)
+
+    def prepare(kind):
+        state = SessionState('session', 'r', 'customer', 'o', opened_by='a1', contact_id='contact',
+                             status='handoff_pending' if kind == 'handoff_request' else 'active')
+        care.create_session(state, 'opening')
+        proposal = EffectProposal('effect', 'effect', 'session', 'o', kind,
+                                  care_canonical({'text': 'Opening', 'reason': 'human'}), '')
+        care.db.execute("INSERT INTO pending_effects(id,run_id,effect_key,session_id,proposal,session_version,state,outcome,attempts) "
+                        "VALUES ('effect','r','effect','session',?,0,'in_flight','unknown',1)",
+                        (care_canonical(proposal),))
+        return _Gateway(flow), proposal
+
+    yield flow, prepare
+    care.close()
+
+
+@pytest.mark.parametrize('kind', ['contact_send', 'handoff_request'])
+@pytest.mark.parametrize('expire_during', ['validation', 'write'])
+def test_nonfinancial_deadline_expiry_rolls_back_all_effects(nonfinancial_gateway, monkeypatch, kind, expire_during):
+    flow, prepare = nonfinancial_gateway
+    gateway, proposal = prepare(kind)
+    now = [0.0]
+    monkeypatch.setattr('platform_huy.demo_flow.time.monotonic', lambda: now[0])
+    before_timeouts = [conn.execute('PRAGMA busy_timeout').fetchone()[0]
+                       for conn in (flow.conn, flow.care.store.db)]
+
+    def expire():
+        now[0] = 2.0
+        return 0
+
+    if expire_during == 'validation':
+        original = flow._inspect
+
+        def inspect(order_id):
+            expire()
+            return original(order_id)
+
+        flow._inspect = inspect
+    else:
+        table = 'demo_inbox' if kind == 'contact_send' else 'demo_handoffs'
+        flow.conn.create_function('expire_deadline', 0, expire)
+        flow.conn.execute(f'CREATE TRIGGER expire_write AFTER INSERT ON {table} BEGIN SELECT expire_deadline(); END')
+    with pytest.raises(TimeoutError, match='deadline_exceeded'):
+        asyncio.run(gateway.submit(proposal, deadline=1.0))
+    for table in ('demo_inbox', 'demo_handoffs', 'contact_log'):
+        assert flow.conn.execute(f'SELECT count(*) FROM {table}').fetchone() == (0,)
+    assert not flow.conn.in_transaction
+    assert not flow.care.store.db.in_transaction
+    assert [conn.execute('PRAGMA busy_timeout').fetchone()[0]
+            for conn in (flow.conn, flow.care.store.db)] == before_timeouts
+
+
+@pytest.mark.parametrize('locked_store', ['care', 'platform'])
+def test_nonfinancial_sqlite_lock_wait_is_bounded(nonfinancial_gateway, locked_store):
+    from platform_huy.dto import PlatformError
+
+    flow, prepare = nonfinancial_gateway
+    gateway, proposal = prepare('handoff_request')
+    conn = flow.care.store.db if locked_store == 'care' else flow.conn
+    path = conn.execute('PRAGMA database_list').fetchone()[2]
+    contender = sqlite3.connect(path, isolation_level=None)
+    try:
+        contender.execute('BEGIN IMMEDIATE')
+        started = time.monotonic()
+        with pytest.raises((TimeoutError, sqlite3.OperationalError, PlatformError)):
+            asyncio.run(gateway.submit(proposal, deadline=started + 0.05))
+        assert time.monotonic() - started < 0.75
+        assert flow.conn.execute('SELECT count(*) FROM demo_handoffs').fetchone() == (0,)
+    finally:
+        contender.rollback()
+        contender.close()
