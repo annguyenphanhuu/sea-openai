@@ -1,6 +1,0 @@
-Command 1: python -s -c "import platform_huy.dto; import logistics_an_nguyen.models"
-Exit 1: 0
-Command 2: python -s -c "import logistics_an_nguyen.models; import platform_huy.dto"
-Exit 2: 0
-Start UTC: 2026-10-31T04:35:28.8018784Z
-End UTC: 2026-10-31T04:35:29.1760654Z
