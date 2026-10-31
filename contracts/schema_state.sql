@@ -24,20 +24,29 @@ CREATE TABLE IF NOT EXISTS outbox (
     idempotency_key TEXT NOT NULL UNIQUE,
     order_id TEXT NOT NULL,
     kind TEXT NOT NULL CHECK (kind IN (
-        'open_chat', 'start_web_voice', 'request_cancel',
-        'cancel_order', 'handoff_human', 'grant_late_xu'
+        'coins', 'cancel_request', 'eta_notice',
+        'voucher', 'refund', 'shipping_fee_refund'
     )),
-    actor TEXT NOT NULL CHECK (actor IN ('A1', 'A2', 'A3', 'human')),
-    contact_id TEXT REFERENCES contact_log(contact_id),
+    amount_vnd INTEGER NOT NULL CHECK (typeof(amount_vnd) = 'integer'),
+    source TEXT NOT NULL CHECK (source IN ('a1', 'app', 'rule', 'cancel_reviewer')),
     confirmation_id TEXT,
-    evidence_refs_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(evidence_refs_json)),
+    evidence_ref TEXT NOT NULL,
+    needs_approval INTEGER NOT NULL CHECK (needs_approval IN (0, 1)),
+    queue TEXT NOT NULL,
     requested_at TEXT NOT NULL,
     available_at TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'claimed', 'succeeded', 'failed', 'blocked')),
     claimed_at TEXT,
     completed_at TEXT,
-    error_code TEXT
+    error_code TEXT,
+    CHECK (
+        (kind = 'coins' AND source = 'a1')
+        OR (kind = 'cancel_request' AND source IN ('a1', 'app'))
+        OR (kind = 'eta_notice' AND source = 'a1')
+        OR (kind = 'voucher' AND source = 'rule')
+        OR (kind IN ('refund', 'shipping_fee_refund') AND source = 'cancel_reviewer')
+    )
 );
 CREATE INDEX IF NOT EXISTS outbox_ready ON outbox(status, available_at);
 
@@ -60,6 +69,7 @@ CREATE TABLE IF NOT EXISTS ledger_new (
 
 CREATE TABLE IF NOT EXISTS guard_heartbeat (
     tick_at TEXT PRIMARY KEY NOT NULL,
+    agent_id TEXT NOT NULL,
     recorded_at TEXT NOT NULL,
     proactive_contact_allowed INTEGER NOT NULL
         CHECK (proactive_contact_allowed IN (0, 1)),
@@ -69,7 +79,8 @@ CREATE TABLE IF NOT EXISTS guard_heartbeat (
 CREATE TABLE IF NOT EXISTS feed_health (
     feed TEXT NOT NULL,
     tick_at TEXT NOT NULL REFERENCES guard_heartbeat(tick_at),
-    status TEXT NOT NULL CHECK (status IN ('healthy', 'degraded', 'blocked', 'unknown')),
+    status TEXT NOT NULL CHECK (status IN ('trusted', 'stale', 'corrupt', 'missing')),
+    source_timestamp TEXT,
     last_ingested_at TEXT,
     checked_at TEXT NOT NULL,
     reason_codes_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(reason_codes_json)),

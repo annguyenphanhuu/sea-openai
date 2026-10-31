@@ -18,6 +18,10 @@ before commit and push, rejecting legacy personal names, `main`, and detached
 HEAD. PR CI checks the source branch name. This is the repository convention,
 not a universal Git standard; folder ownership is unchanged.
 
+The user may explicitly authorize integration into personal branch targets or
+main. Prepare and verify that integration on a valid task branch; publishing to
+an authorized target does not require disabling the current-branch checks.
+
 `pre-commit` checks the staged snapshot, rejecting private paths, unresolved
 conflict markers, and whitespace errors. Unstaged fixes do not fix staged errors;
 stage the corrected file again. Removing an accidentally tracked private file is
