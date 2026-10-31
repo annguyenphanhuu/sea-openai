@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useRef, useState, useSyncExternalStore } from "react";
 import { FluentProvider, createLightTheme, createDarkTheme, type BrandVariants } from "@fluentui/react-components";
 import { createDOMRenderer, RendererProvider, renderToStyleElements } from "@griffel/react";
 import { useServerInsertedHTML } from "next/navigation";
@@ -37,8 +37,13 @@ function subscribeTheme(callback: () => void) {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
     const [renderer] = useState(() => createDOMRenderer());
+    const stylesInserted = useRef(false);
     const dark = useSyncExternalStore(subscribeTheme, currentTheme, () => false);
-    useServerInsertedHTML(() => <>{renderToStyleElements(renderer)}</>);
+    useServerInsertedHTML(() => {
+        if (stylesInserted.current) return;
+        stylesInserted.current = true;
+        return <>{renderToStyleElements(renderer)}</>;
+    });
     function toggle() {
         try { localStorage.setItem("cho-pho-theme", dark ? "light" : "dark"); }
         catch { return; }
