@@ -18,3 +18,15 @@ Tệp này lưu chỉ dẫn trên đĩa cho phiên sau đọc; không chứng mi
 
 - Đối soát lịch sử theo từng kind, bám quy tắc giới hạn độc lập đã chốt: voucher lịch sử đã nhận diện không tiêu lượt coins. Review mapping kind nguồn sang quyền lợi runtime; kind chưa nhận diện cần làm rõ mapping, không tự gộp các loại.
 - Không hỏi lại các lựa chọn đã xác nhận ở trên. Chỉ hỏi Huy khi xuất hiện quyết định nghiệp vụ/demo thực sự chưa được chốt.
+
+## Latest execution authorization
+
+- Controller may merge/push main for the requested integration; workers may not.
+- Canonical benefit keys: xu:{order_id}, voucher:{order_id}. Each kind once/order.
+- Task 3 handles clock/checkpoint only; Task 4 integrates A3/A2/guard. Run Task 1 alone, Task 2, pairs 3+5 / 6+7 / 4+8, then Task 9, with private worktrees and at most two implementation workers.
+- Task-owned acceptance_huy tests are explicitly authorized. contracts and other owner code remain read-only.
+- Full research and real RED/GREEN receipts stay in .scratch. Stop each task at 30 minutes; notify Huy at 13:00 VN if Tasks 1-4 are incomplete.
+
+## Pending decision
+
+- Fixed benefit key after a blocked attempt: audit denial and permit reconsideration before first grant, or permanently lock even a denied key. Asked Huy; Task 6 must not choose silently.
