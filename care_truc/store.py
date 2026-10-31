@@ -8,7 +8,7 @@ from pathlib import Path
 import sqlite3
 from uuid import uuid4
 
-from .runtime_types import (CareError, CustomerEvent, PendingCancellation,
+from .runtime_types import (AttemptToken, CareError, CustomerEvent, PendingCancellation,
     PolicyOutcome, SessionState, TurnResult, canonical)
 
 
@@ -120,11 +120,65 @@ class MemoryStore:
         return response
 
     def _save_proposal(self, proposal, request_id, state) -> None:
-        self.db.execute("INSERT INTO pending_effects(id,run_id,effect_key,session_id,proposal,session_version) VALUES(?,?,?,?,?,?)",
-                        (proposal.effect_id, state.run_id, proposal.key, state.session_id,
-                         canonical(proposal), state.version))
-        self.db.execute("INSERT INTO effect_proposals VALUES(?,1,?,?)",
-                        (proposal.effect_id, request_id, canonical(proposal)))
+        from .effect_store import save_proposal
+        save_proposal(self, proposal, request_id, state)
+
+    def reserve_processing(self, request_id: str, boot_generation: int, now: float = 0):
+        with self.transaction():
+            row = self.request(request_id)
+            if row["phase"] not in ("processing", "retry_wait") or row["next_at"] > now:
+                return None
+            if row["processing_attempts"] >= 3:
+                self.fail_request(request_id, "processing_exhausted")
+                return None
+            state = self.load_session(row["session_id"])
+            self.db.execute("UPDATE requests SET processing_attempts=processing_attempts+1,phase='processing',base_version=? WHERE id=?", (state.version, request_id))
+            return AttemptToken(request_id, state.version, boot_generation)
+
+    def reserve_model(self, request_id: str):
+        with self.transaction():
+            row = self.request(request_id)
+            if row["phase"] != "processing" or row["model_attempts"]:
+                return None
+            self.db.execute("UPDATE requests SET model_attempts=1 WHERE id=?", (request_id,))
+            return AttemptToken(request_id, row["base_version"], self.boot_generation)
+
+    @property
+    def boot_generation(self) -> int:
+        return self.db.execute("SELECT boot_generation FROM runtime_meta").fetchone()[0]
+
+    def retry_request(self, request_id: str, now: float) -> None:
+        row = self.request(request_id)
+        if row["processing_attempts"] >= 3:
+            self.fail_request(request_id, "processing_exhausted")
+        else:
+            delay = 1 if row["processing_attempts"] == 1 else 5
+            self.db.execute("UPDATE requests SET phase='retry_wait',next_at=? WHERE id=?", (now + delay, request_id))
+
+    def fail_request(self, request_id: str, code: str) -> None:
+        self.db.execute("UPDATE requests SET phase='failed_terminal',error=? WHERE id=?", (code, request_id))
+
+    def effects(self) -> list:
+        return list(self.db.execute("SELECT * FROM pending_effects ORDER BY rowid"))
+
+    def effect(self, effect_id: str):
+        return self.db.execute("SELECT * FROM pending_effects WHERE id=?", (effect_id,)).fetchone()
+
+    def set_effect(self, effect_id: str, **changes) -> None:
+        if not changes.keys() <= {"state", "outcome", "next_at", "lookups", "manual"}:
+            raise ValueError("invalid_effect_update")
+        columns = ",".join(f"{name}=?" for name in changes)
+        self.db.execute(f"UPDATE pending_effects SET {columns} WHERE id=?", (*changes.values(), effect_id))
+
+    def revise_proposal(self, key, source_request, proposal) -> int:
+        from .effect_store import revise_proposal
+        with self.transaction():
+            return revise_proposal(self, key, source_request, proposal)
+
+    def claim_effect(self, effect_id, expected_session_version, expected_revision, now: float):
+        from .effect_store import claim_effect
+        with self.transaction():
+            return claim_effect(self, effect_id, expected_session_version, expected_revision, now)
 
     def events(self, session_id: str) -> list[dict]:
         return [dict(row) for row in self.db.execute("SELECT * FROM events WHERE session_id=? ORDER BY sequence", (session_id,))]
