@@ -8,6 +8,39 @@ Owner: Huy; only Huy maintains dependency lists.
 - Root `requirements.txt`: includes `dev.txt` for the shared team setup.
 - The static UI needs no npm installation, API key, or source database.
 
+## Conda
+
+From the repository root, create the project environment once and install the
+shared requirements into that environment:
+
+```powershell
+conda create --name sea-openai python=3.11 pip --yes
+conda env config vars set --name sea-openai PYTHONNOUSERSITE=1
+conda run --name sea-openai python -s -m pip install -r requirements.txt
+conda run --name sea-openai python -m pip check
+conda run --name sea-openai python -m pytest -q
+```
+
+If Python 3.11 and its dependencies are already cached and the Conda server is
+unreachable, add `--offline` to the create command. This only works with a
+complete local package cache; pip requirements still need a reachable index or
+cached distributions.
+
+The environment variable prevents Python from loading packages from the shared
+user site. Reactivate the environment if it was already active when setting it.
+Use `conda activate sea-openai` in a Conda-enabled terminal, or keep using
+`conda run` without changing shell configuration. To start the prototype:
+
+```powershell
+conda run --no-capture-output --name sea-openai python -m platform_huy.serve_ui
+```
+
+Use the environment's `python.exe` as the IDE interpreter, with
+`PYTHONNOUSERSITE=1` in the IDE run environment if Conda activation is skipped.
+The environment is
+local to the machine and is not committed. Refresh dependencies with the pip
+install command above whenever the shared requirements change.
+
 ## Windows (PowerShell)
 
 Check which interpreter will create the environment:
