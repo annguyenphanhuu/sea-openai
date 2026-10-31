@@ -3,7 +3,7 @@
 Owner: Huy; only Huy maintains dependency lists.
 
 - Python 3.11+ is required. Use a standalone Python installation.
-- `runtime.txt`: no external runtime packages are currently needed.
+- `runtime.txt`: PyMongo and python-dotenv for MongoDB connections and `.env` configuration.
 - `dev.txt`: runtime requirements plus the pinned pytest version.
 - Root `requirements.txt`: includes `dev.txt` for the shared team setup.
 - The static UI needs no npm installation, API key, or source database.
