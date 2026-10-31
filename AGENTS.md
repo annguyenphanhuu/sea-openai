@@ -10,6 +10,8 @@ Acceptance folders name the person being tested. Follow `docs/team_plan.md`; onl
 
 ## Development Commands
 
+Store coding specs in `.scratch/specs/`, implementation plans in `.scratch/plans/`, and research notes in `.scratch/research/`. Use matching descriptive Markdown filenames for related specs and plans.
+
 Use Python 3.11+ from the repository root:
 
 ```powershell
