@@ -7,7 +7,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     SEA_RELEASE_DIR=/home/app/app/data/release_main \
-    SEA_STATE_PATH=/home/app/app/runs/a3-demo/state.sqlite \
+    SEA_STATE_PATH=/home/app/app/runs/integrated-demo/state.sqlite \
+    SEA_INTEGRATED=1 \
     HF_HUB_DISABLE_PROGRESS_BARS=1
 
 COPY --chown=app:app deploy/requirements.txt ./deploy/requirements.txt

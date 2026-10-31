@@ -7,8 +7,9 @@ app_port: 7860
 # Docker Space setup
 
 This is a synthetic simulation using immutable release SQLite inputs. It does
-not credit a real Shopee wallet or call a financial provider. The existing UI
-and A3 HTTP API are served; A1 draft UI is not a claim of live A1 transport.
+not credit a real Shopee wallet or call a financial provider. NEXT runs the real
+local A3, A2 and A1 modules; messages and effects use a SQLite-backed web inbox.
+This demonstrates prepared synthetic data, not live marketplace orders.
 
 Prepare a Space repository from the application source allowlist below. Copy
 this README to its root `README.md`, and `deploy/Dockerfile` to its root
@@ -28,9 +29,12 @@ In the Space Settings, configure:
 | --- | --- | --- |
 | `SEA_DATASET_REPO` | Variable | Actual private dataset repo ID (`owner/name`); no default ID exists |
 | `HF_TOKEN` | Secret | Read access to that private dataset; runtime only |
+| `LIVE_PRESENTER_KEY` | Secret | Required presenter password for the integrated HTTP API; enter it on the page |
+| `OPENAI_API_KEY` | Secret | Optional provider credential; the deterministic demo path does not need an LLM |
+| `SEA_INTEGRATED` | Variable | `1` runs the complete A3/A2/A1 demonstration |
 | `SEA_DATASET_REVISION` | Optional variable | Dataset revision/tag/commit; defaults to `main`; pin a commit for repeatable demos |
 | `SEA_RELEASE_DIR` | Optional variable | Defaults in Docker to `/home/app/app/data/release_main` |
-| `SEA_STATE_PATH` | Optional variable | Defaults in Docker to `/home/app/app/runs/a3-demo/state.sqlite` |
+| `SEA_STATE_PATH` | Optional variable | Defaults in Docker to `/home/app/app/runs/integrated-demo/state.sqlite` |
 
 The dataset must contain `release_main/core_14d.sqlite` and
 `release_main/ops_14d.sqlite`; `release_main/manifest.sha256` is optional. Only
@@ -41,7 +45,7 @@ download scope. Never place the token in Docker build arguments, Dockerfile,
 source files or the image.
 
 Startup command: `python -m deploy.start_space`. It validates both inputs before
-launching `python -m platform_huy.serve_ui --host 0.0.0.0 --port 7860`. A valid
+launching `python -m platform_huy.serve_ui --integrated --host 0.0.0.0 --port 7860`. A valid
 existing local release works offline without HF configuration. An invalid or
 partial existing release fails startup; explicitly repair it or select a fresh
 directory. Downloads use a temporary sibling directory and publish the complete
@@ -54,6 +58,19 @@ protection still apply within a run; the launcher does not reset a surviving
 runtime file. There is no MongoDB backend. NEXT advances simulation time by
 exactly 30 minutes; host wall time does not advance business time.
 
+Keep the Space private. The homepage loads before presenter authentication;
+every integrated API request requires `X-Presenter-Key`. Enter the dedicated
+key into the page's presenter control. It stays in page memory and is cleared
+when the page reloads. It is never embedded in URLs, HTML, logs or source files.
+For private Space API checks, use both the HF authorization header and the
+presenter header; do not place either secret in command-line arguments.
+
+The initial NEXT selects a real release COD order and opens eligible chats.
+Huy must complete the evidence-based staff review on the page before granting
+coins. Customer text is stored from the actual A1 session. Cancellation only
+queues a request requiring approval. The Next.js frontend is not part of this
+deployment's source allowlist.
+
 Startup rejects runtime paths inside the release directory or aliases of either
 source database, including hardlinks outside that directory.
 
@@ -63,8 +80,8 @@ Local image build from the application repository root:
 docker build -f deploy/Dockerfile -t sea-demo .
 ```
 
-Configure runtime variables/secrets in the hosting environment. No real Space
-deployment or private dataset download is implied by the local verification.
+Configure runtime variables/secrets in the hosting environment. Deployment and
+live HTTP evidence are recorded separately in `.scratch/runs/deploy/hf.log`.
 The local UI retains its default loopback bind and port 8765 via
 `python -m platform_huy.serve_ui`.
 
