@@ -1,6 +1,8 @@
 """All facts and handoff summaries are rendered by code, not a model."""
 
 from .guardrails import Guardrails
+from .models import CareContext, GuardSnapshot, FeedSnapshot
+from .rendering import render_facts
 import json
 from .phrases import CATALOG
 from .runtime_types import RenderedResponse, canonical, fingerprint
@@ -23,29 +25,44 @@ def public_reason(assessment) -> str:
 
 
 class ResponseRenderer:
-    version = "1"
+    version = "2"
 
     def render(self, outcome, context, phrase_id: str) -> RenderedResponse:
         text = CATALOG[phrase_id]
+        if any(code in outcome.codes for code in ("cancel_confirmation_expired", "cancel_confirmation_invalid")):
+            text = "Xác nhận hủy không còn hợp lệ. Nếu vẫn muốn hủy, bạn cần yêu cầu hủy và xác nhận lại lời nhắc mới."
         assessment = context.assessment
         reference = fingerprint(assessment) if assessment else None
+        guard = context.guard
+        domain_guard = GuardSnapshot(guard.agent_id, guard.heartbeat,
+            guard.required_feeds, tuple(FeedSnapshot(f.name, f.status, f.source_timestamp)
+                                       for f in guard.feeds),
+            () if guard.contact_allowed else ("contact_blocked",)) if guard else None
+        facts = render_facts(CareContext(assessment, None, context.items_value_vnd,
+                            domain_guard, "unknown"), cutoff=context.cutoff)
         if phrase_id.startswith("explain") or phrase_id == "opening":
+            text += " " + facts.text
             if assessment and Guardrails().validate_context(context).allowed:
-                eta = assessment.revised_eta.isoformat() if assessment.revised_eta else "chưa xác định"
-                text += f" Ngày cam kết: {assessment.guaranteed_date.isoformat()}. ETA: {eta}."
-                text += f" Cập nhật: {assessment.assessed_at.isoformat()}."
                 text += " " + public_reason(assessment)
-            else:
-                text += " Thông tin hiện tại chưa được xác nhận; ETA chưa xác định."
-        return RenderedResponse(text, phrase_id, reference)
+        return RenderedResponse(text, phrase_id, reference, facts.evidence_refs,
+                                facts.public_evidence, facts.decision_codes)
 
-    def render_handoff(self, state, context, *, event=None, history=(), effects=(), previous_pending=None) -> str:
+    def render_handoff(self, state, context, *, event=None, history=(), effects=(), previous_pending=None, reason=None, evidence_refs=(), receipts=()) -> str:
         statements = [{"label": "customer_statement", "text": item.get("text") or "",
                        "kind": item.get("kind")} for item in history]
         if event is not None:
             statements.append({"label": "customer_statement", "text": event.text or "",
                                "kind": event.kind})
         return canonical({"order_id": state.order_id, "status": state.status,
+            "reason": reason, "evidence_refs": evidence_refs,
+            "action_receipts": receipts,
+            "cancellation_state": "invalidated" if previous_pending else "none",
+            "customer_need": statements,
+            "facts_trust": {"available": context.assessment is not None,
+                "current_and_trusted": Guardrails().validate_context(context).allowed,
+                "codes": Guardrails().validate_context(context).codes,
+                "assessed_at": context.assessment.assessed_at if context.assessment else None,
+                "cutoff": context.cutoff},
             "turn_count": state.turn_count, "pending_confirmation": state.pending,
             "invalidated_confirmation": previous_pending,
             "assessment_ref": fingerprint(context.assessment) if context.assessment else None,

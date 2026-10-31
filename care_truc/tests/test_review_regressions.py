@@ -10,20 +10,20 @@ from care_truc.api import CareApi
 from care_truc.lifecycle import CareRuntime
 from care_truc.runtime_types import CareError, CustomerEvent, fingerprint
 from care_truc.hooks import RuntimeHooks
-from .helpers import CUSTOMER, STAFF, NOW, Gate
+from .helpers import SYSTEM, CUSTOMER, STAFF, NOW, Gate
 from .test_recovery import adapters
 
 
-def test_text_confirmation_replies_to_actual_assistant_message(tmp_path):
+def test_explicit_confirmation_replies_to_actual_assistant_message(tmp_path):
     async def check():
         runtime=await CareRuntime.start('run',adapters(),root=tmp_path,background=False)
         api=CareApi(runtime.harness)
         sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
-        await api.handle('prepare_cancel',{'session_id':sid,'request_id':'cancel'},CUSTOMER)
+        prepared=await api.handle('prepare_cancel',{'session_id':sid,'request_id':'cancel'},CUSTOMER)
         history=await api.handle('get_messages',{'session_id':sid},CUSTOMER)
         prompt=history.body['messages'][-1]['id']
-        result=await api.handle('handle_message',{'session_id':sid,'message_id':'confirm',
-            'text':'đồng ý','reply_to':prompt},CUSTOMER)
+        result=await api.handle('confirm_cancel',{'confirmation_id':prepared.body['confirmation_id'], 'request_id':'confirm',
+            'confirmed':True,'reply_to':prompt},CUSTOMER)
         assert result.body['status']=='pending_delivery'
         assert json.loads(runtime.store.effects()[0]['proposal'])['kind']=='action_request'
         await runtime.shutdown()
@@ -36,7 +36,7 @@ def test_interrupted_contact_opening_recovers_without_customer_turn(tmp_path):
         contact=ContactTask('contact','o1',NOW,NOW,'chat',True,'late','contact-key')
         runtime.store.db.execute("CREATE TRIGGER fail BEFORE INSERT ON evidence_bundles BEGIN SELECT RAISE(ABORT,'disk'); END")
         with pytest.raises((sqlite3.DatabaseError,CareError)):
-            await runtime.harness.open_contact(contact,CUSTOMER)
+            await runtime.harness.open_contact(contact,SYSTEM)
         runtime.store.db.execute('DROP TRIGGER fail')
         sid=runtime.store.db.execute('SELECT id FROM sessions').fetchone()[0]
         await runtime.shutdown()
@@ -86,7 +86,7 @@ def test_shutdown_waits_for_external_drain_before_releasing_store(tmp_path):
     asyncio.run(check())
 
 
-def test_repeated_handoff_after_gate_denial_remains_valid(tmp_path):
+def test_terminal_handoff_cannot_be_reopened_after_gate_denial(tmp_path):
     async def check():
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         sid=(await runtime.harness.open_chat('o1','open',CUSTOMER)).session_id
@@ -94,10 +94,11 @@ def test_repeated_handoff_after_gate_denial_remains_valid(tmp_path):
         ports['gate'].allowed=False; await runtime.harness.drain_pending()
         ports['gate'].allowed=True
         result=await CareApi(runtime.harness).handle('request_handoff',{'session_id':sid,'request_id':'h2'},CUSTOMER)
-        assert result.status==200
+        assert result.status==409
         await runtime.harness.drain_pending()
         assert len(runtime.store.effects())==1
-        assert runtime.store.load_session(sid).status=='transferred'
+        assert runtime.store.load_session(sid).status=='handoff_pending'
+        assert runtime.store.load_session(sid).turn_count==1
         await runtime.shutdown()
     asyncio.run(check())
 
@@ -106,10 +107,10 @@ def test_other_session_contact_receipt_does_not_open_d4(tmp_path):
     async def check():
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         contact=ContactTask('a','o1',NOW,NOW,'chat',True,'late','key-a')
-        first=await runtime.harness.open_contact(contact,CUSTOMER)
+        first=await runtime.harness.open_contact(contact,SYSTEM)
         ports['gateway'].outcome='succeeded'; await runtime.harness.drain_pending()
         ports['context_provider'].snapshot=replace(ports['context_provider'].snapshot,contact_sent=True)
-        second=await runtime.harness.open_contact(replace(contact,contact_id='b',idempotency_key='key-b'),CUSTOMER)
+        second=await runtime.harness.open_contact(replace(contact,contact_id='b',idempotency_key='key-b'),SYSTEM)
         result=await runtime.harness.handle_message(second.session_id,'coins','cho tôi xu',CUSTOMER)
         assert not result.effect_ids
         assert not any(json.loads(row['proposal'])['kind']=='action_request' for row in runtime.store.effects())
@@ -131,7 +132,7 @@ def test_why_uses_validated_reason_and_handoff_retains_need_and_actions(tmp_path
         assert 'hai kỳ cập nhật' in why.text
         await runtime.harness.handle_message(sid,'cancel','muốn hủy',CUSTOMER)
         cid=runtime.store.load_session(sid).pending.confirmation_id
-        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER)
+        await runtime.harness.confirm_cancel(cid,'confirm',CUSTOMER, reply_to=(await runtime.harness.session(sid)).pending.reply_to, confirmed=True)
         await runtime.harness.request_handoff(sid,'h',CUSTOMER)
         summary=json.loads((await runtime.harness.get_handoffs(STAFF))['handoffs'][0]['summary'])
         assert any('muốn hủy' in item['text'] for item in summary['customer_statements'])
@@ -167,11 +168,11 @@ def test_contact_proposal_contains_validated_opening_text(tmp_path):
     async def check():
         ports=adapters(); runtime=await CareRuntime.start('run',ports,root=tmp_path,background=False)
         contact=ContactTask('c','o1',NOW,NOW,'chat',True,'late','key')
-        result=await runtime.harness.open_contact(contact,CUSTOMER)
+        result=await runtime.harness.open_contact(contact,SYSTEM)
         proposal=json.loads(runtime.store.effect(result.effect_ids[0])['proposal'])
         payload=json.loads(proposal['payload'])
         assert 'xin lỗi' in result.text
-        assert '2026-10-28' in result.text
+        assert '28/10/2026' in result.text
         assert payload['text']==result.text
         assert payload['contact']['contact_id']=='c'
         history=await runtime.harness.get_messages(result.session_id,CUSTOMER)

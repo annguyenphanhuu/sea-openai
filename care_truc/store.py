@@ -32,7 +32,13 @@ class MemoryStore:
                     raise ValueError("unsupported_schema")
             else:
                 db.executescript(Path(__file__).with_name("schema.sql").read_text())
-            return cls(db)
+            from .cancellation import SCHEMA
+            db.executescript(SCHEMA)
+            store = cls(db)
+            from .cancellation import quarantine_legacy_cancellations
+            with store.transaction():
+                quarantine_legacy_cancellations(store)
+            return store
         except BaseException:
             db.close()
             raise
@@ -51,7 +57,13 @@ class MemoryStore:
         with self.transaction():
             row = self.db.execute("SELECT id FROM sessions WHERE open_key=?", (open_key,)).fetchone()
             if row:
-                return self.load_session(row[0])
+                existing = self.load_session(row[0])
+                if (existing.run_id, existing.principal_id, existing.order_id,
+                    existing.channel, existing.opened_by, existing.contact_id, existing.open_fingerprint) != (
+                    state.run_id, state.principal_id, state.order_id,
+                    state.channel, state.opened_by, state.contact_id, state.open_fingerprint):
+                    raise CareError("request_conflict")
+                return existing
             self.db.execute("INSERT INTO sessions VALUES(?,?,?,?,?,?,?)",
                 (state.session_id, state.run_id, state.principal_id, state.order_id,
                  open_key, canonical(state), state.version))
@@ -66,6 +78,8 @@ class MemoryStore:
             pending = data["pending"]
             pending["expires_at"] = datetime.fromisoformat(pending["expires_at"])
             data["pending"] = PendingCancellation(**pending)
+        if data.get("last_cutoff"):
+            data["last_cutoff"] = datetime.fromisoformat(data["last_cutoff"])
         data["version"] = row[1]
         return SessionState(**data)
 
@@ -78,6 +92,9 @@ class MemoryStore:
 
     def begin_request(self, session_id: str, principal_id: str, event: CustomerEvent, fingerprint: str):
         with self.transaction():
+            state = self.load_session(session_id)
+            if state.principal_id != principal_id:
+                raise CareError("not_found", 404)
             existing = self.find_request(session_id, principal_id, event.request_id)
             if existing:
                 if existing["fingerprint"] != fingerprint:
@@ -104,6 +121,11 @@ class MemoryStore:
             request = self.request(request_id)
             if request["phase"] == "committed":
                 return self.response(request)
+            current = self.load_session(request["session_id"])
+            identity = ("session_id", "run_id", "principal_id", "order_id", "channel",
+                        "opened_by", "contact_id", "open_fingerprint")
+            if any(getattr(current, name) != getattr(outcome.state, name) for name in identity):
+                raise CareError("session_identity_conflict")
             if token is not None and (token.request_id != request_id
                     or token.state_version != expected_version
                     or request["session_id"] != outcome.state.session_id
@@ -119,16 +141,27 @@ class MemoryStore:
                 (canonical(state), state.version, state.session_id, expected_version)).rowcount
             if not changed:
                 raise CareError("state_conflict")
+            from .cancellation import commit_lifecycle
+            commit_lifecycle(self, current, state, outcome, request_id)
             self.db.execute("INSERT INTO evidence_bundles VALUES(?,?,?,?)",
                             (request_id, request_id, evidence, trace))
             opening = json.loads(request["payload"])["kind"] == "open_contact"
             self._event(state.session_id, request_id + ":customer", "opening" if opening else "customer",
                         request["payload"], "staff" if opening else "customer")
-            self._event(state.session_id, request_id + ":response", "response", canonical(response))
             if outcome.invalidate_unsent:
                 self.db.execute("UPDATE pending_effects SET state='blocked' WHERE session_id=? AND attempts=0 AND state IN ('pending_delivery','retry_wait') AND json_extract(proposal,'$.kind')!='handoff_request'", (state.session_id,))
             for proposal in outcome.proposals:
                 self._save_proposal(proposal, request_id, state)
+            if outcome.proposals:
+                ids = tuple(self.db.execute(
+                    "SELECT id FROM pending_effects WHERE run_id=? AND effect_key=?",
+                    (state.run_id, proposal.key)).fetchone()[0] for proposal in outcome.proposals)
+                response = replace(response, effect_ids=ids)
+                trace_data = json.loads(trace)
+                trace_data["effect_ids"] = ids
+                self.db.execute("UPDATE evidence_bundles SET trace=? WHERE request_id=?",
+                                (canonical(trace_data), request_id))
+            self._event(state.session_id, request_id + ":response", "response", canonical(response))
             self.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
                             (canonical(response), evidence, request_id))
         return response
@@ -213,6 +246,8 @@ class MemoryStore:
         data = json.loads(row["response"])
         data["codes"] = tuple(data["codes"])
         data["effect_ids"] = tuple(data["effect_ids"])
+        for name in ("evidence_refs", "public_evidence"):
+            data[name] = tuple(data.get(name, ()))
         return TurnResult(**data)
 
     def close(self) -> None:
@@ -264,3 +299,85 @@ class MemoryStore:
         pending = self.db.execute("SELECT count(*) FROM pending_effects WHERE state IN ('pending_delivery','retry_wait','in_flight')").fetchone()[0]
         unknown = self.db.execute("SELECT count(*) FROM pending_effects WHERE state='needs_reconciliation'").fetchone()[0]
         return pending, unknown
+
+    def has_open_session(self, open_key: str) -> bool:
+        return self.db.execute("SELECT 1 FROM sessions WHERE open_key=?", (open_key,)).fetchone() is not None
+
+    def cancellation_record(self, confirmation_id: str, run_id: str, principal_id: str, *, session_id: str | None = None) -> dict | None:
+        row = self.db.execute("SELECT * FROM cancellations WHERE id=? AND run_id=? AND principal_id=?",
+            (confirmation_id, run_id, principal_id)).fetchone()
+        if row is None or (session_id is not None and row["session_id"] != session_id):
+            return None
+        return dict(row)
+
+    def legacy_confirmation_session(self, confirmation_id: str, run_id: str, principal_id: str) -> str:
+        row = self.db.execute(
+            "SELECT id FROM sessions WHERE run_id=? AND principal=? AND json_extract(data,'$.pending.confirmation_id')=?",
+            (run_id, principal_id, confirmation_id)).fetchone()
+        if row is None:
+            raise CareError("not_found", 404)
+        return row["id"]
+
+    def replay_cancellation_alias(self, state: SessionState, event: CustomerEvent) -> TurnResult | None:
+        if event.kind != "confirm_cancel" or event.confirmed is not True:
+            return None
+        from .runtime_types import fingerprint
+        with self.transaction():
+            consumed = self.cancellation_record(event.confirmation_id, state.run_id,
+                state.principal_id, session_id=state.session_id)
+            if (consumed is None or consumed["status"] != "consumed"
+                    or event.reply_to != json.loads(consumed["data"])["reply_to"]):
+                return None
+            original = self.request(consumed["consumed_request"])
+            alias = self.find_request(state.session_id, state.principal_id, event.request_id)
+            if alias is not None and alias["fingerprint"] != fingerprint(event):
+                raise CareError("request_conflict")
+            if alias is None:
+                internal_id = uuid4().hex
+                self.db.execute("INSERT INTO requests(id,run_id,session_id,principal,client_id,fingerprint,payload,phase,base_version) VALUES(?,?,?,?,?,?,?,'processing',?)",
+                    (internal_id, state.run_id, state.session_id, state.principal_id, event.request_id,
+                     fingerprint(event), canonical(event), state.version))
+                alias = self.request(internal_id)
+            self.db.execute("UPDATE requests SET phase='committed',response=?,context=? WHERE id=?",
+                (original["response"], original["context"], alias["id"]))
+            return self.response(original)
+
+    def coins_reserved(self, run_id: str, order_id: str) -> bool:
+        return self.db.execute(
+            "SELECT 1 FROM pending_effects WHERE run_id=? "
+            "AND json_extract(proposal,'$.order_id')=? "
+            "AND json_extract(proposal,'$.kind')='action_request' "
+            "AND json_extract(json_extract(proposal,'$.payload'),'$.kind')='coins'",
+            (run_id, order_id)).fetchone() is not None
+
+    def session_receipts(self, session_id: str) -> list[dict]:
+        return [json.loads(row[0]) for row in self.db.execute(
+            "SELECT data FROM receipts WHERE effect_id IN (SELECT id FROM pending_effects WHERE session_id=?) ORDER BY effect_id,revision",
+            (session_id,))]
+
+    def handoff_effect(self, run_id: str, session_id: str) -> dict | None:
+        row = self.db.execute(
+            "SELECT * FROM pending_effects WHERE run_id=? AND session_id=? AND json_extract(proposal,'$.kind')='handoff_request'",
+            (run_id, session_id)).fetchone()
+        return dict(row) if row is not None else None
+
+    def requeue_handoff(self, state: SessionState, row: dict) -> int:
+        return self.db.execute(
+            "UPDATE pending_effects SET state='pending_delivery',next_at=0 "
+            "WHERE id=? AND run_id=? AND session_id=? AND effect_key=? "
+            "AND revision=? AND proposal=? AND state='blocked' AND attempts=0 "
+            "AND manual=0 AND outcome='unknown' AND EXISTS ("
+            "SELECT 1 FROM sessions WHERE id=? AND run_id=? AND principal=? "
+            "AND order_id=? AND version=? AND json_extract(data,'$.status')='handoff_pending')",
+            (row["id"], state.run_id, state.session_id, row["effect_key"], row["revision"],
+             row["proposal"], state.session_id, state.run_id, state.principal_id,
+             state.order_id, state.version)).rowcount
+
+    def quarantine_legacy_cancellations(self) -> None:
+        from .cancellation import quarantine_legacy_cancellations
+        with self.transaction():
+            quarantine_legacy_cancellations(self)
+
+    def lacks_cancellation_evidence(self, row: dict) -> bool:
+        from .cancellation import lacks_cancellation_evidence
+        return lacks_cancellation_evidence(self, row)

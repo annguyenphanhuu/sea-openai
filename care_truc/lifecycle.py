@@ -81,7 +81,8 @@ class CareRuntime:
                     data = json.loads(event.text)
                     for name in ("assessment_at", "created_at"):
                         data[name] = datetime.fromisoformat(data[name])
-                    await self.harness.open_contact(ContactTask(**data), ctx)
+                    await self.harness.open_contact(ContactTask(**data),
+                        TrustedRequestContext(row["principal"], frozenset({"care_contact"})))
                 else:
                     await self.harness._process_event(row["session_id"], event, ctx)
             except CareError:
