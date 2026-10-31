@@ -1,79 +1,73 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Button, Skeleton, SkeletonItem, Switch } from "@fluentui/react-components";
-import { ArrowClockwise, ShieldCheck, WarningCircle, ArrowRight, Package, ChatText, Database, ArrowUpRight } from "@phosphor-icons/react";
-import { loadSnapshot } from "@/lib/api";
-import type { Preview, Scenario, Snapshot } from "@/lib/demo";
+import { useEffect, useRef, useState } from "react";
+import { Button, Input, Textarea } from "@fluentui/react-components";
+import { requestRuntime, statusLabels, type Command, type Runtime } from "@/lib/runtime";
 import { Shell, type View } from "./shell";
-import { OrderList } from "./order-list";
-import { OrderWorkspace } from "./order-workspace";
 
-type LoadState = { kind: "loading" } | { kind: "ready"; snapshot: Snapshot } | { kind: "error"; message: string };
-const headings: Record<View, { title: string; description: string }> = {
-    overview: { title: "Mọi đơn hàng, trong tầm nhìn.", description: "Ưu tiên đúng đơn. Hiểu bằng chứng. Liên hệ có kiểm soát." },
-    guard: { title: "Dữ liệu đáng tin, quyết định an toàn.", description: "Kiểm tra điều kiện trước khi chủ động chăm sóc khách hàng." },
-    logistics: { title: "Hiểu hành trình của từng đơn.", description: "Theo dõi đánh giá A2, ngày cam kết và bằng chứng vận chuyển." },
-    care: { title: "Chăm sóc từ những điều đã biết.", description: "Chuẩn bị nội dung theo dữ kiện, chuyển người khi cần." },
-};
+type Load = { kind: "loading" } | { kind: "ready"; value: Runtime } | { kind: "error"; message: string };
+const date = (value: string | null | undefined) => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa có dữ liệu";
 
 export function Operations() {
     const [view, setView] = useState<View>("overview");
-    const [scenario, setScenario] = useState<Scenario>("healthy");
-    const [load, setLoad] = useState<LoadState>({ kind: "loading" });
-    const [reload, setReload] = useState(0);
-    const [selected, setSelected] = useState("DEMO-0281");
-    const [previews, setPreviews] = useState<Preview[]>([]);
+    const [load, setLoad] = useState<Load>({ kind: "loading" });
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+    const [query, setQuery] = useState("");
+    const [text, setText] = useState("");
+    const sequence = useRef(0);
+    const mutationLock = useRef(false);
+    const pendingMessage = useRef<Extract<Command, { kind: "say" }> | null>(null);
     useEffect(() => {
-        const controller = new AbortController();
-        loadSnapshot(scenario, controller.signal).then((snapshot) => {
-            if (!controller.signal.aborted) setLoad({ kind: "ready", snapshot });
-        }).catch((error: unknown) => {
-            if (!controller.signal.aborted) setLoad({ kind: "error", message: error instanceof Error ? error.message : "Không thể tải dữ liệu." });
-        });
-        return () => controller.abort();
-    }, [scenario, reload]);
-
-    function refresh() { setLoad({ kind: "loading" }); setReload((value) => value + 1); }
-    function changeScenario(failure: boolean) {
-        setLoad({ kind: "loading" }); setScenario(failure ? "failure" : "healthy");
+        let active = true;
+        requestRuntime().then(value => { if (active) setLoad({ kind: "ready", value }); })
+            .catch(error => { if (active) setLoad({ kind: "error", message: error instanceof Error ? error.message : "Không thể tải dữ liệu." }); });
+        return () => { active = false; };
+    }, []);
+    async function run(input?: Command | { order_id?: string; session_id?: string }) {
+        if (mutationLock.current) return;
+        mutationLock.current = true;
+        const request = ++sequence.current;
+        setBusy(true); setError("");
+        try {
+            const value = await requestRuntime(input);
+            if (request === sequence.current) setLoad({ kind: "ready", value });
+            return true;
+        } catch (error) {
+            setError(error instanceof Error ? error.message : "Không thể thực hiện yêu cầu.");
+            return false;
+        } finally { mutationLock.current = false; setBusy(false); }
     }
-    function savePreview(preview: Preview) {
-        setPreviews((items) => items.some((item) => item.orderId === preview.orderId && item.kind === preview.kind) ? items : [...items, preview]);
+    const value = load.kind === "ready" ? load.value : null;
+    const order = value?.orders.find(item => item.order_id === value.selected_order_id);
+    const rows = value?.orders.filter(item => item.order_id.toLowerCase().includes(query.toLowerCase())) ?? [];
+    async function say(message: string, reply_to?: string) {
+        if (!value?.chat) return;
+        const previous = pendingMessage.current;
+        if (previous && (previous.session_id !== value.chat.session_id || previous.text !== message || previous.reply_to !== reply_to)) {
+            setError("Tin nhắn trước chưa rõ kết quả. Gửi lại đúng nội dung để đối soát trước khi gửi nội dung mới.");
+            return;
+        }
+        const command = previous ?? { kind: "say", session_id: value.chat.session_id, text: message, request_id: crypto.randomUUID(), ...(reply_to ? { reply_to } : {}) };
+        pendingMessage.current = command;
+        if (await run(command)) { setText(""); pendingMessage.current = null; }
     }
-    const order = load.kind === "ready" ? load.snapshot.orders.find((item) => item.id === selected) ?? load.snapshot.orders[0] : undefined;
     return <Shell view={view} onView={setView}>
-        <div className="page-heading"><div><div className="page-kicker">CHỢ PHỐ CARE</div><h1>{headings[view].title}</h1><p>{headings[view].description}</p></div><Button icon={<ArrowClockwise size={17} />} disabled={load.kind === "loading"} onClick={refresh}>Tải lại dữ liệu</Button></div>
-        {load.kind === "loading" && <LoadingWorkspace />}
-        {load.kind === "error" && <div className="panel error-state" role="alert"><WarningCircle size={38} /><h2>Chưa thể tải phòng điều hành</h2><p>{load.message}</p><Button appearance="primary" onClick={refresh}>Thử lại</Button></div>}
-        {load.kind === "ready" && <>
-            <div className={`guard-banner ${load.snapshot.contactGate ? "" : "guard-failure"}`} role="status"><span className="guard-icon">{load.snapshot.contactGate ? <ShieldCheck size={23} weight="duotone" /> : <WarningCircle size={23} />}</span><div><strong>{load.snapshot.contactGate ? "Nguồn ổn định trong kịch bản minh họa" : "A3 đang chặn liên hệ chủ động"}</strong><p>{load.snapshot.contactGate ? "Tiếp tục kiểm tra bằng chứng và điều kiện riêng của từng đơn." : "Nguồn dữ liệu gặp sự cố minh họa. Chưa được chuẩn bị liên hệ chủ động."}</p></div><button onClick={() => setView(view === "guard" ? "overview" : "guard")}>{view === "guard" ? "Về tổng quan" : "Xem giám sát"}<ArrowRight size={16} /></button></div>
-            {view !== "guard" && <>
-                <section className="metrics-strip" aria-label="Tổng quan dữ liệu minh họa">
-                    <Metric label="Đơn đang theo dõi" value={load.snapshot.orders.length} icon={<Package size={18} />} note="Trong phiên minh họa" />
-                    <Metric label="Đơn cần chú ý" value={load.snapshot.orders.filter((item) => (item.probability ?? 0) >= 70).length} icon={<WarningCircle size={18} />} note="Trễ hoặc có nguy cơ trễ" accent />
-                    <Metric label="Bản nháp đã chuẩn bị" value={previews.filter((item) => item.kind === "draft").length} icon={<ChatText size={18} />} note="Chưa gửi đến khách hàng" />
-                    <Metric label="Đơn thiếu dữ liệu" value={load.snapshot.orders.filter((item) => item.status === "unknown_feed").length} icon={<Database size={18} />} note="Cần kiểm tra nguồn" />
+        <div className="page-heading"><div><div className="page-kicker">CHỢ PHỐ CARE</div><h1>Phòng điều hành tích hợp.</h1><p>Dữ liệu replay → A3 → A2 → A1. Tin nhắn và hành động được lưu trong phiên local.</p></div><div className="runtime-buttons"><Button disabled={busy} onClick={() => run()}>Tải lại dữ liệu</Button><Button appearance="primary" disabled={busy || !value} onClick={() => run({ kind: "next" })}>NEXT +30 phút</Button></div></div>
+        {load.kind === "loading" && <p role="status">Đang kết nối pipeline...</p>}
+        {load.kind === "error" && <div className="panel error-state" role="alert"><h2>Chưa thể tải phòng điều hành</h2><p>{load.message}</p><Button disabled={busy} onClick={() => run()}>Thử lại</Button></div>}
+        {error && <p className="inline-error" role="alert">{error}</p>}
+        {busy && <p role="status">Đang xử lý...</p>}
+        {value && <>
+            <div className={`guard-banner ${value.proactive_allowed ? "" : "guard-failure"}`} role="status"><div><strong>{value.proactive_allowed ? "A3 cho phép kiểm tra liên hệ chủ động" : "A3 đang chặn liên hệ chủ động"}</strong><p>{date(value.now)} · {value.phase_trace.join(" → ") || "Chưa chạy tick. Nhấn NEXT để đánh giá dữ liệu."}</p></div></div>
+            <section className="metrics-strip" aria-label="Tổng quan runtime">{[["Đơn đã đánh giá", value.orders_total], ["Hàng đợi liên hệ", value.contact_queue_total], ["Phiên chat đang mở", value.active_chats.length], ["Bản ghi xu local", value.ledger_total]].map(([label, count]) => <div className="metric" key={label}><div className="metric-label">{label}</div><strong>{count}</strong></div>)}</section>
+            {view === "guard" ? <section className="panel guard-details"><h2>Giám sát A3</h2><p>Heartbeat {value.guard_alive ? "đang hoạt động" : "không hoạt động"}. Bật lại A3 cần NEXT để cập nhật nhịp.</p><div className="runtime-buttons"><Button disabled={busy} onClick={() => run({ kind: "kill" })}>Dừng A3</Button><Button disabled={busy} onClick={() => run({ kind: "revive" })}>Bật lại A3</Button></div><h3>Nguồn dữ liệu</h3>{value.feed_health.map(feed => <p key={feed.feed}>{feed.feed} · {feed.status} · {date(feed.source_timestamp)}</p>)}<h3>Phân bố đánh giá A2</h3><pre>{JSON.stringify(value.label_counts, null, 2)}</pre></section> : <div className="operations-grid">
+                <section className="panel order-panel" aria-label="Danh sách đơn hàng"><div className="panel-heading"><div><h2>Hàng đợi liên hệ A2</h2><p>{value.orders.length} đơn đang hiển thị trên {value.orders_total} đơn đã đánh giá.</p></div></div><div className="list-tools"><Input aria-label="Tìm đơn hàng" placeholder="Tìm mã đơn..." value={query} onChange={(_, data) => setQuery(data.value)} /></div><div className="order-rows">{rows.map(item => <button key={item.order_id} disabled={busy} className={`order-row ${item.order_id === order?.order_id ? "is-selected" : ""}`} onClick={() => run({ order_id: item.order_id })} aria-label={`Xem đơn ${item.order_id}`}><strong>{item.order_id}</strong><span className={`order-status status-${item.status}`}>{statusLabels[item.status]}</span><span>{item.guaranteed_date}</span><span>{Math.round(item.late_probability * 100)}%</span></button>)}</div>{!rows.length && <div className="empty-state">Chưa có đơn trong hàng đợi. Chạy NEXT hoặc tìm mã khác.</div>}<div className="list-footer">Hàng đợi ưu tiên từ backend, tối đa 30 đơn và đơn đang chọn.</div><div className="list-tools"><h3>Phiên đang mở</h3>{value.active_chats.map(chat => <Button key={chat.session_id} disabled={busy} onClick={() => run({ session_id: chat.session_id })}>{chat.order_id} · {chat.status}</Button>)}</div></section>
+                <section className="panel runtime-detail" aria-label="Chi tiết đơn hàng"><div className="detail-heading"><h2>{order?.order_id ?? "Chọn đơn hàng"}</h2>{order && <p>{statusLabels[order.status]} · Bên có lỗi {order.fault_party}</p>}</div>{order && <div className="detail-body"><dl className="date-grid"><div><dt>Ngày cam kết</dt><dd>{order.guaranteed_date}</dd></div><div><dt>ETA mới</dt><dd>{date(order.revised_eta)}</dd></div><div><dt>Ngày đặt</dt><dd>{date(order.created_at)}</dd></div><div><dt>Bàn giao hãng</dt><dd>{date(order.handed_over_at)}</dd></div></dl><p>{order.late_days} ngày trễ · Độ tin {Math.round(order.confidence * 100)}%</p><p>{order.reason_codes.join(" · ")}</p><details><summary>Bằng chứng A2</summary><pre>{JSON.stringify(order.evidence, null, 2)}</pre></details><Button disabled={busy || !value.proactive_allowed || !!value.chat} onClick={() => run({ kind: "open", order_id: order.order_id })}>Mở chat A1</Button></div>}
+                    <div className="detail-body"><h3>Hội thoại A1</h3>{value.chat ? <><p>Phiên {value.chat.session_id} · {value.chat.status}</p><div className="runtime-messages" aria-live="polite">{value.chat.messages.map(message => <div className="message-bubble" key={message.id}><small>{message.kind === "customer" ? "Khách" : "A1"}</small><p>{message.text}</p></div>)}</div><form onSubmit={event => { event.preventDefault(); say(text); }}><label htmlFor="customer-text">Tin nhắn khách trong phiên local</label><Textarea id="customer-text" value={text} disabled={busy || value.chat.status === "transferred"} onChange={(_, data) => setText(data.value)} /><div className="runtime-buttons"><Button type="submit" appearance="primary" disabled={busy || !text.trim() || value.chat.status === "transferred"}>Gửi text</Button><Button disabled={busy || value.chat.status === "transferred"} onClick={() => say("Tôi muốn gặp nhân viên")}>Yêu cầu gặp nhân viên</Button>{value.chat.pending && <Button disabled={busy} onClick={() => say("Đồng ý", value.chat?.pending?.reply_to)}>Xác nhận yêu cầu hủy</Button>}</div></form></> : <p>Chưa mở phiên. NEXT tự mở các liên hệ đủ điều kiện qua A1.</p>}</div>
                 </section>
-                <div className={`operations-grid ${view === "care" ? "care-grid" : ""}`}>
-                    <div className="list-column"><OrderList orders={load.snapshot.orders} selected={selected} onSelect={setSelected} compact={view === "care"} />
-                        <div className="workflow-summary"><div><h2>Ba vai trò. Một luồng chăm sóc.</h2><p>Dữ liệu trước, đánh giá sau, rồi mới liên hệ.</p></div><div className="workflow-steps"><span><b>A3</b> Kiểm tra nguồn</span><ArrowRight size={15} /><span><b>A2</b> Đánh giá đơn</span><ArrowRight size={15} /><span><b>A1</b> Chăm sóc</span></div><button onClick={() => setView("guard")} aria-label="Xem luồng giám sát dữ liệu"><ArrowUpRight size={19} /></button></div>
-                    </div>
-                    {order && <OrderWorkspace key={`${order.id}:${scenario}:${view}`} order={order} scenario={scenario} onPreview={savePreview} completed={previews} initialTab={view === "logistics" ? "timeline" : view === "care" ? "conversation" : "summary"} />}
-                </div>
-            </>}
-            {view === "guard" && <GuardDetails snapshot={load.snapshot} />}
+            </div>}
+            <details className="demo-controls"><summary>Bản ghi thực thi local</summary><p>{value.outbox_total} outbox · {value.handoffs.length} chuyển nhân viên. Ledger local không phải thanh toán vào ví bên ngoài. Hủy cần xác nhận lại và chờ duyệt.</p><pre>{JSON.stringify({ ledger: value.ledger, outbox: value.outbox, cancellations: value.cancellations, handoffs: value.handoffs }, null, 2)}</pre></details>
         </>}
-        <details className="demo-controls"><summary>Điều khiển phiên minh họa</summary><div><Switch checked={scenario === "failure"} disabled={load.kind === "loading"} onChange={(_, data) => changeScenario(data.checked)} label="Mô phỏng sự cố nguồn dữ liệu" /><p>Chỉ thay đổi kịch bản demo. Không chạy replay, không mở khóa cổng thực thi.</p>{load.kind === "ready" && <p>Thời điểm mẫu: {load.snapshot.assessedAt}, giờ Việt Nam.</p>}<p>Bản nháp và xem trước chuyển người mất khi tải lại trang.</p></div></details>
     </Shell>;
-}
-
-function Metric({ label, value, icon, note, accent = false }: { label: string; value: number; icon: React.ReactNode; note: string; accent?: boolean }) {
-    return <div className={`metric ${accent ? "metric-accent" : ""}`}><div className="metric-label">{label}{icon}</div><strong>{String(value).padStart(2, "0")}</strong><small>{note}</small></div>;
-}
-function LoadingWorkspace() {
-    return <Skeleton aria-label="Đang tải phòng điều hành" className="loading-workspace"><SkeletonItem shape="rectangle" style={{ height: 74 }} /><div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-8">{[1, 2, 3, 4].map((item) => <SkeletonItem key={item} shape="rectangle" style={{ height: 100 }} />)}</div><div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6"><SkeletonItem shape="rectangle" style={{ height: 430 }} /><SkeletonItem shape="rectangle" style={{ height: 600 }} /></div></Skeleton>;
-}
-function GuardDetails({ snapshot }: { snapshot: Snapshot }) {
-    return <section className="panel guard-details"><div className="guard-detail-title"><ShieldCheck size={28} /><h2>Điều kiện liên hệ chủ động</h2><p>Đây là trạng thái kịch bản UI, chưa phải kết quả A3 chạy thật.</p></div><div className="guard-rules"><article><span>A3</span><h3>Nguồn dữ liệu và heartbeat</h3><p>Nguồn stale, corrupt, missing hoặc heartbeat thiếu / quá 60 phút đều chặn liên hệ chủ động.</p><strong>{snapshot.contactGate ? "Kịch bản: gate ổn định" : "Kịch bản: gate đang chặn"}</strong></article><article><span>A2</span><h3>Đánh giá theo từng đơn</h3><p>Không tự đổi fault hoặc ETA. Dữ liệu thiếu phải được hiển thị rõ; không suy đoán ngày giao.</p><strong>{snapshot.orders.filter((item) => item.status === "unknown_feed").length} đơn mẫu thiếu dữ liệu</strong></article><article><span>A1</span><h3>Chăm sóc có kiểm soát</h3><p>Chỉ xem trước nội dung dựa trên dữ kiện. Không cấp tiền từ giao diện; voice không cấp xu.</p><strong>Chưa kết nối gửi tin nhắn</strong></article></div></section>;
 }
